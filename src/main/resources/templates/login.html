@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Login - AGERP</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .brand { font-family: 'Poppins', sans-serif; }
+
+        .input-focus {
+            transition: all 0.2s ease;
+        }
+        .input-focus:focus {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased bg-gradient-to-br from-gray-50 via-white to-indigo-50/60">
+
+<!-- Navbar -->
+<header class="bg-slate-900 border-b border-slate-800/70 sticky top-0 z-50">
+    <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="flex h-16 items-center justify-between">
+            <a href="/" class="brand text-2xl font-bold text-white tracking-tight hover:text-indigo-400 transition-colors">
+                AGERP
+            </a>
+            <a href="/começar-agora"
+               class="text-sm font-medium text-slate-200 hover:text-white transition-colors">
+                Criar conta grátis
+            </a>
+        </div>
+    </nav>
+</header>
+
+<main class="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="w-full max-w-md">
+
+        <div class="bg-white shadow-2xl rounded-3xl p-10 border border-gray-100">
+
+            <!-- Header -->
+            <div class="text-center mb-10">
+                <div class="mx-auto w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mb-4">
+                    <span class="text-3xl">🔐</span>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Bem-vindo de volta</h1>
+                <p class="mt-3 text-gray-600 text-lg">Faça login para acessar sua conta</p>
+            </div>
+
+            <!-- Mensagens -->
+            <div th:if="${param.error}"
+                 class="mb-8 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-center text-sm font-medium">
+                ⚠️ Credenciais inválidas. Verifique seu email e senha.
+            </div>
+
+            <div th:if="${param.logout}"
+                 class="mb-8 p-4 bg-green-50 border border-green-200 text-green-700 rounded-2xl text-center text-sm font-medium">
+                ✅ Você saiu com sucesso. Até logo!
+            </div>
+
+            <!-- Formulário -->
+            <form th:action="@{/login}" method="post" id="loginForm" class="space-y-7">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-gray-700 mb-1.5">E-mail</label>
+                    <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            required
+                            autocomplete="email"
+                            autofocus
+                            class="input-focus block w-full rounded-2xl border-gray-300 shadow-sm py-3.5 px-5 text-base placeholder-gray-400 focus:border-indigo-500 focus:ring-indigo-500"
+                            placeholder="seuemail@empresa.com.br"
+                    >
+                </div>
+
+                <!-- Senha -->
+                <div>
+                    <label for="password" class="block text-sm font-semibold text-gray-700 mb-1.5">Senha</label>
+                    <div class="relative">
+                        <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                required
+                                autocomplete="current-password"
+                                class="input-focus block w-full rounded-2xl border-gray-300 shadow-sm py-3.5 px-5 text-base placeholder-gray-400 focus:border-indigo-500 focus:ring-indigo-500 pr-12"
+                                placeholder="••••••••"
+                        >
+                        <button type="button" id="togglePassword"
+                                class="absolute inset-y-0 right-0 pr-5 flex items-center text-gray-400 hover:text-gray-600 transition-colors">
+                            👁
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Opções -->
+                <div class="flex items-center justify-between text-sm">
+                    <div class="flex items-center">
+                        <input id="remember" name="remember" type="checkbox"
+                               class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                        <label for="remember" class="ml-2 text-gray-700 select-none">Lembrar-me</label>
+                    </div>
+                    <a href="/esqueci-senha"
+                       class="text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
+                        Esqueci a senha
+                    </a>
+                </div>
+
+                <!-- Botão Entrar -->
+                <button
+                        type="submit"
+                        id="submitBtn"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 transition-all duration-200 text-white font-semibold py-4 rounded-2xl text-base shadow-lg shadow-indigo-200 hover:shadow-indigo-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center justify-center gap-2">
+                    <span id="btnText">Entrar</span>
+                    <span id="btnSpinner" class="hidden animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+                </button>
+            </form>
+
+            <!-- Separador -->
+            <div class="relative my-8">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-200"></div>
+                </div>
+                <div class="relative flex justify-center">
+                    <span class="bg-white px-6 text-sm text-gray-500">ou</span>
+                </div>
+            </div>
+
+            <!-- Link para cadastro -->
+            <p class="text-center text-gray-600">
+                Não tem uma conta?
+                <a href="/começar-agora"
+                   class="font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
+                    Crie uma grátis agora
+                </a>
+            </p>
+        </div>
+
+        <!-- Social Proof -->
+        <p class="mt-10 text-center text-sm text-gray-500">
+            +180 negócios já confiam no AGERP
+        </p>
+    </div>
+</main>
+
+<!-- Footer -->
+<footer class="bg-slate-900 border-t border-slate-800/70 mt-auto">
+    <div class="mx-auto max-w-7xl px-6 py-6 text-center text-slate-400 text-sm">
+        © 2026 AGERP • Todos os direitos reservados •
+        <a href="/termos" class="hover:text-slate-300 transition">Termos</a> •
+        <a href="/privacidade" class="hover:text-slate-300 transition">Privacidade</a>
+    </div>
+</footer>
+
+<!-- JavaScript -->
+<script>
+    // Toggle senha
+    const toggleBtn = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+
+    toggleBtn.addEventListener('click', () => {
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        toggleBtn.textContent = isPassword ? '🙈' : '👁';
+    });
+
+    // Loading no botão
+    const form = document.getElementById('loginForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const btnSpinner = document.getElementById('btnSpinner');
+
+    form.addEventListener('submit', () => {
+        btnText.classList.add('hidden');
+        btnSpinner.classList.remove('hidden');
+        submitBtn.disabled = true;
+    });
+
+    // Validação simples (opcional)
+    form.addEventListener('submit', (e) => {
+        const email = document.getElementById('email').value.trim();
+        const password = passwordInput.value.trim();
+
+        if (!email || !password) {
+            e.preventDefault();
+            alert('Por favor, preencha o email e a senha.');
+            btnText.classList.remove('hidden');
+            btnSpinner.classList.add('hidden');
+            submitBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,25 @@
+-- Caso o banco agdb não exista, ele cria
+SELECT 'CREATE DATABASE agdb' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'agdb')\gexec
+
+-- Conecta no banco agdb para rodar o restante do script
+\c agdb
+
+-- Criar e selecionar schema
+CREATE SCHEMA IF NOT EXISTS agerp;
+SET search_path TO agerp, public;
+
+DROP TABLE IF EXISTS agerp.log_sistema CASCADE;
+DROP TABLE IF EXISTS agerp.pagamento CASCADE;
+DROP TABLE IF EXISTS agerp.previsao_entrega CASCADE;
+DROP TABLE IF EXISTS agerp.entrega CASCADE;
+DROP TABLE IF EXISTS agerp.item_pedido CASCADE;
+DROP TABLE IF EXISTS agerp.pedido CASCADE;
+DROP TABLE IF EXISTS agerp.movimentacao_estoque CASCADE;
+DROP TABLE IF EXISTS agerp.estoque CASCADE;
+DROP TABLE IF EXISTS agerp.produto CASCADE;
+DROP TABLE IF EXISTS agerp.endereco CASCADE;
+DROP TABLE IF EXISTS agerp.cliente CASCADE;
+DROP TABLE IF EXISTS agerp.usuario CASCADE;
+DROP TABLE IF EXISTS agerp.perfil CASCADE;
+
+DROP SCHEMA IF EXISTS agerp CASCADE;

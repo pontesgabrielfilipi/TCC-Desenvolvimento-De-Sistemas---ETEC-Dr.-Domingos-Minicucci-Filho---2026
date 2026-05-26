@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos globais */
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+@layer components {
+    .brand {
+        font-family: 'Poppins', sans-serif;
+    }
+}

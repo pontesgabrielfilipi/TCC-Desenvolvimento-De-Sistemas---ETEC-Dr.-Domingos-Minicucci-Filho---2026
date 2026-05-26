@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/docker/postgres/init/v2_create_users.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/docker/postgres/init/v2_init.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/docker/postgres/init/v2_seed_test.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/scripts/db/v2_clear_db.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/scripts/db/v2_clear_tables.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/scripts/db/v2_db_test.sql" dialect="PostgreSQL" />
+    <file url="PROJECT" dialect="PostgreSQL" />
+  </component>
+</project>
