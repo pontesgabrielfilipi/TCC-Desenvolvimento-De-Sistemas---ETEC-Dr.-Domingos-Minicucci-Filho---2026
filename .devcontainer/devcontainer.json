@@ -1,13 +1,13 @@
 {
   "name": "TCC Agerp - Java 25 + Node + Python",
-  "image": "mcr.microsoft.com/devcontainers/java:1-21",
-
+  "image": "mcr.microsoft.com/devcontainers/java:1-25",
+  
   "features": {
     "ghcr.io/devcontainers/features/java:1": {
-      "version": "25",
       "jdkDistro": "temurin",
       "installMaven": "true",
       "mavenVersion": "3.9.11"
+      // Removemos o "version": "25" porque a imagem base já traz Java 25
     },
     "ghcr.io/devcontainers/features/node:1": {
       "version": "latest",
@@ -17,8 +17,7 @@
       "version": "3.12"
     }
   },
-
+  
   "postCreateCommand": "java --version && mvn --version && node --version && python --version",
-
   "remoteUser": "vscode"
 }
