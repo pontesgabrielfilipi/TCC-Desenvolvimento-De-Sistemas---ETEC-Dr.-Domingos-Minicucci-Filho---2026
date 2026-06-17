@@ -3,17 +3,15 @@
   "image": "mcr.microsoft.com/devcontainers/java:25-trixie",
 
   "features": {
-    "ghcr.io/devcontainers/features/java:1": {
-      "jdkDistro": "temurin",
-      "installMaven": "true",
-      "mavenVersion": "3.9.11"
-    },
     "ghcr.io/devcontainers/features/node:1": {
       "version": "latest",
       "installYarn": true
     },
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.12"
+    },
+    "ghcr.io/devcontainers-extra/features/maven-sdkman:1": {
+      "version": "3.9.11"
     }
   },
 
