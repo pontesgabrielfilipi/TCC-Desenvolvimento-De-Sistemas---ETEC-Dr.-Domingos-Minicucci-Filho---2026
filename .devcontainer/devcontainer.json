@@ -9,12 +9,10 @@
     },
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.12"
-    },
-    "ghcr.io/devcontainers-extra/features/maven-sdkman:1": {
-      "version": "3.9.11"
     }
   },
 
-  "postCreateCommand": "java --version && mvn --version && node --version && python --version",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y maven && java --version && mvn --version && node --version && python --version",
+
   "remoteUser": "vscode"
 }
