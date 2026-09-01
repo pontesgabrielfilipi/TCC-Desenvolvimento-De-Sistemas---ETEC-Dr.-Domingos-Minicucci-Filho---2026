@@ -8,6 +8,7 @@ import com.agerp.agerp.repository.EnderecoRepository;   // ← Adicionado
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +22,7 @@ public class ClienteService {
     private final ClienteRepository clienteRepository;
     private final EnderecoRepository enderecoRepository;   // ← Injetado
 
-    @Cacheable(value = "clientes", key = "'todos'")
+    @Cacheable("clientes")
     @Transactional(readOnly = true)
     public List<ClienteResponse> listarTodos() {
         return clienteRepository.findAll().stream()
@@ -29,7 +30,7 @@ public class ClienteService {
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(value = "clientes", key = "#id")
+    @Cacheable(value = "clientePorId", key = "#id")
     @Transactional(readOnly = true)
     public ClienteResponse buscarPorId(Integer id) {
         Cliente cliente = clienteRepository.findById(id)
@@ -37,7 +38,11 @@ public class ClienteService {
         return toResponse(cliente);
     }
 
-    @CacheEvict(value = "clientes", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "clientes", allEntries = true),
+            @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
+    })
     @Transactional
     public ClienteResponse criar(ClienteCreateRequest request) {
         if (request.getCpfCnpj() != null && clienteRepository.existsByCpfCnpj(request.getCpfCnpj())) {
@@ -58,7 +63,12 @@ public class ClienteService {
         return toResponse(cliente);
     }
 
-    @CacheEvict(value = "clientes", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "clientes", allEntries = true),
+            @CacheEvict(cacheNames = "clientePorId", key = "#id"),
+            @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
+    })
     @Transactional
     public ClienteResponse atualizar(Integer id, ClienteCreateRequest request) {
         Cliente cliente = clienteRepository.findById(id)
@@ -75,7 +85,12 @@ public class ClienteService {
     }
 
 
-    @CacheEvict(value = "clientes", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "clientes", allEntries = true),
+            @CacheEvict(cacheNames = "clientePorId", key = "#id"),
+            @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
+    })
     @Transactional
     public void deletar(Integer id) {
         if (!clienteRepository.existsById(id)) {

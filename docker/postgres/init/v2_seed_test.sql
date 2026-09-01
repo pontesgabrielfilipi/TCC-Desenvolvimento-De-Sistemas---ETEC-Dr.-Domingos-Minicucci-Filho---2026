@@ -18,8 +18,8 @@ VALUES ('ADMIN', 'Administrador do sistema'),
        ('OPERADOR', 'Operador padrão');
 
 INSERT INTO usuario (nome, email, senha_hash, id_perfil)
-VALUES ('Admin Master', 'admin@teste.com', 'hash123', 1),
-       ('Operador Silva', 'operador@teste.com', 'hash123', 2);
+VALUES ('Admin Master', 'admin@agerp.com', '$2a$12$GGuqRK1hd7JJAnzsZWzblOqtORqpm3MSR.V/BCKALxsLGGqKIDiAK', 1),
+       ('Operador Silva', 'operador@agerp.com', '$2a$12$GGuqRK1hd7JJAnzsZWzblOqtORqpm3MSR.V/BCKALxsLGGqKIDiAK', 2);
 
 INSERT INTO cliente (tipo, nome_razao, cpf_cnpj, email, telefone)
 VALUES ('PF', 'João da Silva', '12345678900', 'joao@email.com', '11999999999');

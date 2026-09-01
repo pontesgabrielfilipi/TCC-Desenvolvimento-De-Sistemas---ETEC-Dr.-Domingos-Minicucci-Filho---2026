@@ -2,13 +2,12 @@ package com.agerp.agerp.controller;
 
 import com.agerp.agerp.dto.LogSistemaResponse;
 import com.agerp.agerp.dto.UsuarioResponse;
-import com.agerp.agerp.entity.LogSistema;
+import com.agerp.agerp.service.AdminService;
 import com.agerp.agerp.service.LogSistemaService;
 import com.agerp.agerp.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +19,7 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")   // ← Mudança importante aqui
 public class AdminController {
 
+    private final AdminService adminService;
     private final UsuarioService usuarioService;
     private final LogSistemaService logSistemaService;
 
@@ -40,22 +40,16 @@ public class AdminController {
 
     @GetMapping("/estatisticas")
     public ResponseEntity<Map<String, Object>> estatisticas() {
-        return ResponseEntity.ok(Map.of(
-                "totalUsuarios", usuarioService.countTotalUsuarios(),
-                "usuariosAtivos", usuarioService.countUsuariosAtivos()
-        ));
+        return ResponseEntity.ok(adminService.estatisticas());
     }
 
     @GetMapping("/configuracoes")
     public ResponseEntity<Map<String, Object>> configuracoes() {
-        return ResponseEntity.ok(Map.of(
-                "versao", "1.0.0",
-                "ambiente", "Desenvolvimento"
-        ));
+        return ResponseEntity.ok(adminService.configuracoes());
     }
 
     @GetMapping("/relatorios")
     public ResponseEntity<String> relatorios() {
-        return ResponseEntity.ok("Relatórios em desenvolvimento");
+        return ResponseEntity.ok(adminService.relatorios());
     }
 }

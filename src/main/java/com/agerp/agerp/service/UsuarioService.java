@@ -10,6 +10,7 @@ import com.agerp.agerp.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +26,11 @@ public class UsuarioService {
     private final PerfilRepository perfilRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @CacheEvict(value = "usuarios", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "usuarios", allEntries = true),
+            @CacheEvict(cacheNames = "usuariosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true)
+    })
     @Transactional
     public UsuarioResponse criar(UsuarioCreateRequest request) {
         if (usuarioRepository.existsByEmail(request.getEmail())) {
@@ -46,7 +51,7 @@ public class UsuarioService {
         return toResponse(usuario);
     }
 
-    @Cacheable(value = "usuarios", key = "'todos'")
+    @Cacheable("usuarios")
     @Transactional(readOnly = true)
     public List<UsuarioResponse> listarTodos() {
         return usuarioRepository.findAll().stream()
@@ -54,7 +59,7 @@ public class UsuarioService {
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(value = "usuarios", key = "'ativos'")
+    @Cacheable("usuariosAtivos")
     @Transactional(readOnly = true)
     public List<UsuarioResponse> listarAtivos() {
         return usuarioRepository.findByAtivoTrue().stream()
@@ -62,7 +67,7 @@ public class UsuarioService {
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(value = "usuarios", key = "#id")
+    @Cacheable(value = "usuarioPorId", key = "#id")
     @Transactional(readOnly = true)
     public UsuarioResponse buscarPorId(Integer id) {
         Usuario usuario = usuarioRepository.findById(id)
@@ -70,7 +75,7 @@ public class UsuarioService {
         return toResponse(usuario);
     }
 
-    @Cacheable(value = "usuarios", key = "#email")
+    @Cacheable(value = "usuarioPorEmail", key = "#email")
     @Transactional(readOnly = true)
     public UsuarioResponse buscarPorEmail(String email) {
         Usuario usuario = usuarioRepository.findByEmail(email)
@@ -78,7 +83,13 @@ public class UsuarioService {
         return toResponse(usuario);
     }
 
-    @CacheEvict(value = "usuarios", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "usuarios", allEntries = true),
+            @CacheEvict(cacheNames = "usuariosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "usuarioPorId", key = "#id"),
+            @CacheEvict(cacheNames = "usuarioPorEmail", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true)
+    })
     @Transactional
     public UsuarioResponse atualizar(Integer id, UsuarioUpdateRequest request) {
         Usuario usuario = usuarioRepository.findById(id)
@@ -104,7 +115,13 @@ public class UsuarioService {
         return toResponse(usuario);
     }
 
-    @CacheEvict(value = "usuarios", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "usuarios", allEntries = true),
+            @CacheEvict(cacheNames = "usuariosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "usuarioPorId", key = "#id"),
+            @CacheEvict(cacheNames = "usuarioPorEmail", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true)
+    })
     @Transactional
     public void deletar(Integer id) {
         Usuario usuario = usuarioRepository.findById(id)
@@ -113,7 +130,13 @@ public class UsuarioService {
         usuarioRepository.save(usuario);
     }
 
-    @CacheEvict(value = "usuarios", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "usuarios", allEntries = true),
+            @CacheEvict(cacheNames = "usuariosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "usuarioPorId", key = "#id"),
+            @CacheEvict(cacheNames = "usuarioPorEmail", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true)
+    })
     @Transactional
     public void deletarPermanente(Integer id) {
         if (!usuarioRepository.existsById(id)) {

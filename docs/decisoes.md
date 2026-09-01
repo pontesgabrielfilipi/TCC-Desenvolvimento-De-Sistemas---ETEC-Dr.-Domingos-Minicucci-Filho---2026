@@ -73,3 +73,13 @@ O material acadêmico inicial citava Spring Boot 3 e React 18. O repositório at
 - Estado: `docs/tarefas.md`.
 - Problemas: `docs/problemas.md`.
 - Conteúdo acadêmico: `docs/tcc/`.
+
+## 11. Cache interno com Caffeine
+
+**Status:** adotada.
+
+O backend usa Spring Cache com Caffeine para cache interno de leituras frequentes. Cada cache possui TTL previsível com `expireAfterWrite()` e tamanho máximo próprio.
+
+O cache Caffeine é aplicado na camada de Service, não em Controllers. Operações de escrita não são cacheadas; elas invalidam os caches relacionados via `@CacheEvict` e `@Caching`.
+
+`Cache-Control` HTTP continua separado do cache interno. Endpoints sensíveis como autenticação, health check, produtos e logs administrativos não devem ser tratados como cache HTTP público.

@@ -331,10 +331,10 @@ const Produtos = () => {
                             {produtosFiltrados.map((produto) => (
                                 <tr key={produto.id} className="hover:bg-gray-50 transition">
                                     <td className="px-6 py-4 font-medium">{produto.nome}</td>
-                                    <td className="px-6 py-4">R$ {produto.preco.toFixed(2)}</td>
-                                    <td className="px-6 py-4">R$ {produto.custo.toFixed(2)}</td>
-                                    <td className="px-6 py-4 text-center font-bold">{produto.quantidadeAtual}</td>
-                                    <td className="px-6 py-4 text-center">{produto.quantidadeMinima}</td>
+                                    <td className="px-6 py-4">R$ {(produto.preco ?? 0).toFixed(2)}</td>
+                                    <td className="px-6 py-4">R$ {produto.custo != null ? produto.custo.toFixed(2) : "—"}</td>
+                                    <td className="px-6 py-4 text-center font-bold">{(produto.quantidadeAtual ?? 0)}</td>
+                                    <td className="px-6 py-4 text-center">{(produto.quantidadeMinima ?? 0)}</td>
                                     <td className="px-6 py-4 text-center">
                                             <span className={`px-3 py-1 text-xs rounded-full ${produto.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                                 {produto.ativo ? 'Sim' : 'Não'}
