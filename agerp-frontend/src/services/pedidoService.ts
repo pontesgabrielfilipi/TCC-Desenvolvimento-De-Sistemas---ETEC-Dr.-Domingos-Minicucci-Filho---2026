@@ -1,0 +1,80 @@
+import api from '../api/axiosInstance';
+
+export interface ItemPedidoRequest {
+    idProduto: number;
+    quantidade: number;
+}
+
+export interface ItemPedidoResponse {
+    id: number;
+    idProduto: number;
+    nomeProduto: string;
+    quantidade: number;
+    precoUnitario: number;
+    subtotal: number;
+}
+
+export interface PedidoResponse {
+    id: number;
+    idCliente: number;
+    nomeCliente: string;
+    dataPedido: string;
+    status: string;
+    valorTotal: number;
+    idUsuario: number | null;
+    nomeUsuario: string | null;
+    observacoes: string | null;
+    itens: ItemPedidoResponse[];
+}
+
+export interface PedidoCreateRequest {
+    idCliente: number;
+    itens: ItemPedidoRequest[];
+    observacoes?: string;
+}
+
+export interface PedidoUpdateRequest {
+    idCliente: number;
+    itens: ItemPedidoRequest[];
+    observacoes?: string;
+}
+
+export const pedidoService = {
+    async listar() {
+        return await api.get('/api/pedidos');
+    },
+
+    async listarPorStatus(status: string) {
+        return await api.get(`/api/pedidos/status/${status}`);
+    },
+
+    async listarPorCliente(idCliente: number) {
+        return await api.get(`/api/pedidos/cliente/${idCliente}`);
+    },
+
+    async buscarPorId(id: number) {
+        return await api.get(`/api/pedidos/${id}`);
+    },
+
+    async criar(payload: PedidoCreateRequest) {
+        return await api.post('/api/pedidos', payload);
+    },
+
+    async atualizar(id: number, payload: PedidoUpdateRequest) {
+        return await api.put(`/api/pedidos/${id}`, payload);
+    },
+
+    async mudarStatus(id: number, status: string) {
+        return await api.patch(`/api/pedidos/${id}/status`, null, {
+            params: { status }
+        });
+    },
+
+    async cancelar(id: number) {
+        return await api.post(`/api/pedidos/${id}/cancelar`);
+    },
+
+    async deletar(id: number) {
+        return await api.delete(`/api/pedidos/${id}`);
+    }
+};

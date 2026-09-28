@@ -12,6 +12,7 @@ import Home from "../pages/index/Home.tsx";
 import TermosDeUso from "../pages/termos/TermosDeUso.tsx";
 import Privacidade from "../pages/privacidade/Privacidade.tsx";
 import Produtos from "../pages/produtos/Produtos.tsx";
+import Pedidos from "../pages/pedidos/Pedidos.tsx";
 
 const AppRoutes = () => {
     return (
@@ -27,7 +28,8 @@ const AppRoutes = () => {
             <Route element={<PrivateRoute />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/clientes" element={<Clientes />} />
-                <Route path={"/produtos"} element={<Produtos />} />;
+                <Route path={"/produtos"} element={<Produtos />} />
+                <Route path={"/pedidos"} element={<Pedidos />} />
                 <Route path="/admin" element={<Admin />} />
 
                 {/* Página para usuários sem perfil */}

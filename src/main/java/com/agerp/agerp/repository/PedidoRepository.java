@@ -67,4 +67,9 @@ public interface PedidoRepository extends JpaRepository<Pedido, Integer> {
     long countPedidosPendentes();
 
     List<Pedido> findTop10ByOrderByDataPedidoDesc();
+
+    // ====================== PEDIDO SERVICE ======================
+    List<Pedido> findByStatus(String status);
+
+    List<Pedido> findByIdCliente_Id(Integer idCliente);
 }

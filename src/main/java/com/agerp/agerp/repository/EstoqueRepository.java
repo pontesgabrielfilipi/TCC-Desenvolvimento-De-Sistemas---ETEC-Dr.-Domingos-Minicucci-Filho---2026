@@ -10,12 +10,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Repository
 public interface EstoqueRepository extends JpaRepository<Estoque, Integer> {
 
     /** Busca estoque pelo ID do produto (usado no toResponse do ProdutoService) */
     Estoque findByIdProdutoId(Integer produtoId);
+
+    /** Busca estoque pelo ID do produto (com Optional, para PedidoService) */
+    Optional<Estoque> findByIdProduto_Id(Integer produtoId);
 
     /** Conta produtos com estoque baixo */
     long countByQuantidadeAtualLessThan(Integer quantidade);

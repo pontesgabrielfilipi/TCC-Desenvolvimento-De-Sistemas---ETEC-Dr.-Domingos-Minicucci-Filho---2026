@@ -1,9 +1,4 @@
-import axios from 'axios';
-
-const api = axios.create({
-    baseURL: 'http://localhost:8080',
-    withCredentials: true,
-});
+import api from '../api/axiosInstance.ts';   // ← importa o axios configurado que você acabou de enviar
 
 export const logService = {
     async listarTodos() {
