@@ -26,6 +26,7 @@ public class PedidoService {
     private final ClienteRepository clienteRepository;
     private final ProdutoRepository produtoRepository;
     private final EstoqueRepository estoqueRepository;
+    private final MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
     private final UsuarioRepository usuarioRepository;
 
     // ====================== TRANSIÇÕES DE STATUS VÁLIDAS ======================
@@ -86,6 +87,7 @@ public class PedidoService {
     @Caching(evict = {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
             @CacheEvict(cacheNames = "pedidosPorStatus", allEntries = true),
+            @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
@@ -102,7 +104,7 @@ public class PedidoService {
             throw new IllegalArgumentException("Pedido deve conter pelo menos um item");
         }
 
-        // Validar produtos e estoque
+        // Validar produtos e checar disponibilidade de estoque
         Map<Integer, ItemPedidoRequest> produtosUnicos = new HashMap<>();
         BigDecimal valorTotal = BigDecimal.ZERO;
 
@@ -118,7 +120,7 @@ public class PedidoService {
                     .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado com ID: " + item.getIdProduto()));
 
             // Produto ativo?
-            if (!produto.getAtivo()) {
+            if (produto.getAtivo() != null && !produto.getAtivo()) {
                 throw new IllegalArgumentException("Produto inativo (ID: " + item.getIdProduto() + ")");
             }
 
@@ -131,16 +133,16 @@ public class PedidoService {
             Estoque estoque = estoqueRepository.findByIdProduto_Id(item.getIdProduto())
                     .orElseThrow(() -> new IllegalArgumentException("Estoque não encontrado para produto ID: " + item.getIdProduto()));
 
-            if (estoque.getQuantidadeAtual() < item.getQuantidade()) {
+            if (estoque.getQuantidadeAtual() == null || estoque.getQuantidadeAtual() < item.getQuantidade()) {
                 throw new IllegalArgumentException(
                         "Estoque insuficiente para produto '" + produto.getNome() + "'. " +
-                        "Disponível: " + estoque.getQuantidadeAtual() + ", " +
+                        "Disponível: " + (estoque.getQuantidadeAtual() != null ? estoque.getQuantidadeAtual() : 0) + ", " +
                         "Solicitado: " + item.getQuantidade()
                 );
             }
 
             // Somar ao total
-            BigDecimal subtotal = produto.getPreco().multiply(new BigDecimal(item.getQuantidade()));
+            BigDecimal subtotal = produto.getPreco().multiply(BigDecimal.valueOf(item.getQuantidade()));
             valorTotal = valorTotal.add(subtotal);
         }
 
@@ -158,7 +160,7 @@ public class PedidoService {
         // ========== CRIAR ITENS ==========
 
         for (ItemPedidoRequest itemRequest : request.getItens()) {
-            Produto produto = produtoRepository.findById(itemRequest.getIdProduto()).get();
+            Produto produto = produtoRepository.findById(itemRequest.getIdProduto()).orElseThrow();
             
             ItemPedido item = new ItemPedido();
             item.setIdPedido(pedido);
@@ -167,6 +169,7 @@ public class PedidoService {
             item.setPrecoUnitario(produto.getPreco());
             
             itemPedidoRepository.save(item);
+            pedido.getItens().add(item);
         }
 
         return toResponse(pedido);
@@ -178,6 +181,8 @@ public class PedidoService {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
             @CacheEvict(cacheNames = "pedidoPorId", key = "#id"),
             @CacheEvict(cacheNames = "pedidosPorStatus", allEntries = true),
+            @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
+            @CacheEvict(cacheNames = "pedidosPrevisaoIa", key = "#id"),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
@@ -195,7 +200,7 @@ public class PedidoService {
         Cliente cliente = clienteRepository.findById(request.getIdCliente())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado com ID: " + request.getIdCliente()));
 
-        // Validar itens (mesma lógica da criação)
+        // Validar itens
         if (request.getItens() == null || request.getItens().isEmpty()) {
             throw new IllegalArgumentException("Pedido deve conter pelo menos um item");
         }
@@ -212,7 +217,7 @@ public class PedidoService {
             Produto produto = produtoRepository.findById(item.getIdProduto())
                     .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado com ID: " + item.getIdProduto()));
 
-            if (!produto.getAtivo()) {
+            if (produto.getAtivo() != null && !produto.getAtivo()) {
                 throw new IllegalArgumentException("Produto inativo (ID: " + item.getIdProduto() + ")");
             }
 
@@ -223,28 +228,29 @@ public class PedidoService {
             Estoque estoque = estoqueRepository.findByIdProduto_Id(item.getIdProduto())
                     .orElseThrow(() -> new IllegalArgumentException("Estoque não encontrado para produto ID: " + item.getIdProduto()));
 
-            if (estoque.getQuantidadeAtual() < item.getQuantidade()) {
+            if (estoque.getQuantidadeAtual() == null || estoque.getQuantidadeAtual() < item.getQuantidade()) {
                 throw new IllegalArgumentException(
                         "Estoque insuficiente para produto '" + produto.getNome() + "'. " +
-                        "Disponível: " + estoque.getQuantidadeAtual() + ", " +
+                        "Disponível: " + (estoque.getQuantidadeAtual() != null ? estoque.getQuantidadeAtual() : 0) + ", " +
                         "Solicitado: " + item.getQuantidade()
                 );
             }
 
-            BigDecimal subtotal = produto.getPreco().multiply(new BigDecimal(item.getQuantidade()));
+            BigDecimal subtotal = produto.getPreco().multiply(BigDecimal.valueOf(item.getQuantidade()));
             valorTotal = valorTotal.add(subtotal);
         }
 
-        // Atualizar pedido
+        // Atualizar dados gerais do pedido
         pedido.setIdCliente(cliente);
         pedido.setValorTotal(valorTotal);
 
-        // Remover itens antigos e adicionar novos
+        // Remover itens antigos
         itemPedidoRepository.deleteAll(pedido.getItens());
         pedido.getItens().clear();
 
+        // Adicionar novos itens
         for (ItemPedidoRequest itemRequest : request.getItens()) {
-            Produto produto = produtoRepository.findById(itemRequest.getIdProduto()).get();
+            Produto produto = produtoRepository.findById(itemRequest.getIdProduto()).orElseThrow();
             
             ItemPedido item = new ItemPedido();
             item.setIdPedido(pedido);
@@ -253,18 +259,22 @@ public class PedidoService {
             item.setPrecoUnitario(produto.getPreco());
             
             itemPedidoRepository.save(item);
+            pedido.getItens().add(item);
         }
 
         pedido = pedidoRepository.save(pedido);
         return toResponse(pedido);
     }
 
-    // ====================== MUDAR STATUS ======================
+    // ====================== MUDAR STATUS E CONTROLE DE ESTOQUE ======================
 
     @Caching(evict = {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
             @CacheEvict(cacheNames = "pedidoPorId", key = "#id"),
             @CacheEvict(cacheNames = "pedidosPorStatus", allEntries = true),
+            @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
+            @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
@@ -275,6 +285,11 @@ public class PedidoService {
 
         String statusAtual = pedido.getStatus();
 
+        // Se já está no status solicitado, operação é idempotente
+        if (novoStatus.equalsIgnoreCase(statusAtual)) {
+            return toResponse(pedido);
+        }
+
         // Validar novo status
         if (!TRANSICOES_VALIDAS.containsKey(novoStatus)) {
             throw new IllegalArgumentException("Status inválido: " + novoStatus);
@@ -282,11 +297,24 @@ public class PedidoService {
 
         // Validar transição
         Set<String> transicoesPermitidas = TRANSICOES_VALIDAS.get(statusAtual);
-        if (!transicoesPermitidas.contains(novoStatus)) {
+        if (transicoesPermitidas == null || !transicoesPermitidas.contains(novoStatus)) {
             throw new IllegalArgumentException(
                     "Transição inválida de '" + statusAtual + "' para '" + novoStatus + "'. " +
-                    "Transições permitidas: " + transicoesPermitidas
+                    "Transições permitidas: " + (transicoesPermitidas != null ? transicoesPermitidas : "nenhuma")
             );
+        }
+
+        // ========== REGRA CRÍTICA DE ESTOQUE: BAIXA AO CONFIRMAR ==========
+        if ("PENDENTE".equals(statusAtual) && "CONFIRMADO".equals(novoStatus)) {
+            executarBaixaEstoque(pedido);
+        }
+
+        // ========== REGRA CRÍTICA DE ESTOQUE: ESTORNO AO CANCELAR ==========
+        if ("CANCELADO".equals(novoStatus)) {
+            // Apenas pedidos que já tiveram o estoque baixado devem estornar
+            if ("CONFIRMADO".equals(statusAtual) || "EM_PREPARACAO".equals(statusAtual) || "PRONTO".equals(statusAtual)) {
+                executarEstornoEstoque(pedido);
+            }
         }
 
         // Atualizar status
@@ -296,12 +324,66 @@ public class PedidoService {
         return toResponse(pedido);
     }
 
+    private void executarBaixaEstoque(Pedido pedido) {
+        Usuario usuario = obterUsuarioAtual();
+
+        for (ItemPedido item : pedido.getItens()) {
+            Produto produto = item.getIdProduto();
+            Estoque estoque = estoqueRepository.findByIdProduto_Id(produto.getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Estoque não encontrado para produto ID: " + produto.getId()));
+
+            int qtdAtual = estoque.getQuantidadeAtual() != null ? estoque.getQuantidadeAtual() : 0;
+            if (qtdAtual < item.getQuantidade()) {
+                throw new IllegalArgumentException(
+                        "Estoque insuficiente para confirmar o pedido. Produto: " + produto.getNome() +
+                        ". Disponível: " + qtdAtual + ", Solicitado: " + item.getQuantidade()
+                );
+            }
+
+            estoque.setQuantidadeAtual(qtdAtual - item.getQuantidade());
+            estoqueRepository.save(estoque);
+
+            MovimentacaoEstoque mov = new MovimentacaoEstoque();
+            mov.setIdProduto(produto);
+            mov.setTipo("SAIDA");
+            mov.setQuantidade(item.getQuantidade());
+            mov.setDataMovimentacao(Instant.now());
+            mov.setIdUsuario(usuario);
+            movimentacaoEstoqueRepository.save(mov);
+        }
+    }
+
+    private void executarEstornoEstoque(Pedido pedido) {
+        Usuario usuario = obterUsuarioAtual();
+
+        for (ItemPedido item : pedido.getItens()) {
+            Produto produto = item.getIdProduto();
+            Estoque estoque = estoqueRepository.findByIdProduto_Id(produto.getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Estoque não encontrado para produto ID: " + produto.getId()));
+
+            int qtdAtual = estoque.getQuantidadeAtual() != null ? estoque.getQuantidadeAtual() : 0;
+            estoque.setQuantidadeAtual(qtdAtual + item.getQuantidade());
+            estoqueRepository.save(estoque);
+
+            MovimentacaoEstoque mov = new MovimentacaoEstoque();
+            mov.setIdProduto(produto);
+            mov.setTipo("ENTRADA");
+            mov.setQuantidade(item.getQuantidade());
+            mov.setDataMovimentacao(Instant.now());
+            mov.setIdUsuario(usuario);
+            movimentacaoEstoqueRepository.save(mov);
+        }
+    }
+
     // ====================== CANCELAR ======================
 
     @Caching(evict = {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
             @CacheEvict(cacheNames = "pedidoPorId", key = "#id"),
             @CacheEvict(cacheNames = "pedidosPorStatus", allEntries = true),
+            @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
+            @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
@@ -316,6 +398,9 @@ public class PedidoService {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
             @CacheEvict(cacheNames = "pedidoPorId", key = "#id"),
             @CacheEvict(cacheNames = "pedidosPorStatus", allEntries = true),
+            @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
+            @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
@@ -324,8 +409,8 @@ public class PedidoService {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado com ID: " + id));
 
-        // Soft delete = cancelar pedido se ainda não foi entregue
-        if (!pedido.getStatus().equals("ENTREGUE")) {
+        // Soft delete = cancelar pedido se ainda não foi entregue ou já cancelado
+        if (!"ENTREGUE".equals(pedido.getStatus()) && !"CANCELADO".equals(pedido.getStatus())) {
             mudarStatus(id, "CANCELADO");
         }
     }
@@ -333,16 +418,20 @@ public class PedidoService {
     // ====================== CONVERSOR DTO ======================
 
     private PedidoResponse toResponse(Pedido pedido) {
-        List<ItemPedidoResponse> itens = pedido.getItens().stream()
-                .map(item -> new ItemPedidoResponse(
-                        item.getId(),
-                        item.getIdProduto().getId(),
-                        item.getIdProduto().getNome(),
-                        item.getQuantidade(),
-                        item.getPrecoUnitario(),
-                        item.getPrecoUnitario().multiply(new BigDecimal(item.getQuantidade()))
-                ))
-                .collect(Collectors.toList());
+        List<ItemPedidoResponse> itens = pedido.getItens() != null 
+                ? pedido.getItens().stream()
+                    .map(item -> new ItemPedidoResponse(
+                            item.getId(),
+                            item.getIdProduto().getId(),
+                            item.getIdProduto().getNome(),
+                            item.getQuantidade(),
+                            item.getPrecoUnitario(),
+                            item.getPrecoUnitario() != null && item.getQuantidade() != null
+                                    ? item.getPrecoUnitario().multiply(BigDecimal.valueOf(item.getQuantidade()))
+                                    : BigDecimal.ZERO
+                    ))
+                    .collect(Collectors.toList())
+                : Collections.emptyList();
 
         return PedidoResponse.builder()
                 .id(pedido.getId())
@@ -350,9 +439,10 @@ public class PedidoService {
                 .nomeCliente(pedido.getIdCliente().getNomeRazao())
                 .dataPedido(pedido.getDataPedido())
                 .status(pedido.getStatus())
-                .valorTotal(pedido.getValorTotal())
+                .valorTotal(pedido.getValorTotal() != null ? pedido.getValorTotal() : BigDecimal.ZERO)
                 .idUsuario(pedido.getIdUsuario() != null ? pedido.getIdUsuario().getId() : null)
                 .nomeUsuario(pedido.getIdUsuario() != null ? pedido.getIdUsuario().getNome() : null)
+                .observacoes(null)
                 .itens(itens)
                 .build();
     }

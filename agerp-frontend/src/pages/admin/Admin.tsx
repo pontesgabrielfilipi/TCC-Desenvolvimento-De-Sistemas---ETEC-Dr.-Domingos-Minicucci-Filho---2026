@@ -206,7 +206,10 @@ const Admin = () => {
                     {abaAtiva === 'usuarios' && (
                         <div>
                             <h2 className="text-xl font-semibold mb-6">Gerenciamento de Usuários</h2>
-                            <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+                            {loading ? (
+                                <div className="text-center py-16 text-gray-500 font-medium">Carregando painel de usuários...</div>
+                            ) : (
+                                <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
                                 <table className="w-full">
                                     <thead className="bg-gray-50">
                                     <tr>
@@ -237,6 +240,7 @@ const Admin = () => {
                                     </tbody>
                                 </table>
                             </div>
+                            )}
                         </div>
                     )}
 

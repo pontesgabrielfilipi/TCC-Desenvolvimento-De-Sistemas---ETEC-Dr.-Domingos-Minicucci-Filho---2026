@@ -2,46 +2,55 @@ package com.agerp.agerp;
 
 import com.agerp.agerp.dto.ItemPedidoRequest;
 import com.agerp.agerp.dto.PedidoCreateRequest;
-import com.agerp.agerp.dto.PedidoUpdateRequest;
 import com.agerp.agerp.dto.PedidoResponse;
+import com.agerp.agerp.dto.PedidoUpdateRequest;
 import com.agerp.agerp.entity.*;
 import com.agerp.agerp.repository.*;
 import com.agerp.agerp.service.PedidoService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest
-@Transactional
+@ExtendWith(MockitoExtension.class)
 public class PedidoServiceTest {
 
-    @Autowired
-    private PedidoService pedidoService;
-
-    @Autowired
+    @Mock
     private PedidoRepository pedidoRepository;
 
-    @Autowired
+    @Mock
+    private ItemPedidoRepository itemPedidoRepository;
+
+    @Mock
     private ClienteRepository clienteRepository;
 
-    @Autowired
+    @Mock
     private ProdutoRepository produtoRepository;
 
-    @Autowired
+    @Mock
     private EstoqueRepository estoqueRepository;
 
-    @Autowired
+    @Mock
+    private MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
+
+    @Mock
     private UsuarioRepository usuarioRepository;
 
-    @Autowired
-    private PerfilRepository perfilRepository;
+    @InjectMocks
+    private PedidoService pedidoService;
 
     private Cliente cliente;
     private Produto produto1;
@@ -51,299 +60,404 @@ public class PedidoServiceTest {
 
     @BeforeEach
     public void setup() {
-        // Criar perfil
-        Perfil perfil = new Perfil();
-        perfil.setNome("OPERADOR");
-        perfil = perfilRepository.save(perfil);
-
-        // Criar usuario
-        Usuario usuario = new Usuario();
-        usuario.setNome("Teste");
-        usuario.setEmail("teste@teste.com");
-        usuario.setSenhaHash("hash");
-        usuario.setIdPerfil(perfil);
-        usuarioRepository.save(usuario);
-
-        // Criar cliente
         cliente = new Cliente();
+        cliente.setId(1);
         cliente.setNomeRazao("Cliente Teste");
         cliente.setTipo("FISICA");
         cliente.setCpfCnpj("12345678900");
-        cliente.setEmail("cliente@teste.com");
-        cliente.setTelefone("11999999999");
-        cliente = clienteRepository.save(cliente);
 
-        // Criar produtos
         produto1 = new Produto();
-        produto1.setNome("Produto 1");
-        produto1.setPreco(BigDecimal.valueOf(100));
-        produto1.setCusto(BigDecimal.valueOf(50));
+        produto1.setId(10);
+        produto1.setNome("Notebook");
+        produto1.setPreco(BigDecimal.valueOf(100.00));
         produto1.setAtivo(true);
-        produto1 = produtoRepository.save(produto1);
 
         produto2 = new Produto();
-        produto2.setNome("Produto 2");
-        produto2.setPreco(BigDecimal.valueOf(200));
-        produto2.setCusto(BigDecimal.valueOf(100));
+        produto2.setId(20);
+        produto2.setNome("Mouse");
+        produto2.setPreco(BigDecimal.valueOf(50.00));
         produto2.setAtivo(true);
-        produto2 = produtoRepository.save(produto2);
 
-        // Criar estoques
         estoque1 = new Estoque();
+        estoque1.setId(100);
         estoque1.setIdProduto(produto1);
         estoque1.setQuantidadeAtual(10);
-        estoque1.setQuantidadeMinima(2);
-        estoque1 = estoqueRepository.save(estoque1);
 
         estoque2 = new Estoque();
+        estoque2.setId(200);
         estoque2.setIdProduto(produto2);
         estoque2.setQuantidadeAtual(5);
-        estoque2.setQuantidadeMinima(1);
-        estoque2 = estoqueRepository.save(estoque2);
     }
 
-    // ====================== TESTES DE CRIAÇÃO ======================
+    // ====================== TESTES DE CRIAÇÃO E CÁLCULO ======================
 
     @Test
+    @DisplayName("Deve criar pedido com sucesso e calcular valor total correto")
     public void testCriarPedidoComSucesso() {
-        PedidoCreateRequest request = new PedidoCreateRequest();
-        request.setIdCliente(cliente.getId());
-        request.setItens(List.of(
-                new ItemPedidoRequest(produto1.getId(), 2),
-                new ItemPedidoRequest(produto2.getId(), 1)
-        ));
+        when(clienteRepository.findById(1)).thenReturn(Optional.of(cliente));
+        when(produtoRepository.findById(10)).thenReturn(Optional.of(produto1));
+        when(produtoRepository.findById(20)).thenReturn(Optional.of(produto2));
+        when(estoqueRepository.findByIdProduto_Id(10)).thenReturn(Optional.of(estoque1));
+        when(estoqueRepository.findByIdProduto_Id(20)).thenReturn(Optional.of(estoque2));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(invocation -> {
+            Pedido p = invocation.getArgument(0);
+            p.setId(1);
+            return p;
+        });
+
+        PedidoCreateRequest request = new PedidoCreateRequest(
+                1,
+                List.of(
+                        new ItemPedidoRequest(10, 2), // 2 * 100 = 200
+                        new ItemPedidoRequest(20, 1)  // 1 * 50 = 50
+                ),
+                "Observação do teste"
+        );
 
         PedidoResponse response = pedidoService.criar(request);
 
-        assertNotNull(response.getId());
+        assertNotNull(response);
+        assertEquals(1, response.getId());
         assertEquals("PENDENTE", response.getStatus());
-        assertEquals(BigDecimal.valueOf(400), response.getValorTotal()); // 2*100 + 1*200
+        assertEquals(BigDecimal.valueOf(250.00), response.getValorTotal());
         assertEquals(2, response.getItens().size());
+        verify(pedidoRepository, times(1)).save(any(Pedido.class));
+        verify(itemPedidoRepository, times(2)).save(any(ItemPedido.class));
     }
 
     @Test
+    @DisplayName("Deve falhar ao criar pedido com cliente inexistente")
     public void testCriarPedidoComClienteInexistente() {
-        PedidoCreateRequest request = new PedidoCreateRequest();
-        request.setIdCliente(9999);
-        request.setItens(List.of(new ItemPedidoRequest(produto1.getId(), 1)));
+        when(clienteRepository.findById(999)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
+        PedidoCreateRequest request = new PedidoCreateRequest(
+                999,
+                List.of(new ItemPedidoRequest(10, 1)),
+                null
+        );
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
+        assertTrue(ex.getMessage().contains("Cliente não encontrado"));
     }
 
     @Test
+    @DisplayName("Deve falhar ao criar pedido sem itens")
+    public void testCriarPedidoSemItens() {
+        when(clienteRepository.findById(1)).thenReturn(Optional.of(cliente));
+
+        PedidoCreateRequest request = new PedidoCreateRequest(1, List.of(), null);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
+        assertTrue(ex.getMessage().contains("pelo menos um item"));
+    }
+
+    @Test
+    @DisplayName("Deve falhar ao criar pedido com produto inexistente")
     public void testCriarPedidoComProdutoInexistente() {
-        PedidoCreateRequest request = new PedidoCreateRequest();
-        request.setIdCliente(cliente.getId());
-        request.setItens(List.of(new ItemPedidoRequest(9999, 1)));
+        when(clienteRepository.findById(1)).thenReturn(Optional.of(cliente));
+        when(produtoRepository.findById(999)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
+        PedidoCreateRequest request = new PedidoCreateRequest(
+                1,
+                List.of(new ItemPedidoRequest(999, 1)),
+                null
+        );
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
+        assertTrue(ex.getMessage().contains("Produto não encontrado"));
     }
 
     @Test
+    @DisplayName("Deve falhar ao criar pedido com produto inativo")
     public void testCriarPedidoComProdutoInativo() {
         produto1.setAtivo(false);
-        produtoRepository.save(produto1);
+        when(clienteRepository.findById(1)).thenReturn(Optional.of(cliente));
+        when(produtoRepository.findById(10)).thenReturn(Optional.of(produto1));
 
-        PedidoCreateRequest request = new PedidoCreateRequest();
-        request.setIdCliente(cliente.getId());
-        request.setItens(List.of(new ItemPedidoRequest(produto1.getId(), 1)));
+        PedidoCreateRequest request = new PedidoCreateRequest(
+                1,
+                List.of(new ItemPedidoRequest(10, 1)),
+                null
+        );
 
-        assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
+        assertTrue(ex.getMessage().contains("inativo"));
     }
 
     @Test
-    public void testCriarPedidoComEstoqueInsuficiente() {
-        PedidoCreateRequest request = new PedidoCreateRequest();
-        request.setIdCliente(cliente.getId());
-        request.setItens(List.of(new ItemPedidoRequest(produto1.getId(), 20))); // Tem apenas 10
-
-        assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
-    }
-
-    @Test
+    @DisplayName("Deve falhar ao criar pedido com produto duplicado")
     public void testCriarPedidoComProdutoDuplicado() {
-        PedidoCreateRequest request = new PedidoCreateRequest();
-        request.setIdCliente(cliente.getId());
-        request.setItens(List.of(
-                new ItemPedidoRequest(produto1.getId(), 1),
-                new ItemPedidoRequest(produto1.getId(), 2)
-        ));
+        when(clienteRepository.findById(1)).thenReturn(Optional.of(cliente));
+        when(produtoRepository.findById(10)).thenReturn(Optional.of(produto1));
+        when(estoqueRepository.findByIdProduto_Id(10)).thenReturn(Optional.of(estoque1));
 
-        assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
-    }
-
-    @Test
-    public void testCriarPedidoSemItens() {
-        PedidoCreateRequest request = new PedidoCreateRequest();
-        request.setIdCliente(cliente.getId());
-        request.setItens(List.of());
-
-        assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
-    }
-
-    // ====================== TESTES DE LEITURA ======================
-
-    @Test
-    public void testListarTodosPedidos() {
-        pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto1.getId(), 1)),
+        PedidoCreateRequest request = new PedidoCreateRequest(
+                1,
+                List.of(
+                        new ItemPedidoRequest(10, 1),
+                        new ItemPedidoRequest(10, 2)
+                ),
                 null
-        ));
+        );
 
-        List<PedidoResponse> pedidos = pedidoService.listarTodos();
-        assertFalse(pedidos.isEmpty());
-        assertTrue(pedidos.size() >= 1);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
+        assertTrue(ex.getMessage().contains("duplicado"));
     }
 
     @Test
-    public void testBuscarPedidoPorId() {
-        PedidoResponse criado = pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto1.getId(), 1)),
+    @DisplayName("Deve falhar ao criar pedido quando o estoque for insuficiente")
+    public void testCriarPedidoComEstoqueInsuficiente() {
+        when(clienteRepository.findById(1)).thenReturn(Optional.of(cliente));
+        when(produtoRepository.findById(10)).thenReturn(Optional.of(produto1));
+        when(estoqueRepository.findByIdProduto_Id(10)).thenReturn(Optional.of(estoque1)); // tem 10
+
+        PedidoCreateRequest request = new PedidoCreateRequest(
+                1,
+                List.of(new ItemPedidoRequest(10, 25)), // pede 25
                 null
-        ));
+        );
 
-        PedidoResponse buscado = pedidoService.buscarPorId(criado.getId());
-        assertEquals(criado.getId(), buscado.getId());
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> pedidoService.criar(request));
+        assertTrue(ex.getMessage().contains("Estoque insuficiente"));
+    }
+
+    // ====================== TESTES DE MUDANÇA DE STATUS ======================
+
+    @Test
+    @DisplayName("Deve realizar transição de status válida de PENDENTE para CONFIRMADO com baixa de estoque")
+    public void testTransicaoValidaComBaixaDeEstoque() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("PENDENTE");
+        pedido.setIdCliente(cliente);
+
+        ItemPedido item = new ItemPedido();
+        item.setId(1);
+        item.setIdPedido(pedido);
+        item.setIdProduto(produto1);
+        item.setQuantidade(3);
+        item.setPrecoUnitario(produto1.getPreco());
+        pedido.getItens().add(item);
+
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+        when(estoqueRepository.findByIdProduto_Id(10)).thenReturn(Optional.of(estoque1));
+        when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedido);
+
+        PedidoResponse response = pedidoService.mudarStatus(1, "CONFIRMADO");
+
+        assertEquals("CONFIRMADO", response.getStatus());
+        assertEquals(7, estoque1.getQuantidadeAtual()); // 10 - 3 = 7
+        verify(estoqueRepository, times(1)).save(estoque1);
+        verify(movimentacaoEstoqueRepository, times(1)).save(argThat(mov ->
+                "SAIDA".equals(mov.getTipo()) && mov.getQuantidade() == 3
+        ));
     }
 
     @Test
-    public void testBuscarPedidoInexistente() {
-        assertThrows(IllegalArgumentException.class, () -> pedidoService.buscarPorId(9999));
-    }
+    @DisplayName("Deve falhar na transição com status inválido/desconhecido")
+    public void testStatusDesconhecido() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("PENDENTE");
 
-    // ====================== TESTES DE STATUS ======================
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
 
-    @Test
-    public void testMudarStatusComTransicaoValida() {
-        PedidoResponse criado = pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto1.getId(), 1)),
-                null
-        ));
-
-        PedidoResponse atualizado = pedidoService.mudarStatus(criado.getId(), "CONFIRMADO");
-        assertEquals("CONFIRMADO", atualizado.getStatus());
+        assertThrows(IllegalArgumentException.class, () -> pedidoService.mudarStatus(1, "STATUS_INEXISTENTE"));
     }
 
     @Test
-    public void testMudarStatusComTransicaoInvalida() {
-        PedidoResponse criado = pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto1.getId(), 1)),
-                null
-        ));
+    @DisplayName("Deve falhar na transição inválida (ex: PENDENTE para ENTREGUE)")
+    public void testTransicaoInvalida() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("PENDENTE");
 
-        // PENDENTE não pode ir direto para ENTREGUE
-        assertThrows(IllegalArgumentException.class, 
-                () -> pedidoService.mudarStatus(criado.getId(), "ENTREGUE"));
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> pedidoService.mudarStatus(1, "ENTREGUE"));
+        assertTrue(ex.getMessage().contains("Transição inválida"));
     }
 
     @Test
-    public void testMudarStatusInvalido() {
-        PedidoResponse criado = pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto1.getId(), 1)),
-                null
-        ));
+    @DisplayName("Operação deve ser idempotente quando transitar para o mesmo status")
+    public void testTransicaoIdempotenteMesmoStatus() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("CONFIRMADO");
+        pedido.setIdCliente(cliente);
 
-        assertThrows(IllegalArgumentException.class, 
-                () -> pedidoService.mudarStatus(criado.getId(), "STATUS_INEXISTENTE"));
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+
+        PedidoResponse response = pedidoService.mudarStatus(1, "CONFIRMADO");
+
+        assertEquals("CONFIRMADO", response.getStatus());
+        // Não deve efetuar nova baixa no estoque nem salvar pedido novamente
+        verify(estoqueRepository, never()).save(any());
+        verify(movimentacaoEstoqueRepository, never()).save(any());
     }
 
-    // ====================== TESTES DE CANCELAMENTO ======================
+    // ====================== TESTES DE CANCELAMENTO E ESTORNO ======================
 
     @Test
-    public void testCancelarPedido() {
-        PedidoResponse criado = pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto1.getId(), 1)),
-                null
-        ));
+    @DisplayName("Deve cancelar pedido PENDENTE sem realizar estorno de estoque")
+    public void testCancelarPedidoPendenteSemEstorno() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("PENDENTE");
+        pedido.setIdCliente(cliente);
 
-        PedidoResponse cancelado = pedidoService.cancelar(criado.getId());
-        assertEquals("CANCELADO", cancelado.getStatus());
+        ItemPedido item = new ItemPedido();
+        item.setId(1);
+        item.setIdPedido(pedido);
+        item.setIdProduto(produto1);
+        item.setQuantidade(3);
+        item.setPrecoUnitario(produto1.getPreco());
+        pedido.getItens().add(item);
+
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedido);
+
+        PedidoResponse response = pedidoService.cancelar(1);
+
+        assertEquals("CANCELADO", response.getStatus());
+        // Como estava PENDENTE, o estoque nunca havia sido baixado, não deve haver estorno
+        verify(estoqueRepository, never()).save(any());
+        verify(movimentacaoEstoqueRepository, never()).save(any());
     }
 
     @Test
-    public void testCancelarPedidoJaEntregue() {
-        PedidoResponse criado = pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto1.getId(), 1)),
-                null
+    @DisplayName("Deve cancelar pedido CONFIRMADO realizando estorno no estoque e gerando movimentação de ENTRADA")
+    public void testCancelarPedidoConfirmadoComEstorno() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("CONFIRMADO");
+        pedido.setIdCliente(cliente);
+
+        ItemPedido item = new ItemPedido();
+        item.setId(1);
+        item.setIdPedido(pedido);
+        item.setIdProduto(produto1);
+        item.setQuantidade(4);
+        item.setPrecoUnitario(produto1.getPreco());
+        pedido.getItens().add(item);
+
+        estoque1.setQuantidadeAtual(6); // Supondo que já havia baixado para 6
+
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+        when(estoqueRepository.findByIdProduto_Id(10)).thenReturn(Optional.of(estoque1));
+        when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedido);
+
+        PedidoResponse response = pedidoService.cancelar(1);
+
+        assertEquals("CANCELADO", response.getStatus());
+        assertEquals(10, estoque1.getQuantidadeAtual()); // 6 + 4 = 10
+        verify(estoqueRepository, times(1)).save(estoque1);
+        verify(movimentacaoEstoqueRepository, times(1)).save(argThat(mov ->
+                "ENTRADA".equals(mov.getTipo()) && mov.getQuantidade() == 4
         ));
+    }
 
-        // Ir até ENTREGUE
-        pedidoService.mudarStatus(criado.getId(), "CONFIRMADO");
-        pedidoService.mudarStatus(criado.getId(), "EM_PREPARACAO");
-        pedidoService.mudarStatus(criado.getId(), "PRONTO");
-        pedidoService.mudarStatus(criado.getId(), "ENTREGUE");
+    @Test
+    @DisplayName("Não deve permitir cancelar pedido ENTREGUE")
+    public void testNaoPermitirCancelarPedidoEntregue() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("ENTREGUE");
 
-        // Tentar cancelar
-        assertThrows(IllegalArgumentException.class, 
-                () -> pedidoService.cancelar(criado.getId()));
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+
+        assertThrows(IllegalArgumentException.class, () -> pedidoService.cancelar(1));
     }
 
     // ====================== TESTES DE ATUALIZAÇÃO ======================
 
     @Test
+    @DisplayName("Deve atualizar pedido PENDENTE com sucesso")
     public void testAtualizarPedidoPendente() {
-        PedidoResponse criado = pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto1.getId(), 1)),
-                null
-        ));
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("PENDENTE");
+        pedido.setIdCliente(cliente);
 
-        PedidoUpdateRequest atualizacao = new PedidoUpdateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto2.getId(), 2)),
-                null
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+        when(clienteRepository.findById(1)).thenReturn(Optional.of(cliente));
+        when(produtoRepository.findById(20)).thenReturn(Optional.of(produto2));
+        when(estoqueRepository.findByIdProduto_Id(20)).thenReturn(Optional.of(estoque2));
+        when(pedidoRepository.save(any(Pedido.class))).thenReturn(pedido);
+
+        PedidoUpdateRequest updateRequest = new PedidoUpdateRequest(
+                1,
+                List.of(new ItemPedidoRequest(20, 2)), // 2 * 50 = 100
+                "Obs alterada"
         );
 
-        PedidoResponse atualizado = pedidoService.atualizar(criado.getId(), atualizacao);
-        assertEquals(BigDecimal.valueOf(400), atualizado.getValorTotal());
-        assertEquals(1, atualizado.getItens().size());
+        PedidoResponse response = pedidoService.atualizar(1, updateRequest);
+
+        assertNotNull(response);
+        assertEquals(BigDecimal.valueOf(100.00), pedido.getValorTotal());
+        verify(itemPedidoRepository, times(1)).deleteAll(any());
+        verify(itemPedidoRepository, times(1)).save(any(ItemPedido.class));
     }
 
     @Test
-    public void testAtualizarPedidoNaoPendente() {
-        PedidoResponse criado = pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto1.getId(), 1)),
-                null
-        ));
+    @DisplayName("Deve falhar ao tentar atualizar pedido que não está PENDENTE")
+    public void testAtualizarPedidoNaoPendenteFalha() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("CONFIRMADO");
 
-        pedidoService.mudarStatus(criado.getId(), "CONFIRMADO");
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
 
-        PedidoUpdateRequest atualizacao = new PedidoUpdateRequest(
-                cliente.getId(),
-                List.of(new ItemPedidoRequest(produto2.getId(), 1)),
+        PedidoUpdateRequest updateRequest = new PedidoUpdateRequest(
+                1,
+                List.of(new ItemPedidoRequest(10, 1)),
                 null
         );
 
-        assertThrows(IllegalArgumentException.class, 
-                () -> pedidoService.atualizar(criado.getId(), atualizacao));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> pedidoService.atualizar(1, updateRequest));
+        assertTrue(ex.getMessage().contains("Apenas pedidos PENDENTES podem ser editados"));
     }
 
-    // ====================== TESTES DE CÁLCULO ======================
+    // ====================== TESTES DE CONSULTA ======================
 
     @Test
-    public void testCálculoTotalPedido() {
-        PedidoResponse response = pedidoService.criar(new PedidoCreateRequest(
-                cliente.getId(),
-                List.of(
-                        new ItemPedidoRequest(produto1.getId(), 3),  // 3 * 100 = 300
-                        new ItemPedidoRequest(produto2.getId(), 2)   // 2 * 200 = 400
-                ),
-                null
-        ));
+    @DisplayName("Deve listar todos os pedidos")
+    public void testListarTodos() {
+        Pedido p = new Pedido();
+        p.setId(1);
+        p.setStatus("PENDENTE");
+        p.setIdCliente(cliente);
+        p.setValorTotal(BigDecimal.TEN);
 
-        // Total deve ser 700
-        assertEquals(BigDecimal.valueOf(700), response.getValorTotal());
-        
-        // Itens devem ter subtotais corretos
-        assertEquals(BigDecimal.valueOf(300), response.getItens().get(0).getSubtotal());
-        assertEquals(BigDecimal.valueOf(400), response.getItens().get(1).getSubtotal());
+        when(pedidoRepository.findAll()).thenReturn(List.of(p));
+
+        List<PedidoResponse> lista = pedidoService.listarTodos();
+        assertEquals(1, lista.size());
+        assertEquals(1, lista.get(0).getId());
+    }
+
+    @Test
+    @DisplayName("Deve buscar pedido por ID")
+    public void testBuscarPorId() {
+        Pedido p = new Pedido();
+        p.setId(1);
+        p.setStatus("PENDENTE");
+        p.setIdCliente(cliente);
+        p.setValorTotal(BigDecimal.TEN);
+
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(p));
+
+        PedidoResponse response = pedidoService.buscarPorId(1);
+        assertEquals(1, response.getId());
+    }
+
+    @Test
+    @DisplayName("Deve falhar ao buscar pedido inexistente por ID")
+    public void testBuscarPorIdInexistente() {
+        when(pedidoRepository.findById(99)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> pedidoService.buscarPorId(99));
     }
 }

@@ -39,42 +39,62 @@ export interface PedidoUpdateRequest {
     observacoes?: string;
 }
 
+export interface PrevisaoEntregaResponse {
+    idPedido: number;
+    prazoMinimoDias: number;
+    prazoMaximoDias: number;
+    estimativaCentralDias: number;
+    status: string;
+    cidadeOrigem: string;
+    estadoOrigem: string;
+    cidadeDestino: string;
+    estadoDestino: string;
+    distanciaKm: number;
+    dataCalculo: string;
+    modeloVersao: string;
+    mensagem: string;
+}
+
 export const pedidoService = {
     async listar() {
-        return await api.get('/api/pedidos');
+        return await api.get<PedidoResponse[]>('/api/pedidos');
     },
 
     async listarPorStatus(status: string) {
-        return await api.get(`/api/pedidos/status/${status}`);
+        return await api.get<PedidoResponse[]>(`/api/pedidos/status/${status}`);
     },
 
     async listarPorCliente(idCliente: number) {
-        return await api.get(`/api/pedidos/cliente/${idCliente}`);
+        return await api.get<PedidoResponse[]>(`/api/pedidos/cliente/${idCliente}`);
     },
 
     async buscarPorId(id: number) {
-        return await api.get(`/api/pedidos/${id}`);
+        return await api.get<PedidoResponse>(`/api/pedidos/${id}`);
     },
 
     async criar(payload: PedidoCreateRequest) {
-        return await api.post('/api/pedidos', payload);
+        return await api.post<PedidoResponse>('/api/pedidos', payload);
     },
 
     async atualizar(id: number, payload: PedidoUpdateRequest) {
-        return await api.put(`/api/pedidos/${id}`, payload);
+        return await api.put<PedidoResponse>(`/api/pedidos/${id}`, payload);
     },
 
     async mudarStatus(id: number, status: string) {
-        return await api.patch(`/api/pedidos/${id}/status`, null, {
+        return await api.patch<PedidoResponse>(`/api/pedidos/${id}/status`, null, {
             params: { status }
         });
     },
 
     async cancelar(id: number) {
-        return await api.post(`/api/pedidos/${id}/cancelar`);
+        return await api.post<PedidoResponse>(`/api/pedidos/${id}/cancelar`);
     },
 
     async deletar(id: number) {
         return await api.delete(`/api/pedidos/${id}`);
+    },
+
+    async obterPrevisaoEntrega(id: number) {
+        return await api.get<PrevisaoEntregaResponse>(`/api/pedidos/${id}/previsao-entrega`);
     }
 };

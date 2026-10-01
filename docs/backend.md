@@ -102,13 +102,22 @@ Caches atuais:
 | `usuariosAtivos` | `UsuarioService.listarAtivos()` | 3 minutos | 300 |
 | `usuarioPorId` | `UsuarioService.buscarPorId(id)` | 3 minutos | 500 |
 | `usuarioPorEmail` | `UsuarioService.buscarPorEmail(email)` | 3 minutos | 500 |
+| `pedidos` | `PedidoService.listarTodos()` | 2 minutos | 500 |
+| `pedidoPorId` | `PedidoService.buscarPorId(id)` | 2 minutos | 1000 |
+| `pedidosPorStatus` | `PedidoService.listarPorStatus(status)` | 1 minuto | 100 |
+| `pedidosPorCliente` | `PedidoService.listarPorCliente(clienteId)` | 2 minutos | 500 |
+| `pedidosPrevisaoIa` | `IaPrevisaoService.obterOuCalcularPrevisao(pedidoId)` | 10 minutos | 500 |
 | `dashboardEstatisticas` | `DashboardService.getEstatisticasBasicas()` | 30 segundos | 10 |
 | `dashboardRelatorio` | `DashboardService.gerarRelatorioCompleto()` | 30 segundos | 10 |
 | `adminEstatisticas` | `AdminService.estatisticas()` | 30 segundos | 10 |
 | `adminRelatorios` | `AdminService.relatorios()` | 1 minuto | 50 |
 | `adminConfiguracoes` | `AdminService.configuracoes()` | 10 minutos | 20 |
 
-A invalidação fica na camada de Service. Escritas de produtos invalidam caches de produtos e de dashboard. Escritas de clientes invalidam caches de clientes e de dashboard. Escritas de usuários invalidam caches de usuários e estatísticas administrativas. Logs administrativos, autenticação e health check não usam Caffeine.
+A invalidação fica na camada de Service. Escritas de produtos invalidam caches de produtos e de dashboard. Escritas de clientes invalidam caches de clientes e de dashboard. Escritas de usuários invalidam caches de usuários e estatísticas administrativas. Escritas e transições de status de pedidos (`PedidoService`) invalidam atomicamente caches de pedidos (`pedidos`, `pedidoPorId`, `pedidosPorStatus`, `pedidosPorCliente`, `pedidosPrevisaoIa`), estoques/produtos e indicadores de dashboard. Logs administrativos, autenticação e health check não usam Caffeine.
+
+## Módulo de Pedidos e IA
+- `PedidoService`: Regras transacionais de criação, cancelamento e transições de status com controle e auditoria de estoque.
+- `IaPrevisaoService`: Cliente HTTP para o microsserviço Python (`services/python-ia`), fornecendo previsão inteligente de tempo de entrega com fallback determinístico. Consulte `docs/pedidos.md` para a especificação detalhada.
 
 O `CacheHeaderFilter` trata apenas headers HTTP (`Cache-Control`) enviados ao cliente. Isso é independente do cache Caffeine interno do backend.
 

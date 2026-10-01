@@ -83,3 +83,20 @@ O backend usa Spring Cache com Caffeine para cache interno de leituras frequente
 O cache Caffeine é aplicado na camada de Service, não em Controllers. Operações de escrita não são cacheadas; elas invalidam os caches relacionados via `@CacheEvict` e `@Caching`.
 
 `Cache-Control` HTTP continua separado do cache interno. Endpoints sensíveis como autenticação, health check, produtos e logs administrativos não devem ser tratados como cache HTTP público.
+
+## 12. Módulo de Pedidos
+
+**Status:** implementado.
+
+O módulo de Pedidos foi implementado seguindo estritamente a arquitetura existente do AGERP:
+
+- **Entidades JPA**: `Pedido` e `ItemPedido` (já existentes no schema `agerp`), mapeadas com Hibernate.
+- **DTOs**: `PedidoCreateRequest`, `PedidoUpdateRequest`, `PedidoResponse`, `ItemPedidoRequest`, `ItemPedidoResponse`, `PrevisaoEntregaResponse`.
+- **Repositórios**: `PedidoRepository` e `ItemPedidoRepository` com Spring Data JPA.
+- **Serviço**: `PedidoService` concentra toda a regra de negócio — cálculo de total no backend, validação de estoque, controle transacional, máquina de estados de status e auditoria de movimentações.
+- **Controller**: `PedidoController` com endpoints REST protegidos pelo `SecurityConfig` existente.
+- **Cache**: 5 caches Caffeine registrados em `CacheConfig` com invalidação cruzada em escrita.
+- **IA**: `IaPrevisaoService` integrado ao microsserviço `services/python-ia` via `POST /predict`, com fallback determinístico.
+- **Frontend**: `Pedidos.tsx` com Sidebar preservado, `pedidoService.ts` centralizado, tipos TypeScript, `formatCurrency` seguro e painel de previsão de entrega por IA.
+
+**Decisão crítica sobre estoque**: O estoque é debitado exclusivamente na transição de status `PENDENTE → CONFIRMADO`. Cancelamentos de pedidos `CONFIRMADO`, `EM_PREPARACAO` ou `PRONTO` estornam o estoque com `ENTRADA` auditada. Cancelamento de pedido ainda `PENDENTE` não gera movimentação (nunca houve débito). A operação é idempotente para a mesma transição de status.

@@ -41,6 +41,13 @@ public class CacheConfig {
         registerCache(cacheManager, "adminRelatorios", 50, 1, TimeUnit.MINUTES);
         registerCache(cacheManager, "adminConfiguracoes", 20, 7, TimeUnit.MINUTES);
 
+        // Módulo Pedidos
+        registerCache(cacheManager, "pedidos", 500, 2, TimeUnit.MINUTES);
+        registerCache(cacheManager, "pedidoPorId", 1000, 2, TimeUnit.MINUTES);
+        registerCache(cacheManager, "pedidosPorStatus", 200, 1, TimeUnit.MINUTES);
+        registerCache(cacheManager, "pedidosPorCliente", 500, 2, TimeUnit.MINUTES);
+        registerCache(cacheManager, "pedidosPrevisaoIa", 500, 5, TimeUnit.MINUTES);
+
         return cacheManager;
     }
 

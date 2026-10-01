@@ -3,6 +3,8 @@ package com.agerp.agerp.controller;
 import com.agerp.agerp.dto.PedidoCreateRequest;
 import com.agerp.agerp.dto.PedidoResponse;
 import com.agerp.agerp.dto.PedidoUpdateRequest;
+import com.agerp.agerp.dto.PrevisaoEntregaResponse;
+import com.agerp.agerp.service.IaPrevisaoService;
 import com.agerp.agerp.service.PedidoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ import java.util.List;
 public class PedidoController {
 
     private final PedidoService pedidoService;
+    private final IaPrevisaoService iaPrevisaoService;
 
     // ====================== LISTAR ======================
 
@@ -43,6 +46,13 @@ public class PedidoController {
     @GetMapping("/{id}")
     public ResponseEntity<PedidoResponse> buscarPorId(@PathVariable Integer id) {
         return ResponseEntity.ok(pedidoService.buscarPorId(id));
+    }
+
+    // ====================== PREVISÃO DE ENTREGA VIA IA ======================
+
+    @GetMapping("/{id}/previsao-entrega")
+    public ResponseEntity<PrevisaoEntregaResponse> obterPrevisaoEntrega(@PathVariable Integer id) {
+        return ResponseEntity.ok(iaPrevisaoService.obterOuCalcularPrevisao(id));
     }
 
     // ====================== CRIAR ======================

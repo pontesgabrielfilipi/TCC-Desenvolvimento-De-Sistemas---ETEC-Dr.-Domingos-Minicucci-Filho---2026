@@ -291,7 +291,10 @@ const Clientes = () => {
 
                 {/* CONTEÚDO COM SCROLL */}
                 <div className="p-6 md:p-8 flex-1 overflow-auto">
-                    <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+                    {loading ? (
+                        <div className="text-center py-16 text-gray-500 font-medium">Carregando clientes...</div>
+                    ) : (
+                        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
                         <table className="w-full">
                             <thead className="bg-gray-50 border-b">
                             <tr>
@@ -324,6 +327,7 @@ const Clientes = () => {
                             </tbody>
                         </table>
                     </div>
+                    )}
                 </div>
             </div>
 
