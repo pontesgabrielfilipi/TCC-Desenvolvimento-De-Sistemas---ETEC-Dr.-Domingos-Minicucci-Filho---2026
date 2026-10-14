@@ -133,6 +133,26 @@ public class ProdutoService {
             produto.setAtivo(request.getAtivo());
 
         produto = produtoRepository.save(produto);
+
+        // Atualizar estoque associado se fornecido
+        Estoque estoque = estoqueRepository.findByIdProdutoId(produto.getId());
+        if (estoque != null) {
+            if (request.getQuantidadeAtual() != null) {
+                estoque.setQuantidadeAtual(request.getQuantidadeAtual());
+            }
+            if (request.getQuantidadeMinima() != null) {
+                estoque.setQuantidadeMinima(request.getQuantidadeMinima());
+            }
+            estoqueRepository.save(estoque);
+        } else if (request.getQuantidadeAtual() != null || request.getQuantidadeMinima() != null) {
+            estoque = new Estoque();
+            estoque.setIdProduto(produto);
+            estoque.setQuantidadeAtual(request.getQuantidadeAtual() != null ? request.getQuantidadeAtual() : 0);
+            estoque.setQuantidadeMinima(request.getQuantidadeMinima() != null ? request.getQuantidadeMinima() : 10);
+            estoque.setLocalizacao("Depósito Principal");
+            estoqueRepository.save(estoque);
+        }
+
         return toResponse(produto);
     }
 

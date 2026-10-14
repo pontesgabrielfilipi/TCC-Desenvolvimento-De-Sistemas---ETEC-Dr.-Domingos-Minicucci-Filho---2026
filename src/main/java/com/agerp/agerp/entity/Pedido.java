@@ -2,6 +2,7 @@ package com.agerp.agerp.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
+import jakarta.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
@@ -40,6 +41,14 @@ public class Pedido {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_usuario")
     private Usuario idUsuario;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_endereco")
+    private Endereco idEndereco;
+
+    @Size(max = 500)
+    @Column(name = "observacoes", columnDefinition = "TEXT")
+    private String observacoes;
 
     @OneToMany(mappedBy = "idPedido")
     private Set<ItemPedido> itens = new LinkedHashSet<>();

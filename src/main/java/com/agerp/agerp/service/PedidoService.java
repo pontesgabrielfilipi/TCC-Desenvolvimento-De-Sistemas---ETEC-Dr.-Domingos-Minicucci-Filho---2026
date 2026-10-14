@@ -3,10 +3,11 @@ package com.agerp.agerp.service;
 import com.agerp.agerp.dto.*;
 import com.agerp.agerp.entity.*;
 import com.agerp.agerp.repository.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class PedidoService {
 
     private final PedidoRepository pedidoRepository;
@@ -28,6 +28,26 @@ public class PedidoService {
     private final EstoqueRepository estoqueRepository;
     private final MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
     private final UsuarioRepository usuarioRepository;
+    private final EnderecoRepository enderecoRepository;
+
+    public PedidoService(PedidoRepository pedidoRepository,
+                         ItemPedidoRepository itemPedidoRepository,
+                         ClienteRepository clienteRepository,
+                         ProdutoRepository produtoRepository,
+                         EstoqueRepository estoqueRepository,
+                         MovimentacaoEstoqueRepository movimentacaoEstoqueRepository,
+                         UsuarioRepository usuarioRepository,
+                         EnderecoRepository enderecoRepository) {
+        super();
+        this.pedidoRepository = pedidoRepository;
+        this.itemPedidoRepository = itemPedidoRepository;
+        this.clienteRepository = clienteRepository;
+        this.produtoRepository = produtoRepository;
+        this.estoqueRepository = estoqueRepository;
+        this.movimentacaoEstoqueRepository = movimentacaoEstoqueRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.enderecoRepository = enderecoRepository;
+    }
 
     // ====================== TRANSIÇÕES DE STATUS VÁLIDAS ======================
 
@@ -45,7 +65,7 @@ public class PedidoService {
     @Cacheable(value = "pedidos", key = "#root.methodName")
     @Transactional(readOnly = true)
     public List<PedidoResponse> listarTodos() {
-        return pedidoRepository.findAll().stream()
+        return pedidoRepository.findAllByOrderByDataPedidoDesc().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -53,10 +73,11 @@ public class PedidoService {
     @Cacheable(value = "pedidosPorStatus", key = "#status")
     @Transactional(readOnly = true)
     public List<PedidoResponse> listarPorStatus(String status) {
-        if (!TRANSICOES_VALIDAS.containsKey(status)) {
+        String statusNormalizado = normalizarStatus(status);
+        if (!TRANSICOES_VALIDAS.containsKey(statusNormalizado)) {
             throw new IllegalArgumentException("Status inválido: " + status);
         }
-        return pedidoRepository.findByStatus(status).stream()
+        return pedidoRepository.findByStatusOrderByDataPedidoDesc(statusNormalizado).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -67,9 +88,31 @@ public class PedidoService {
         clienteRepository.findById(idCliente)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado com ID: " + idCliente));
         
-        return pedidoRepository.findByIdCliente_Id(idCliente).stream()
+        return pedidoRepository.findByIdCliente_IdOrderByDataPedidoDesc(idCliente).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PedidoResponse> listarTodos(Pageable pageable) {
+        return pedidoRepository.findAll(pageable).map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PedidoResponse> listarPorStatus(String status, Pageable pageable) {
+        String statusNormalizado = normalizarStatus(status);
+        if (!TRANSICOES_VALIDAS.containsKey(statusNormalizado)) {
+            throw new IllegalArgumentException("Status inválido: " + status);
+        }
+        return pedidoRepository.findByStatus(statusNormalizado, pageable).map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PedidoResponse> listarPorCliente(Integer idCliente, Pageable pageable) {
+        if (!clienteRepository.existsById(idCliente)) {
+            throw new IllegalArgumentException("Cliente não encontrado com ID: " + idCliente);
+        }
+        return pedidoRepository.findByIdCliente_Id(idCliente, pageable).map(this::toResponse);
     }
 
     // ====================== BUSCAR POR ID ======================
@@ -102,6 +145,14 @@ public class PedidoService {
         // Validar itens
         if (request.getItens() == null || request.getItens().isEmpty()) {
             throw new IllegalArgumentException("Pedido deve conter pelo menos um item");
+        }
+
+        // Validar e vincular endereço de entrega (opcional)
+        Endereco enderecoEntrega = null;
+        if (request.getIdEndereco() != null) {
+            enderecoEntrega = enderecoRepository.findByIdAndIdClienteId(request.getIdEndereco(), request.getIdCliente())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Endereço ID " + request.getIdEndereco() + " não pertence ao cliente informado"));
         }
 
         // Validar produtos e checar disponibilidade de estoque
@@ -154,6 +205,8 @@ public class PedidoService {
         pedido.setStatus("PENDENTE");
         pedido.setValorTotal(valorTotal);
         pedido.setIdUsuario(obterUsuarioAtual());
+        pedido.setObservacoes(request.getObservacoes());
+        pedido.setIdEndereco(enderecoEntrega);
 
         pedido = pedidoRepository.save(pedido);
 
@@ -205,6 +258,14 @@ public class PedidoService {
             throw new IllegalArgumentException("Pedido deve conter pelo menos um item");
         }
 
+        // Validar endereço de entrega (opcional)
+        Endereco enderecoEntrega = null;
+        if (request.getIdEndereco() != null) {
+            enderecoEntrega = enderecoRepository.findByIdAndIdClienteId(request.getIdEndereco(), request.getIdCliente())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Endereço ID " + request.getIdEndereco() + " não pertence ao cliente informado"));
+        }
+
         Map<Integer, ItemPedidoRequest> produtosUnicos = new HashMap<>();
         BigDecimal valorTotal = BigDecimal.ZERO;
 
@@ -243,6 +304,9 @@ public class PedidoService {
         // Atualizar dados gerais do pedido
         pedido.setIdCliente(cliente);
         pedido.setValorTotal(valorTotal);
+        pedido.setIdEndereco(enderecoEntrega);
+
+        pedido.setObservacoes(request.getObservacoes());
 
         // Remover itens antigos
         itemPedidoRepository.deleteAll(pedido.getItens());
@@ -273,20 +337,23 @@ public class PedidoService {
             @CacheEvict(cacheNames = "pedidoPorId", key = "#id"),
             @CacheEvict(cacheNames = "pedidosPorStatus", allEntries = true),
             @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
+            @CacheEvict(cacheNames = "pedidosPrevisaoIa", key = "#id"),
             @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
+            @CacheEvict(cacheNames = "produtoPorId", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
     public PedidoResponse mudarStatus(Integer id, String novoStatus) {
+        novoStatus = normalizarStatus(novoStatus);
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado com ID: " + id));
 
         String statusAtual = pedido.getStatus();
 
         // Se já está no status solicitado, operação é idempotente
-        if (novoStatus.equalsIgnoreCase(statusAtual)) {
+        if (novoStatus.equals(statusAtual)) {
             return toResponse(pedido);
         }
 
@@ -382,8 +449,10 @@ public class PedidoService {
             @CacheEvict(cacheNames = "pedidoPorId", key = "#id"),
             @CacheEvict(cacheNames = "pedidosPorStatus", allEntries = true),
             @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
+            @CacheEvict(cacheNames = "pedidosPrevisaoIa", key = "#id"),
             @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
+            @CacheEvict(cacheNames = "produtoPorId", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
@@ -399,8 +468,10 @@ public class PedidoService {
             @CacheEvict(cacheNames = "pedidoPorId", key = "#id"),
             @CacheEvict(cacheNames = "pedidosPorStatus", allEntries = true),
             @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
+            @CacheEvict(cacheNames = "pedidosPrevisaoIa", key = "#id"),
             @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
+            @CacheEvict(cacheNames = "produtoPorId", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
@@ -433,21 +504,45 @@ public class PedidoService {
                     .collect(Collectors.toList())
                 : Collections.emptyList();
 
+        // Resumo do endereço de entrega
+        Endereco enderecoPedido = pedido.getIdEndereco();
+        Integer idEndereco = null;
+        String enderecoResumo = null;
+        if (enderecoPedido != null) {
+            idEndereco = enderecoPedido.getId();
+            StringBuilder sb = new StringBuilder();
+            if (enderecoPedido.getLogradouro() != null) sb.append(enderecoPedido.getLogradouro());
+            if (enderecoPedido.getNumero() != null) sb.append(", ").append(enderecoPedido.getNumero());
+            if (enderecoPedido.getBairro() != null) sb.append(" - ").append(enderecoPedido.getBairro());
+            if (enderecoPedido.getCidade() != null) sb.append(", ").append(enderecoPedido.getCidade());
+            if (enderecoPedido.getEstado() != null) sb.append("/").append(enderecoPedido.getEstado());
+            enderecoResumo = sb.toString();
+        }
+
         return PedidoResponse.builder()
                 .id(pedido.getId())
                 .idCliente(pedido.getIdCliente().getId())
                 .nomeCliente(pedido.getIdCliente().getNomeRazao())
+                .idEndereco(idEndereco)
+                .enderecoResumo(enderecoResumo)
                 .dataPedido(pedido.getDataPedido())
                 .status(pedido.getStatus())
                 .valorTotal(pedido.getValorTotal() != null ? pedido.getValorTotal() : BigDecimal.ZERO)
                 .idUsuario(pedido.getIdUsuario() != null ? pedido.getIdUsuario().getId() : null)
                 .nomeUsuario(pedido.getIdUsuario() != null ? pedido.getIdUsuario().getNome() : null)
-                .observacoes(null)
+                .observacoes(pedido.getObservacoes())
                 .itens(itens)
                 .build();
     }
 
     // ====================== UTILITÁRIOS ======================
+
+    private String normalizarStatus(String status) {
+        if (status == null || status.isBlank()) {
+            throw new IllegalArgumentException("Status deve ser informado");
+        }
+        return status.trim().toUpperCase(Locale.ROOT);
+    }
 
     private Usuario obterUsuarioAtual() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

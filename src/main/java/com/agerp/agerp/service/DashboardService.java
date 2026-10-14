@@ -34,14 +34,14 @@ public class DashboardService {
                 .totalProdutos(produtoRepository.count())
                 .vendasMes(pedidoRepository.calcularTotalVendasDoMes(hoje.getMonthValue(), hoje.getYear()))
                 .pedidosPendentes(pedidoRepository.countByStatusIn(List.of("PENDENTE", "EM_ANDAMENTO")))
-                .produtosEstoqueBaixo(estoqueRepository.countByQuantidadeAtualLessThan(10))
+                .produtosEstoqueBaixo(estoqueRepository.countByQuantidadeAtualLessThan(15))
 
                 // Gráficos
                 .vendasMensais(pedidoRepository.vendasMensaisUltimos6Meses())
                 .topProdutos(pedidoRepository.top5ProdutosMaisVendidos())
                 .distribuicaoClientes(clienteRepository.distribuicaoTipoCliente())
                 .statusPedidos(pedidoRepository.statusPedidosAtual())
-                .estoqueBaixo(estoqueRepository.produtosComEstoqueBaixo(10))
+                .estoqueBaixo(estoqueRepository.produtosComEstoqueBaixo(15))
 
                 .build();
     }

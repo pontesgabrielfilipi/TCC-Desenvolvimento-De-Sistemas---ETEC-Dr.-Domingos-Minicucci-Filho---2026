@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { pedidoService } from '../../services/pedidoService';
@@ -11,7 +11,9 @@ import type {
 } from '../../services/pedidoService';
 import { produtoService } from '../../services/produtoService';
 import { clienteService } from '../../services/clienteService';
+import { enderecoService, type Endereco } from '../../services/enderecoService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import { getHttpErrorMessage } from '../../utils/httpError';
 
 interface Produto {
     id: number;
@@ -50,9 +52,15 @@ const Pedidos = () => {
 
     const [formData, setFormData] = useState({
         idCliente: '',
+        idEndereco: '',
         itens: [] as Array<{ idProduto: string; quantidade: string }>,
         observacoes: ''
     });
+
+    // Endereços do cliente selecionado no modal
+    const [enderecosCliente, setEnderecosCliente] = useState<Endereco[]>([]);
+    const [loadingEnderecos, setLoadingEnderecos] = useState(false);
+    const [erroEnderecos, setErroEnderecos] = useState<string | null>(null);
 
     // Modal de Detalhes e IA
     const [detalhesOpen, setDetalhesOpen] = useState(false);
@@ -67,14 +75,14 @@ const Pedidos = () => {
     // Toasts
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const showToast = (type: 'success' | 'error', message: string) => {
+    const showToast = useCallback((type: 'success' | 'error', message: string) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, type, message }]);
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
-    };
+    }, []);
 
     // Carregar dados
-    const carregarPedidos = async () => {
+    const carregarPedidos = useCallback(async () => {
         try {
             setLoading(true);
             const response = await pedidoService.listar();
@@ -85,31 +93,31 @@ const Pedidos = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
 
-    const carregarProdutos = async () => {
+    const carregarProdutos = useCallback(async () => {
         try {
             const response = await produtoService.listar();
             setProdutos(response.data);
         } catch (error) {
             console.error('Erro ao carregar produtos:', error);
         }
-    };
+    }, []);
 
-    const carregarClientes = async () => {
+    const carregarClientes = useCallback(async () => {
         try {
             const response = await clienteService.listar();
             setClientes(response.data);
         } catch (error) {
             console.error('Erro ao carregar clientes:', error);
         }
-    };
+    }, []);
 
     useEffect(() => {
         carregarPedidos();
         carregarProdutos();
         carregarClientes();
-    }, []);
+    }, [carregarClientes, carregarPedidos, carregarProdutos]);
 
     // Filtrar pedidos
     const pedidosFiltrados = pedidos.filter(p => {
@@ -155,8 +163,59 @@ const Pedidos = () => {
         }, 0);
     };
 
+    // Formatar exibição amigável do endereço
+    const formatarEnderecoAmigavel = (end: Endereco): string => {
+        const partes: string[] = [];
+        if (end.logradouro) partes.push(end.logradouro);
+        if (end.numero) partes.push(`nº ${end.numero}`);
+        if (end.bairro) partes.push(end.bairro);
+        if (end.cidade && end.estado) partes.push(`${end.cidade}/${end.estado}`);
+        else if (end.cidade) partes.push(end.cidade);
+        if (end.cep) partes.push(`CEP ${end.cep}`);
+        return partes.join(', ') || `Endereço #${end.id}`;
+    };
+
+    // Carregar endereços de um cliente
+    const carregarEnderecosDoCliente = async (clienteId: number): Promise<Endereco[]> => {
+        try {
+            setLoadingEnderecos(true);
+            setErroEnderecos(null);
+            const resp = await enderecoService.listarPorCliente(clienteId);
+            const lista = resp.data || [];
+            setEnderecosCliente(lista);
+            return lista;
+        } catch (error) {
+            console.error('Erro ao carregar endereços do cliente:', error);
+            setErroEnderecos('Não foi possível carregar os endereços do cliente');
+            setEnderecosCliente([]);
+            return [];
+        } finally {
+            setLoadingEnderecos(false);
+        }
+    };
+
+    // Handler de alteração do cliente no formulário
+    const handleClienteChange = async (novoClienteId: string) => {
+        // Ao trocar de cliente, atualize a lista de endereços e limpe a seleção anterior
+        setFormData(prev => ({
+            ...prev,
+            idCliente: novoClienteId,
+            idEndereco: ''
+        }));
+        setEnderecosCliente([]);
+        setErroEnderecos(null);
+
+        if (novoClienteId) {
+            const idNum = parseInt(novoClienteId);
+            if (!isNaN(idNum)) {
+                await carregarEnderecosDoCliente(idNum);
+            }
+        }
+    };
+
     // Abrir modal de criação ou edição
-    const abrirModal = (pedido?: PedidoResponse) => {
+    const abrirModal = async (pedido?: PedidoResponse) => {
+        setErroEnderecos(null);
         if (pedido) {
             if (pedido.status !== 'PENDENTE') {
                 showToast('error', 'Apenas pedidos PENDENTES podem ser editados');
@@ -165,21 +224,27 @@ const Pedidos = () => {
             setEditandoId(pedido.id);
             setFormData({
                 idCliente: pedido.idCliente.toString(),
+                idEndereco: pedido.idEndereco ? pedido.idEndereco.toString() : '',
                 itens: pedido.itens.map(item => ({
                     idProduto: item.idProduto.toString(),
                     quantidade: item.quantidade.toString()
                 })),
                 observacoes: pedido.observacoes || ''
             });
+            setModalOpen(true);
+            // Carregar os endereços do cliente do pedido sendo editado
+            await carregarEnderecosDoCliente(pedido.idCliente);
         } else {
             setEditandoId(null);
+            setEnderecosCliente([]);
             setFormData({
                 idCliente: '',
+                idEndereco: '',
                 itens: [{ idProduto: '', quantidade: '1' }],
                 observacoes: ''
             });
+            setModalOpen(true);
         }
-        setModalOpen(true);
     };
 
     // Fechar modal
@@ -187,6 +252,9 @@ const Pedidos = () => {
         setModalOpen(false);
         setEditandoId(null);
         setSalvando(false);
+        setEnderecosCliente([]);
+        setErroEnderecos(null);
+        setLoadingEnderecos(false);
     };
 
     // Abrir detalhes do pedido com IA
@@ -215,6 +283,17 @@ const Pedidos = () => {
             showToast('error', 'Selecione um cliente');
             return false;
         }
+
+        // Validação das regras de negócio do endereço
+        if (formData.idEndereco) {
+            const endId = parseInt(formData.idEndereco);
+            const enderecoValido = enderecosCliente.some(e => e.id === endId);
+            if (!enderecoValido && enderecosCliente.length > 0) {
+                showToast('error', 'O endereço selecionado não pertence ao cliente informado');
+                return false;
+            }
+        }
+
         if (formData.itens.length === 0) {
             showToast('error', 'Adicione pelo menos um produto');
             return false;
@@ -254,6 +333,7 @@ const Pedidos = () => {
 
             const payload = {
                 idCliente: parseInt(formData.idCliente),
+                idEndereco: formData.idEndereco ? parseInt(formData.idEndereco) : undefined,
                 itens,
                 observacoes: formData.observacoes || undefined
             };
@@ -268,8 +348,8 @@ const Pedidos = () => {
 
             fecharModal();
             carregarPedidos();
-        } catch (error: any) {
-            showToast('error', error.response?.data?.message || 'Erro ao salvar pedido');
+        } catch (error: unknown) {
+            showToast('error', getHttpErrorMessage(error, 'Erro ao salvar pedido'));
         } finally {
             setSalvando(false);
         }
@@ -285,8 +365,8 @@ const Pedidos = () => {
             await pedidoService.deletar(deleteConfirmId);
             showToast('success', 'Pedido cancelado/excluído com sucesso!');
             carregarPedidos();
-        } catch (error: any) {
-            showToast('error', error.response?.data?.message || 'Erro ao cancelar pedido');
+        } catch (error: unknown) {
+            showToast('error', getHttpErrorMessage(error, 'Erro ao cancelar pedido'));
         } finally {
             setDeleteConfirmId(null);
         }
@@ -310,8 +390,8 @@ const Pedidos = () => {
             if (pedidoDetalhe && pedidoDetalhe.id === id) {
                 setPedidoDetalhe(prev => prev ? { ...prev, status: statusAlvo } : null);
             }
-        } catch (error: any) {
-            showToast('error', error.response?.data?.message || 'Erro ao mudar status');
+        } catch (error: unknown) {
+            showToast('error', getHttpErrorMessage(error, 'Erro ao mudar status'));
         } finally {
             setStatusChangeId(null);
         }
@@ -524,7 +604,13 @@ const Pedidos = () => {
                                                     #{pedido.id}
                                                 </td>
                                                 <td className="px-6 py-4 font-medium text-gray-900">
-                                                    {pedido.nomeCliente || `Cliente #${pedido.idCliente}`}
+                                                    <div>{pedido.nomeCliente || `Cliente #${pedido.idCliente}`}</div>
+                                                    {pedido.enderecoResumo && (
+                                                        <div className="text-xs text-gray-400 font-normal truncate max-w-xs flex items-center gap-1 mt-0.5" title={pedido.enderecoResumo}>
+                                                            <span>📍</span>
+                                                            <span className="truncate">{pedido.enderecoResumo}</span>
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 text-gray-500">
                                                     {formatDate(pedido.dataPedido)}
@@ -648,6 +734,23 @@ const Pedidos = () => {
                                     <span className="text-gray-500 text-xs block">Responsável</span>
                                     <span className="font-semibold text-gray-900">{pedidoDetalhe.nomeUsuario || 'Sistema'}</span>
                                 </div>
+                                <div className="col-span-2 pt-2 border-t border-gray-200/60">
+                                    <span className="text-gray-500 text-xs block">Endereço de Entrega</span>
+                                    <span className="font-semibold text-gray-900 flex items-center gap-1.5 mt-0.5">
+                                        <span>📍</span>
+                                        {pedidoDetalhe.enderecoResumo || (
+                                            <span className="text-gray-400 font-normal italic">Nenhum endereço vinculado (Retirada ou Padrão)</span>
+                                        )}
+                                    </span>
+                                </div>
+                                {pedidoDetalhe.observacoes && (
+                                    <div className="col-span-2 pt-2 border-t border-gray-200/60">
+                                        <span className="text-gray-500 text-xs block">Observações</span>
+                                        <span className="text-gray-700 text-xs mt-0.5 block whitespace-pre-wrap">
+                                            {pedidoDetalhe.observacoes}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* PAINEL DE INTELIGÊNCIA ARTIFICIAL - PREVISÃO DE ENTREGA */}
@@ -769,7 +872,7 @@ const Pedidos = () => {
                                 </label>
                                 <select
                                     value={formData.idCliente}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, idCliente: e.target.value }))}
+                                    onChange={(e) => handleClienteChange(e.target.value)}
                                     className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
                                     <option value="">Selecione um cliente...</option>
@@ -777,6 +880,74 @@ const Pedidos = () => {
                                         <option key={c.id} value={c.id}>{c.nomeRazao}</option>
                                     ))}
                                 </select>
+                            </div>
+
+                            {/* SELEÇÃO DO ENDEREÇO DE ENTREGA */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                        Endereço de Entrega
+                                    </label>
+                                    {loadingEnderecos && (
+                                        <span className="text-xs text-indigo-600 flex items-center gap-1">
+                                            <span className="inline-block animate-spin">↻</span> Carregando endereços...
+                                        </span>
+                                    )}
+                                </div>
+
+                                <select
+                                    value={formData.idEndereco}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, idEndereco: e.target.value }))}
+                                    disabled={!formData.idCliente || loadingEnderecos}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                >
+                                    {!formData.idCliente ? (
+                                        <option value="">Selecione um cliente primeiro...</option>
+                                    ) : loadingEnderecos ? (
+                                        <option value="">Carregando endereços cadastrados...</option>
+                                    ) : enderecosCliente.length === 0 ? (
+                                        <option value="">Nenhum endereço cadastrado para este cliente</option>
+                                    ) : (
+                                        <>
+                                            <option value="">Sem endereço específico (Padrão/Retirada)</option>
+                                            {enderecosCliente.map(end => (
+                                                <option key={end.id} value={end.id}>
+                                                    {formatarEnderecoAmigavel(end)}
+                                                </option>
+                                            ))}
+                                        </>
+                                    )}
+                                </select>
+
+                                {/* Mensagens de auxílio e estado */}
+                                {erroEnderecos && (
+                                    <div className="mt-2 text-xs text-rose-600 flex items-center gap-1">
+                                        <span>⚠️</span> {erroEnderecos}
+                                        <button
+                                            type="button"
+                                            onClick={() => formData.idCliente && carregarEnderecosDoCliente(parseInt(formData.idCliente))}
+                                            className="underline hover:text-rose-800 ml-1 font-semibold"
+                                        >
+                                            Tentar novamente
+                                        </button>
+                                    </div>
+                                )}
+
+                                {formData.idCliente && !loadingEnderecos && !erroEnderecos && enderecosCliente.length === 0 && (
+                                    <p className="mt-1.5 text-xs text-amber-600 flex items-center gap-1">
+                                        <span>ℹ️</span> Este cliente ainda não possui endereços cadastrados. Você pode cadastrar na aba <strong>Clientes</strong>.
+                                    </p>
+                                )}
+
+                                {formData.idEndereco && (
+                                    <div className="mt-2 text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
+                                        📍 <strong>Entrega selecionada:</strong> {
+                                            enderecosCliente.find(e => e.id?.toString() === formData.idEndereco)
+                                                ? formatarEnderecoAmigavel(enderecosCliente.find(e => e.id?.toString() === formData.idEndereco)!)
+                                                : `Endereço #${formData.idEndereco}`
+                                        }
+                                    </div>
+                                )}
                             </div>
 
                             {/* ITENS DO PEDIDO */}
@@ -834,6 +1005,20 @@ const Pedidos = () => {
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+
+                            {/* OBSERVAÇÕES */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
+                                    Observações (Opcional)
+                                </label>
+                                <textarea
+                                    rows={2}
+                                    value={formData.observacoes}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
+                                    placeholder="Instruções de entrega, referências, etc."
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
                             </div>
 
                             {/* TOTAL ESTIMADO */}

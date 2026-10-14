@@ -18,6 +18,8 @@ export interface PedidoResponse {
     id: number;
     idCliente: number;
     nomeCliente: string;
+    idEndereco?: number | null;
+    enderecoResumo?: string | null;
     dataPedido: string;
     status: string;
     valorTotal: number;
@@ -29,12 +31,14 @@ export interface PedidoResponse {
 
 export interface PedidoCreateRequest {
     idCliente: number;
+    idEndereco?: number | null;
     itens: ItemPedidoRequest[];
     observacoes?: string;
 }
 
 export interface PedidoUpdateRequest {
     idCliente: number;
+    idEndereco?: number | null;
     itens: ItemPedidoRequest[];
     observacoes?: string;
 }

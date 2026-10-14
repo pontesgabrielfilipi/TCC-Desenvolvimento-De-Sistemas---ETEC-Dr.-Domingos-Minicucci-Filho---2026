@@ -20,6 +20,8 @@ public class PedidoResponse {
     private Integer id;
     private Integer idCliente;
     private String nomeCliente;
+    private Integer idEndereco;
+    private String enderecoResumo; // Logradouro, Número - Bairro, Cidade/UF
     private Instant dataPedido;
     private String status;
     private BigDecimal valorTotal;

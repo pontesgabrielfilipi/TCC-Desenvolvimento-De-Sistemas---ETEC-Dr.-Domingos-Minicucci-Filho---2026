@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { produtoService } from '../../services/produtoService';
+import { getHttpErrorMessage } from '../../utils/httpError';
 
 interface Produto {
     id: number;
@@ -43,6 +44,7 @@ const Produtos = () => {
         volume: '',
         quantidadeInicial: 0,
         quantidadeMinima: 10,
+        ativo: true,
     });
 
     // Popover de exclusão
@@ -51,13 +53,13 @@ const Produtos = () => {
     // Toasts
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const showToast = (type: 'success' | 'error', message: string) => {
+    const showToast = useCallback((type: 'success' | 'error', message: string) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, type, message }]);
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
-    };
+    }, []);
 
-    const carregarProdutos = async () => {
+    const carregarProdutos = useCallback(async () => {
         try {
             setLoading(true);
             const response = await produtoService.listar();
@@ -68,11 +70,11 @@ const Produtos = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
 
     useEffect(() => {
         carregarProdutos();
-    }, []);
+    }, [carregarProdutos]);
 
     const produtosFiltrados = produtos.filter((p) =>
         p.nome.toLowerCase().includes(busca.toLowerCase())
@@ -87,14 +89,15 @@ const Produtos = () => {
         if (produto) {
             setEditandoId(produto.id);
             setFormData({
-                nome: produto.nome,
+                nome: produto.nome || '',
                 descricao: produto.descricao || '',
-                preco: produto.preco.toString(),
-                custo: produto.custo.toString(),
-                peso: produto.peso.toString(),
-                volume: produto.volume.toString(),
-                quantidadeInicial: produto.quantidadeAtual,
-                quantidadeMinima: produto.quantidadeMinima,
+                preco: produto.preco != null ? String(produto.preco) : '',
+                custo: produto.custo != null ? String(produto.custo) : '',
+                peso: produto.peso != null ? String(produto.peso) : '',
+                volume: produto.volume != null ? String(produto.volume) : '',
+                quantidadeInicial: produto.quantidadeAtual ?? 0,
+                quantidadeMinima: produto.quantidadeMinima ?? 10,
+                ativo: produto.ativo ?? true,
             });
         } else {
             setEditandoId(null);
@@ -107,6 +110,7 @@ const Produtos = () => {
                 volume: '',
                 quantidadeInicial: 0,
                 quantidadeMinima: 10,
+                ativo: true,
             });
         }
         setModalOpen(true);
@@ -123,31 +127,31 @@ const Produtos = () => {
             showToast('error', 'Nome do produto é obrigatório');
             return false;
         }
-        if (formData.nome.length > 150) {
+        if (formData.nome.trim().length > 150) {
             showToast('error', 'Nome deve ter no máximo 150 caracteres');
             return false;
         }
         const precoNum = parseFloat(formData.preco);
-        if (!formData.preco || precoNum <= 0) {
+        if (!formData.preco || isNaN(precoNum) || precoNum <= 0) {
             showToast('error', 'Preço deve ser maior que zero');
             return false;
         }
-        const custoNum = parseFloat(formData.custo || '0');
-        if (custoNum < 0) {
+        const custoNum = formData.custo !== '' ? parseFloat(formData.custo) : 0;
+        if (isNaN(custoNum) || custoNum < 0) {
             showToast('error', 'Custo não pode ser negativo');
             return false;
         }
-        const pesoNum = parseFloat(formData.peso || '0');
-        if (pesoNum < 0) {
+        const pesoNum = formData.peso !== '' ? parseFloat(formData.peso) : 0;
+        if (isNaN(pesoNum) || pesoNum < 0) {
             showToast('error', 'Peso não pode ser negativo');
             return false;
         }
-        const volumeNum = parseFloat(formData.volume || '0');
-        if (volumeNum < 0) {
+        const volumeNum = formData.volume !== '' ? parseFloat(formData.volume) : 0;
+        if (isNaN(volumeNum) || volumeNum < 0) {
             showToast('error', 'Volume não pode ser negativo');
             return false;
         }
-        if (parseFloat(formData.preco) < custoNum) {
+        if (precoNum < custoNum) {
             showToast('error', 'Preço de venda não pode ser menor que o custo');
             return false;
         }
@@ -158,41 +162,58 @@ const Produtos = () => {
         if (!validarFormulario()) return;
 
         try {
-            const payload = {
-                nome: formData.nome.trim(),
-                descricao: formData.descricao.trim(),
-                preco: parseFloat(formData.preco),
-                custo: parseFloat(formData.custo) || 0,
-                peso: parseFloat(formData.peso) || 0,
-                volume: parseFloat(formData.volume) || 0,
-                quantidadeInicial: formData.quantidadeInicial,
-                quantidadeMinima: formData.quantidadeMinima,
-            };
+            const precoNum = parseFloat(formData.preco);
+            const custoNum = formData.custo !== '' ? parseFloat(formData.custo) : 0;
+            const pesoNum = formData.peso !== '' ? parseFloat(formData.peso) : 0;
+            const volumeNum = formData.volume !== '' ? parseFloat(formData.volume) : 0;
+            const qtdNum = Number(formData.quantidadeInicial) || 0;
+            const qtdMinNum = Number(formData.quantidadeMinima) || 0;
 
             if (editandoId) {
+                const payload = {
+                    nome: formData.nome.trim(),
+                    descricao: formData.descricao.trim(),
+                    preco: precoNum,
+                    custo: custoNum,
+                    peso: pesoNum,
+                    volume: volumeNum,
+                    ativo: formData.ativo,
+                    quantidadeAtual: qtdNum,
+                    quantidadeMinima: qtdMinNum,
+                };
                 await produtoService.atualizar(editandoId, payload);
                 showToast('success', 'Produto atualizado com sucesso!');
             } else {
+                const payload = {
+                    nome: formData.nome.trim(),
+                    descricao: formData.descricao.trim(),
+                    preco: precoNum,
+                    custo: custoNum,
+                    peso: pesoNum,
+                    volume: volumeNum,
+                    quantidadeInicial: qtdNum,
+                    quantidadeMinima: qtdMinNum,
+                };
                 await produtoService.criar(payload);
                 showToast('success', 'Produto cadastrado com sucesso!');
             }
 
             fecharModal();
             await carregarProdutos();
-        } catch (error: any) {
-            const errorMsg =
-                error.response?.data?.message ||
-                error.response?.data?.error ||
-                error.response?.data ||
-                error.message ||
-                '';
+        } catch (error: unknown) {
+            const errorMsg = getHttpErrorMessage(error, '');
 
             console.warn('Mensagem extraída:', errorMsg);
 
-            if (errorMsg.toString().includes('Já existe um produto com este nome')) {
-                showToast('error', 'Já existe um produto com este nome. Escolha outro nome.');
+            const msgStr = errorMsg.toString();
+            if (msgStr.toLowerCase().includes('já existe') || msgStr.toLowerCase().includes('ja existe')) {
+                showToast('error', msgStr.includes('outro produto')
+                    ? 'Já existe outro produto com este nome. Escolha outro nome.'
+                    : 'Já existe um produto com este nome. Escolha outro nome.');
+            } else if (msgStr) {
+                showToast('error', msgStr);
             } else {
-                showToast('error', 'Erro ao salvar produto');
+                showToast('error', editandoId ? 'Erro ao atualizar produto' : 'Erro ao cadastrar produto');
             }
         }
     };
@@ -415,7 +436,7 @@ const Produtos = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
                                     <input
@@ -440,8 +461,13 @@ const Produtos = () => {
                                         min="0"
                                     />
                                 </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Qtd. Inicial</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        {editandoId ? 'Estoque Atual' : 'Qtd. Inicial'}
+                                    </label>
                                     <input
                                         type="number"
                                         name="quantidadeInicial"
@@ -451,11 +477,40 @@ const Produtos = () => {
                                         min="0"
                                     />
                                 </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Estoque Mínimo</label>
+                                    <input
+                                        type="number"
+                                        name="quantidadeMinima"
+                                        value={formData.quantidadeMinima}
+                                        onChange={handleChange}
+                                        className="w-full rounded-2xl border border-gray-300 py-3 px-4 focus:border-indigo-500 focus:ring-0"
+                                        min="0"
+                                    />
+                                </div>
                             </div>
 
+                            {editandoId && (
+                                <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                                    <input
+                                        type="checkbox"
+                                        id="ativo"
+                                        name="ativo"
+                                        checked={formData.ativo}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, ativo: e.target.checked }))}
+                                        className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300 cursor-pointer"
+                                    />
+                                    <label htmlFor="ativo" className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+                                        Produto ativo no catálogo
+                                    </label>
+                                </div>
+                            )}
+
                             <div className="flex gap-4 pt-4">
-                                <button onClick={fecharModal} className="flex-1 py-3.5 border border-gray-300 rounded-2xl font-medium">Cancelar</button>
-                                <button onClick={salvarProduto} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl font-medium hover:bg-indigo-700">Salvar</button>
+                                <button onClick={fecharModal} className="flex-1 py-3.5 border border-gray-300 rounded-2xl font-medium hover:bg-gray-50 transition">Cancelar</button>
+                                <button onClick={salvarProduto} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl font-medium hover:bg-indigo-700 transition">
+                                    {editandoId ? 'Salvar Alterações' : 'Salvar'}
+                                </button>
                             </div>
                         </div>
                     </div>

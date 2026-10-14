@@ -1,5 +1,18 @@
 import api from '../api/axiosInstance';
 
+export interface UsuarioCreateRequest {
+    nome: string;
+    email: string;
+    senha: string;
+    idPerfil: number;
+}
+
+export interface UsuarioUpdateRequest {
+    nome?: string;
+    email?: string;
+    idPerfil?: number;
+}
+
 export const usuarioService = {
     // Usado na página Admin
     async listarTodos() {
@@ -14,11 +27,11 @@ export const usuarioService = {
         return await api.get(`/api/usuarios/${id}`);
     },
 
-    async criar(usuario: any) {
+    async criar(usuario: UsuarioCreateRequest) {
         return await api.post('/api/usuarios', usuario);
     },
 
-    async atualizar(id: number, usuario: any) {
+    async atualizar(id: number, usuario: UsuarioUpdateRequest) {
         return await api.put(`/api/usuarios/${id}`, usuario);
     },
 

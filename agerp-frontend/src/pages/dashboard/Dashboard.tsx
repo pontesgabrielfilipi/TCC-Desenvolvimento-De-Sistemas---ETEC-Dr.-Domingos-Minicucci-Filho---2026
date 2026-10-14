@@ -268,7 +268,7 @@ const Dashboard = () => {
                                                     <CartesianGrid strokeDasharray="3 3" />
                                                     <XAxis dataKey="mes" />
                                                     <YAxis />
-                                                    <Tooltip formatter={(value: any) => formatarMoeda(Number(value))} />
+                                                    <Tooltip formatter={(value: unknown) => formatarMoeda(Number(value))} />
                                                     <Line type="monotone" dataKey="valor" stroke="#4f46e5" strokeWidth={3} />
                                                 </LineChart>
                                             </ResponsiveContainer>

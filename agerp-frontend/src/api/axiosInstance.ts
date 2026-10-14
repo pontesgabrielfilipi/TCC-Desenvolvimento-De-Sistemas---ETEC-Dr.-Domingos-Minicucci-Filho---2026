@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
     // baseURL: import.meta.env.VITE_API_URL, // URL do backend Spring Boot
-    baseURL: 'https://fictional-barnacle-g4xvqr74q54vfv7v9-8080.app.github.dev/',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
     withCredentials: true,        // Essencial para cookies HttpOnly
     timeout: 10000,
 });

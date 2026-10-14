@@ -38,9 +38,12 @@ public class IaPrevisaoService {
         Pedido pedido = pedidoRepository.findById(idPedido)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado com ID: " + idPedido));
 
-        // 1. Obter endereço do cliente se existir
-        List<Endereco> enderecos = enderecoRepository.findByIdClienteId(pedido.getIdCliente().getId());
-        Endereco endereco = enderecos.isEmpty() ? null : enderecos.get(0);
+        // 1. Preferir o endereço de entrega salvo no pedido; depois o primeiro endereço do cliente
+        Endereco endereco = pedido.getIdEndereco();
+        if (endereco == null) {
+            List<Endereco> enderecos = enderecoRepository.findByIdClienteId(pedido.getIdCliente().getId());
+            endereco = enderecos.isEmpty() ? null : enderecos.get(0);
+        }
 
         String cidadeDestino = (endereco != null && endereco.getCidade() != null) ? endereco.getCidade() : "São Paulo";
         String estadoDestino = (endereco != null && endereco.getEstado() != null) ? endereco.getEstado() : "SP";

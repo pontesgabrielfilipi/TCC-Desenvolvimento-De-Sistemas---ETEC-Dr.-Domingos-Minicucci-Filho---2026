@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usuarioService } from '../../services/usuarioService';
@@ -44,13 +44,13 @@ const Admin = () => {
     // Toasts
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const showToast = (type: 'success' | 'error', message: string) => {
+    const showToast = useCallback((type: 'success' | 'error', message: string) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, type, message }]);
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
-    };
+    }, []);
 
-    const carregarUsuarios = async () => {
+    const carregarUsuarios = useCallback(async () => {
         try {
             const res = await usuarioService.listarTodos();
             setUsuarios(res.data);
@@ -60,9 +60,9 @@ const Admin = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
 
-    const carregarLogs = async () => {
+    const carregarLogs = useCallback(async () => {
         try {
             const res = await logService.listarTodos();
             setLogs(res.data);
@@ -70,12 +70,12 @@ const Admin = () => {
             console.error(error);
             showToast('error', 'Erro ao carregar logs');
         }
-    };
+    }, [showToast]);
 
     useEffect(() => {
         if (abaAtiva === 'usuarios') carregarUsuarios();
         if (abaAtiva === 'logs') carregarLogs();
-    }, [abaAtiva]);
+    }, [abaAtiva, carregarLogs, carregarUsuarios]);
 
     const abrirModalEdicao = (usuario: Usuario) => {
         setUsuarioEditando({ ...usuario });
@@ -100,7 +100,7 @@ const Admin = () => {
             showToast('success', 'Usuário atualizado com sucesso!');
             fecharModal();
             carregarUsuarios();
-        } catch (error) {
+        } catch {
             showToast('error', 'Erro ao atualizar usuário');
         }
     };

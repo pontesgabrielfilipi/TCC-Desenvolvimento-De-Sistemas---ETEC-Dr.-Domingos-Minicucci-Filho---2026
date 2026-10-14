@@ -18,6 +18,8 @@ public class PedidoUpdateRequest {
     @NotNull(message = "ID do cliente é obrigatório")
     private Integer idCliente;
 
+    private Integer idEndereco; // Opcional — endereço de entrega
+
     @NotNull(message = "Itens do pedido é obrigatório")
     @NotEmpty(message = "Pedido deve conter pelo menos um item")
     @Valid

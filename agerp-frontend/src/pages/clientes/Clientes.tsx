@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { clienteService } from '../../services/clienteService';
+import { EnderecosModal } from './EnderecosModal';
 
 interface Cliente {
     id: number;
@@ -26,9 +27,13 @@ const Clientes = () => {
     const [loading, setLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // Modal
+    // Modal Cliente
     const [modalOpen, setModalOpen] = useState(false);
     const [editandoId, setEditandoId] = useState<number | null>(null);
+
+    // Modal Endereços
+    const [enderecosModalOpen, setEnderecosModalOpen] = useState(false);
+    const [clienteSelecionadoEnderecos, setClienteSelecionadoEnderecos] = useState<Cliente | null>(null);
 
     const [formData, setFormData] = useState({
         tipo: 'FISICA' as 'FISICA' | 'JURIDICA',
@@ -41,16 +46,17 @@ const Clientes = () => {
     // Popover de exclusão
     const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
+
     // Toasts
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const showToast = (type: 'success' | 'error', message: string) => {
+    const showToast = useCallback((type: 'success' | 'error', message: string) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, type, message }]);
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
-    };
+    }, []);
 
-    const carregarClientes = async () => {
+    const carregarClientes = useCallback(async () => {
         try {
             setLoading(true);
             const response = await clienteService.listar();
@@ -61,11 +67,11 @@ const Clientes = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
 
     useEffect(() => {
         carregarClientes();
-    }, []);
+    }, [carregarClientes]);
 
     const clientesFiltrados = clientes.filter((c) =>
         c.nomeRazao.toLowerCase().includes(busca.toLowerCase()) ||
@@ -117,6 +123,16 @@ const Clientes = () => {
             setFormData({ tipo: 'FISICA', nomeRazao: '', cpfCnpj: '', email: '', telefone: '' });
         }
         setModalOpen(true);
+    };
+
+    const abrirEnderecos = (cliente: Cliente) => {
+        setClienteSelecionadoEnderecos(cliente);
+        setEnderecosModalOpen(true);
+    };
+
+    const fecharEnderecos = () => {
+        setEnderecosModalOpen(false);
+        setClienteSelecionadoEnderecos(null);
     };
 
     const fecharModal = () => {
@@ -318,9 +334,16 @@ const Clientes = () => {
                                     <td className="px-6 py-4 font-mono text-sm">{cliente.cpfCnpj}</td>
                                     <td className="px-6 py-4">{cliente.email}</td>
                                     <td className="px-6 py-4">{cliente.telefone}</td>
-                                    <td className="px-6 py-4 text-center space-x-4">
-                                        <button onClick={() => abrirModal(cliente)} className="text-indigo-600 hover:text-indigo-700">Editar</button>
-                                        <button onClick={() => confirmarExclusao(cliente.id)} className="text-red-600 hover:text-red-700">Excluir</button>
+                                    <td className="px-6 py-4 text-center space-x-3 whitespace-nowrap">
+                                        <button
+                                            onClick={() => abrirEnderecos(cliente)}
+                                            className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition inline-flex items-center gap-1"
+                                            title="Gerenciar endereços do cliente"
+                                        >
+                                            📍 Endereços
+                                        </button>
+                                        <button onClick={() => abrirModal(cliente)} className="text-indigo-600 hover:text-indigo-700 font-medium text-sm">Editar</button>
+                                        <button onClick={() => confirmarExclusao(cliente.id)} className="text-red-600 hover:text-red-700 font-medium text-sm">Excluir</button>
                                     </td>
                                 </tr>
                             ))}
@@ -423,6 +446,14 @@ const Clientes = () => {
                     </div>
                 </div>
             )}
+
+            {/* Modal de Gerenciamento de Endereços */}
+            <EnderecosModal
+                isOpen={enderecosModalOpen}
+                cliente={clienteSelecionadoEnderecos}
+                onClose={fecharEnderecos}
+                showToast={showToast}
+            />
 
             {/* Toasts */}
             <div className="fixed bottom-6 right-6 space-y-2 z-[120]">

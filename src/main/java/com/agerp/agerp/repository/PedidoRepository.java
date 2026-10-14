@@ -3,6 +3,8 @@ package com.agerp.agerp.repository;
 import com.agerp.agerp.entity.Pedido;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -72,4 +74,14 @@ public interface PedidoRepository extends JpaRepository<Pedido, Integer> {
     List<Pedido> findByStatus(String status);
 
     List<Pedido> findByIdCliente_Id(Integer idCliente);
+
+    List<Pedido> findAllByOrderByDataPedidoDesc();
+
+    List<Pedido> findByStatusOrderByDataPedidoDesc(String status);
+
+    List<Pedido> findByIdCliente_IdOrderByDataPedidoDesc(Integer idCliente);
+
+    Page<Pedido> findByStatus(String status, Pageable pageable);
+
+    Page<Pedido> findByIdCliente_Id(Integer idCliente, Pageable pageable);
 }

@@ -98,7 +98,7 @@ public class ClienteService {
         }
 
         // Remove todos os endereços relacionados antes de excluir o cliente
-        enderecoRepository.deleteByIdCliente(clienteRepository.findById(id));
+        enderecoRepository.deleteByIdCliente_Id(id);
 
         // Agora é seguro excluir o cliente
         clienteRepository.deleteById(id);

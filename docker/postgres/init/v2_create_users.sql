@@ -14,11 +14,8 @@ DO $$
     END
 $$;
 
--- Conecta no banco agdb
-\c agdb
-
 -- Permissões básicas no banco
-GRANT ALL PRIVILEGES ON DATABASE agdb TO aguser;
+GRANT ALL PRIVILEGES ON DATABASE :DBNAME TO aguser;
 
 -- Permissões no schema public
 GRANT ALL ON SCHEMA public TO aguser;

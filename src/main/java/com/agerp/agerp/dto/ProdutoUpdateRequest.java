@@ -20,7 +20,7 @@ public class ProdutoUpdateRequest {
     @Positive
     private BigDecimal preco;
 
-    @Positive
+    @PositiveOrZero
     private BigDecimal custo;
 
     @PositiveOrZero
@@ -30,4 +30,10 @@ public class ProdutoUpdateRequest {
     private BigDecimal volume;
 
     private Boolean ativo;
+
+    @PositiveOrZero
+    private Integer quantidadeAtual;
+
+    @PositiveOrZero
+    private Integer quantidadeMinima;
 }

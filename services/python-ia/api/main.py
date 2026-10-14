@@ -1,30 +1,53 @@
-from fastapi import FastAPI, HTTPException, status
 import joblib
-import pandas as pd
-import numpy as np
 import math
 import os    
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, status
 import uvicorn
+import numpy as np
+import pandas as pd
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
 
 app = FastAPI(title="Delivery Time Prediction API", version='6.0')
 
-# ==================== ENDPOINT DE HEALTH ==================== 
-@app.get("/health", status_code=status.HTTP_200_OK, tags=["health"]) 
-async def health_check(): 
-    # Endpoint simples para Docker healthcheck
-    return JSONResponse( 
-        content={ "status": "healthy", 
-                 "service": "delivery-time-ia", 
-                 "timestamp": __import__('datetime').datetime.now().isoformat() 
-                 }
-        )
-
-# define a porta
 load_dotenv()
-PORT = int(os.getenv("HOST_API_PORT", 8000))
+HOST = os.getenv("APP_HOST", "0.0.0.0")
+PORT = int(os.getenv("APP_PORT", "8000"))
+WORKERS = int(os.getenv("APP_WORKERS", "1"))
+RELOAD = os.getenv("APP_RELOAD", "false").lower() == "true"
+MODEL_DIR = Path(os.getenv("MODEL_DIR", Path(__file__).resolve().parents[1] / "model"))
+
+model = None
+encoders = None
+geo_dict = None
+model_error = None
+
+
+def load_artifacts():
+    global model, encoders, geo_dict, model_error
+    try:
+        model = joblib.load(MODEL_DIR / "model.pkl")
+        encoders = joblib.load(MODEL_DIR / "encoders.pkl")
+        geo_dict = joblib.load(MODEL_DIR / "geo_dict.pkl")
+        model_error = None
+    except Exception as exc:  # Mantém a API diagnosticável quando faltar artefato.
+        model_error = str(exc)
+
+
+load_artifacts()
+
+
+@app.get("/health", tags=["health"])
+async def health_check():
+    if model_error:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "unhealthy", "service": "delivery-time-ia", "detail": model_error},
+        )
+    return {"status": "healthy", "service": "delivery-time-ia"}
 
 # ===== FUNÇÃO DISTÂNCIA =====
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -43,27 +66,23 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 
     return R * c
 
-# ===== LOAD =====
-model = joblib.load("model/model.pkl")
-encoders = joblib.load("model/encoders.pkl")
-geo_dict = joblib.load("model/geo_dict.pkl")
 mae = 3  # erro médio salvo no treino
 
 # ===== SCHEMA =====
 class Pedido(BaseModel):
     price: float = Field(gt=0)
-    customer_zip_code_prefix: int
-    seller_zip_code_prefix: int
-    customer_city: str
-    seller_city: str
-    product_category_name: str
+    customer_zip_code_prefix: int = Field(ge=0)
+    seller_zip_code_prefix: int = Field(ge=0)
+    customer_city: str = Field(min_length=1)
+    seller_city: str = Field(min_length=1)
+    product_category_name: str = Field(min_length=1)
     product_weight_g: float = Field(gt=0)
     product_length_cm: float = Field(gt=0)
     product_height_cm: float = Field(gt=0)
     product_width_cm: float = Field(gt=0)
-    order_weekday: int
-    order_month: int
-    order_hour: int
+    order_weekday: int = Field(ge=0, le=6)
+    order_month: int = Field(ge=1, le=12)
+    order_hour: int = Field(ge=0, le=23)
 
 
 
@@ -126,8 +145,10 @@ def home():
 
 @app.post("/predict")
 def predict(pedido: Pedido):
+    if model_error:
+        raise HTTPException(status_code=503, detail="Modelo de previsão indisponível")
 
-    data = preparar_dados(pedido.dict())
+    data = preparar_dados(pedido.model_dump())
 
     data = normalizar_strings(data)
     data = adicionar_distancia(data)
@@ -155,11 +176,10 @@ def predict(pedido: Pedido):
     }
 
 if __name__ == "__main__":
-
-
     uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
+        "api.main:app",
+        host=HOST,
         port=PORT,
-        reload=True
+        workers=WORKERS,
+        reload=RELOAD,
     )

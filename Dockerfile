@@ -8,8 +8,6 @@ WORKDIR /app
 # Copia apenas pom para cache de dependências
 COPY pom.xml .
 
-RUN mvn -q -DskipTests dependency:go-offline
-
 # Copia código fonte
 COPY src ./src
 
@@ -28,13 +26,9 @@ FROM eclipse-temurin:25-jre
 WORKDIR /app
 
 # Instala wget para healthcheck
-RUN sed -i 's/archive.ubuntu.com/br.archive.ubuntu.com/g' /etc/apt/sources.list \
-    && apt-get update \
-    && apt-get install -y wget \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends wget \
     && rm -rf /var/lib/apt/lists/*
-#RUN apt-get update \
-#    && apt-get install -y wget \
-#    && rm -rf /var/lib/apt/lists/*
 
 # Copia o jar gerado
 COPY --from=build /app/target/*.jar app.jar

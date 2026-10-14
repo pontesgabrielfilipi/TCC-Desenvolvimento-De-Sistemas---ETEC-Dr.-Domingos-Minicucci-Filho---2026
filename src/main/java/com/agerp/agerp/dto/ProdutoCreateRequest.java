@@ -21,6 +21,7 @@ public class ProdutoCreateRequest {
     private BigDecimal preco;
 
     @NotNull
+    @PositiveOrZero
     private BigDecimal custo;
 
     @PositiveOrZero

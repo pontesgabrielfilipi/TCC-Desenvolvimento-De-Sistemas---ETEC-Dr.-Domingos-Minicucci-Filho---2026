@@ -10,13 +10,28 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import jakarta.servlet.ServletException;
 import java.io.IOException;
 
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import java.util.stream.Collectors;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     // ====================== RESPOSTA PADRÃO (compatível com seu React) ======================
     public record ErrorResponse(String message) {}
 
-    // 1. IllegalArgumentException → 400 Bad Request (o que você mais usa)
+    // 1. MethodArgumentNotValidException → 400 Bad Request
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
+        String mensagem = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + (error.getDefaultMessage() != null ? error.getDefaultMessage() : "inválido"))
+                .collect(Collectors.joining("; "));
+        if (mensagem.isBlank()) {
+            mensagem = "Dados inválidos fornecidos.";
+        }
+        return ResponseEntity.badRequest().body(new ErrorResponse(mensagem));
+    }
+
+    // 2. IllegalArgumentException → 400 Bad Request (o que você mais usa)
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest()

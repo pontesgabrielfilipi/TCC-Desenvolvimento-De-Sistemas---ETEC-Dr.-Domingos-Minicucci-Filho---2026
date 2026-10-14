@@ -30,7 +30,9 @@ const AppRoutes = () => {
                 <Route path="/clientes" element={<Clientes />} />
                 <Route path={"/produtos"} element={<Produtos />} />
                 <Route path={"/pedidos"} element={<Pedidos />} />
-                <Route path="/admin" element={<Admin />} />
+                <Route element={<PrivateRoute allowedProfiles={['ADMIN']} />}>
+                    <Route path="/admin" element={<Admin />} />
+                </Route>
 
                 {/* Página para usuários sem perfil */}
                 <Route path="/sem-perfil" element={<SemPerfil />} />
