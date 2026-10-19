@@ -42,6 +42,7 @@ lerna-debug.log*
 *.ipr
 .vscode/*
 !.vscode/extensions.json
+!.vscode/launch.json
 .settings/
 .classpath
 .project
@@ -80,6 +81,7 @@ docker-compose.*.yml
 # === 7. TESTES E FERRAMENTAS ===
 testcontainers.properties
 .flattened-pom.xml
+.m2repo/
 
 # === 8. SISTEMA OPERACIONAL E ARQUIVOS GERAIS ===
 .DS_Store
@@ -93,3 +95,6 @@ Thumbs.db
 *.swp
 *~
 HELP.md
+agerp-frontend/playwright-report/
+agerp-frontend/test-results/
+agerp-frontend/tests/e2e/.auth/
