@@ -1,24 +1,18 @@
--- =============================================
--- CREATE_USER.SQL - CRIAÇÃO DO USUÁRIO E PERMISSÕES
--- =============================================
 
--- Cria o usuário da aplicação (se não existir)
-DO $$
-    BEGIN
-        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'aguser') THEN
-            CREATE USER aguser WITH PASSWORD 'agpass';
-            RAISE NOTICE 'Usuário aguser criado com sucesso.';
-        ELSE
-            RAISE NOTICE 'Usuário aguser já existe.';
-        END IF;
-    END
-$$;
+-- Credenciais chegam pelo ambiente do container e não ficam gravadas no script.
+\getenv APP_USER APP_DB_USER
+\getenv APP_PASSWORD APP_DB_PASSWORD
+\getenv DB_NAME POSTGRES_DB
 
--- Permissões básicas no banco
-GRANT ALL PRIVILEGES ON DATABASE :DBNAME TO aguser;
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'APP_USER', :'APP_PASSWORD')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'APP_USER')
+\gexec
+
+SELECT format('GRANT CONNECT ON DATABASE %I TO %I', :'DB_NAME', :'APP_USER')
+\gexec
 
 -- Permissões no schema public
-GRANT ALL ON SCHEMA public TO aguser;
+GRANT USAGE ON SCHEMA public TO :"APP_USER";
 
 -- ====================== PERMISSÕES NO SCHEMA AGERP ======================
 
@@ -26,20 +20,20 @@ GRANT ALL ON SCHEMA public TO aguser;
 CREATE SCHEMA IF NOT EXISTS agerp;
 
 -- Permissões no schema agerp
-GRANT ALL ON SCHEMA agerp TO aguser;
+GRANT USAGE ON SCHEMA agerp TO :"APP_USER";
 
 -- Permissões em todas as tabelas existentes
-GRANT ALL ON ALL TABLES IN SCHEMA agerp TO aguser;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA agerp TO :"APP_USER";
 
 -- Permissões em todas as sequences
-GRANT ALL ON ALL SEQUENCES IN SCHEMA agerp TO aguser;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA agerp TO :"APP_USER";
 
 -- Permissões padrão para objetos futuros (novas tabelas e sequences)
 ALTER DEFAULT PRIVILEGES IN SCHEMA agerp
-    GRANT ALL ON TABLES TO aguser;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"APP_USER";
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA agerp
-    GRANT ALL ON SEQUENCES TO aguser;
+    GRANT USAGE, SELECT ON SEQUENCES TO :"APP_USER";
 
 -- Confirmação
-\echo '✅ Permissões concedidas com sucesso para o usuário aguser no schema agerp.'
+\echo 'Permissões da aplicação configuradas no schema agerp.'
