@@ -111,7 +111,21 @@ Caches atuais:
 | `dashboardRelatorio` | `DashboardService.gerarRelatorioCompleto()` | 30 segundos | 10 |
 | `adminEstatisticas` | `AdminService.estatisticas()` | 30 segundos | 10 |
 | `adminRelatorios` | `AdminService.relatorios()` | 1 minuto | 50 |
-| `adminConfiguracoes` | `AdminService.configuracoes()` | 10 minutos | 20 |
+
+## Configuracoes administrativas (Flyway V6)
+
+O registro unico `agerp.configuracao_sistema` (`id = 1`) guarda preferências nao sensiveis no PostgreSQL, com validacoes SQL e Bean Validation. A atualizacao usa `@Version` e exige a versao lida; edicoes concorrentes retornam HTTP `409` e requerem recarregamento.
+
+| Campo | Padrao | Efeito real |
+| --- | --- | --- |
+| `nomeEmpresa` | `AGERP` | Titulo da navegacao autenticada via `/api/configuracoes/aparencia` |
+| `limiteEstoqueBaixo` | `15` | Contagem e grafico de estoque baixo no dashboard, contagem nas estatisticas ADMIN |
+| `exibirAlertasEstoque` | `true` | Exibe ou oculta alertas visuais de estoque baixo; nao altera os dados nem as exportacoes |
+| `timeoutIaMs` | `2000` | Timeout de conexao e leitura da previsao FastAPI; fallback heuristico se indisponivel |
+
+`GET /api/admin/configuracoes`, `PUT /api/admin/configuracoes` e `GET /api/admin/configuracoes/diagnostico` exigem ADMIN. O `GET /api/configuracoes/aparencia` exige autenticacao, retornando somente campos de apresentacao. Cada alteracao registra campos alterados, autor e IP nos logs transacionais; nunca grava credenciais ou valores secretos. Os caches de dashboard, estatisticas e previsao sao invalidados apos o commit. A configuracao e lida do banco nas operacoes seguintes, sem depender de reinicio. Em uma futura implantacao com mais de uma instancia do backend, sera necessario coordenar a invalidacao dos caches Caffeine entre instancias.
+
+A aba mostra estado resumido de PostgreSQL e FastAPI, versao de build quando existente e data da ultima alteracao; nao revela URL, segredos ou dados internos da infraestrutura. Aprovar novos cadastros e uma regra obrigatoria, nao um switch. Fuso/locale, JWT, politica de senhas e transicoes de pedido exigem decisoes e adaptacoes proprias; editar segredos, credenciais, conexoes e infraestrutura pela interface e proibido.
 
 A invalidação fica na camada de Service. Escritas de produtos invalidam caches de produtos e de dashboard. Escritas de clientes invalidam caches de clientes e de dashboard. Escritas de usuários invalidam caches de usuários e estatísticas administrativas. Escritas e transições de status de pedidos (`PedidoService`) invalidam atomicamente caches de pedidos (`pedidos`, `pedidoPorId`, `pedidosPorStatus`, `pedidosPorCliente`, `pedidosPrevisaoIa`), estoques/produtos e indicadores de dashboard. Logs administrativos, autenticação e health check não usam Caffeine.
 

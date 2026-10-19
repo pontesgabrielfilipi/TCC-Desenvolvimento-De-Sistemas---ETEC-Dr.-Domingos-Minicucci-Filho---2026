@@ -5,7 +5,6 @@ import com.agerp.agerp.repository.ClienteRepository;
 import com.agerp.agerp.repository.EstoqueRepository;
 import com.agerp.agerp.repository.PedidoRepository;
 import com.agerp.agerp.repository.ProdutoRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,13 +14,25 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class DashboardService {
 
     private final ClienteRepository clienteRepository;
     private final ProdutoRepository produtoRepository;
     private final PedidoRepository pedidoRepository;
     private final EstoqueRepository estoqueRepository;
+    private final ConfiguracaoSistemaService configuracaoSistemaService;
+
+    public DashboardService(ClienteRepository clienteRepository,
+                            ProdutoRepository produtoRepository,
+                            PedidoRepository pedidoRepository,
+                            EstoqueRepository estoqueRepository,
+                            ConfiguracaoSistemaService configuracaoSistemaService) {
+        this.clienteRepository = clienteRepository;
+        this.produtoRepository = produtoRepository;
+        this.pedidoRepository = pedidoRepository;
+        this.estoqueRepository = estoqueRepository;
+        this.configuracaoSistemaService = configuracaoSistemaService;
+    }
 
     @Cacheable("dashboardRelatorio")
     @Transactional(readOnly = true)
@@ -34,14 +45,14 @@ public class DashboardService {
                 .totalProdutos(produtoRepository.count())
                 .vendasMes(pedidoRepository.calcularTotalVendasDoMes(hoje.getMonthValue(), hoje.getYear()))
                 .pedidosPendentes(pedidoRepository.countByStatusIn(List.of("PENDENTE", "EM_ANDAMENTO")))
-                .produtosEstoqueBaixo(estoqueRepository.countByQuantidadeAtualLessThan(15))
+                .produtosEstoqueBaixo(estoqueRepository.countByQuantidadeAtualLessThan(configuracaoSistemaService.limiteEstoqueBaixo()))
 
                 // Gráficos
                 .vendasMensais(pedidoRepository.vendasMensaisUltimos6Meses())
                 .topProdutos(pedidoRepository.top5ProdutosMaisVendidos())
                 .distribuicaoClientes(clienteRepository.distribuicaoTipoCliente())
                 .statusPedidos(pedidoRepository.statusPedidosAtual())
-                .estoqueBaixo(estoqueRepository.produtosComEstoqueBaixo(15))
+                .estoqueBaixo(estoqueRepository.produtosComEstoqueBaixo(configuracaoSistemaService.limiteEstoqueBaixo()))
 
                 .build();
     }
@@ -56,7 +67,7 @@ public class DashboardService {
                 "totalProdutos", produtoRepository.count(),
                 "vendasMes", pedidoRepository.calcularTotalVendasDoMes(hoje.getMonthValue(), hoje.getYear()),
                 "pedidosPendentes", pedidoRepository.countByStatusIn(List.of("PENDENTE", "EM_ANDAMENTO")),
-                "produtosEstoqueBaixo", estoqueRepository.countByQuantidadeAtualLessThan(10)
+                "produtosEstoqueBaixo", estoqueRepository.countByQuantidadeAtualLessThan(configuracaoSistemaService.limiteEstoqueBaixo())
         );
     }
 }

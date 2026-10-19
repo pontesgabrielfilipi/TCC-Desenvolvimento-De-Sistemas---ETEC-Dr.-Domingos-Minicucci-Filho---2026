@@ -38,4 +38,27 @@ public class LogSistema {
     @Size(max = 50)
     @Column(name = "ip", length = 50)
     private String ip;
+
+    @Size(max = 150)
+    @Column(name = "usuario_nome", length = 150)
+    private String usuarioNome;
+
+    @Size(max = 255)
+    @Column(name = "usuario_email", length = 255)
+    private String usuarioEmail;
+
+    @Size(max = 100)
+    @Column(name = "usuario_perfil", length = 100)
+    private String usuarioPerfil;
+
+    @Size(max = 100)
+    @Column(name = "recurso_id", length = 100)
+    private String recursoId;
+
+    @Size(max = 50)
+    @Column(name = "resultado", length = 50)
+    private String resultado;
+
+    @Column(name = "detalhes", columnDefinition = "TEXT")
+    private String detalhes;
 }

@@ -39,7 +39,6 @@ public class CacheConfig {
 
         registerCache(cacheManager, "adminEstatisticas", 10, 30, TimeUnit.SECONDS);
         registerCache(cacheManager, "adminRelatorios", 50, 1, TimeUnit.MINUTES);
-        registerCache(cacheManager, "adminConfiguracoes", 20, 10, TimeUnit.MINUTES);
 
         // Módulo Pedidos
         registerCache(cacheManager, "pedidos", 500, 2, TimeUnit.MINUTES);

@@ -24,6 +24,12 @@ public interface EstoqueRepository extends JpaRepository<Estoque, Integer> {
     /** Conta produtos com estoque baixo */
     long countByQuantidadeAtualLessThan(Integer quantidade);
 
+    @Query("SELECT COALESCE(SUM(e.quantidadeAtual), 0) FROM Estoque e")
+    long somarQuantidadeAtual();
+
+    @Query("SELECT COUNT(e) FROM Estoque e WHERE e.quantidadeAtual <= e.quantidadeMinima")
+    long countEstoqueBaixo();
+
     /** Lista os 10 produtos com estoque mais baixo (usado no Dashboard) */
     @Query(value = """
             SELECT 
