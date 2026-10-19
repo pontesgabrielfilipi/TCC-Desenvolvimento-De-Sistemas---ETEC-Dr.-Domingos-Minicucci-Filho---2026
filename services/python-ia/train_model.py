@@ -1,6 +1,7 @@
 """Treina e persiste os artefatos usados pela API a partir dos dados Olist."""
 
 from pathlib import Path
+import unicodedata
 
 import joblib
 import numpy as np
@@ -26,6 +27,11 @@ def distance(lat1, lon1, lat2, lon2):
     dlat, dlon = lat2 - lat1, lon2 - lon1
     value = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
     return 6371 * 2 * np.arcsin(np.sqrt(value))
+
+
+def normalize_text(value):
+    text = unicodedata.normalize("NFKD", str(value))
+    return text.encode("ascii", "ignore").decode("ascii").lower().strip()
 
 
 def train() -> None:
@@ -55,7 +61,7 @@ def train() -> None:
     encoders = {}
     for column in ("customer_city", "seller_city", "product_category_name"):
         encoder = LabelEncoder()
-        frame[column] = encoder.fit_transform(frame[column].astype(str).str.lower().str.strip())
+        frame[column] = encoder.fit_transform(frame[column].map(normalize_text))
         encoders[column] = encoder
 
     # Limites evitam que cada worker precise de ~2 GB sem abandonar o modelo real.

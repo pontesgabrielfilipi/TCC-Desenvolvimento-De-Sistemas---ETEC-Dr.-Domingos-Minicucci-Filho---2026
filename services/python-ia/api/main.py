@@ -1,6 +1,7 @@
 import joblib
 import math
 import os    
+import unicodedata
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, status
@@ -45,7 +46,11 @@ async def health_check():
     if model_error:
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"status": "unhealthy", "service": "delivery-time-ia", "detail": model_error},
+            content={
+                "status": "unhealthy",
+                "service": "delivery-time-ia",
+                "detail": "model artifacts unavailable",
+            },
         )
     return {"status": "healthy", "service": "delivery-time-ia"}
 
@@ -93,11 +98,24 @@ def preparar_dados(pedido_dict):
     return pd.DataFrame([pedido_dict])
 
 
+def normalizar_texto(valor):
+    texto = unicodedata.normalize("NFKD", str(valor))
+    return texto.encode("ascii", "ignore").decode("ascii").lower().strip()
+
+
 def normalizar_strings(data):
     colunas = ["customer_city", "seller_city", "product_category_name"]
 
     for col in colunas:
-        data[col] = data[col].str.lower().str.strip()
+        data[col] = data[col].map(normalizar_texto)
+
+    # Nomes agregados usados pelo backend precisam apontar para classes reais
+    # do dataset Olist, sem atribuir um código arbitrário a classes desconhecidas.
+    aliases_categoria = {
+        "livros": "livros_interesse_geral",
+        "utilidades_gerais": "utilidades_domesticas",
+    }
+    data["product_category_name"] = data["product_category_name"].replace(aliases_categoria)
 
     return data
 

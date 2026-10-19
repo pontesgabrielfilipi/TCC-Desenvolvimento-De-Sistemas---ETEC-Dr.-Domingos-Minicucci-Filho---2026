@@ -3,7 +3,6 @@ package com.agerp.agerp.service;
 import com.agerp.agerp.dto.PrevisaoEntregaResponse;
 import com.agerp.agerp.entity.*;
 import com.agerp.agerp.repository.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
@@ -21,13 +20,25 @@ import java.util.*;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class IaPrevisaoService {
 
     private final PedidoRepository pedidoRepository;
     private final EnderecoRepository enderecoRepository;
     private final EntregaRepository entregaRepository;
     private final PrevisaoEntregaRepository previsaoEntregaRepository;
+    private final ConfiguracaoSistemaService configuracaoSistemaService;
+
+    public IaPrevisaoService(PedidoRepository pedidoRepository,
+                            EnderecoRepository enderecoRepository,
+                            EntregaRepository entregaRepository,
+                            PrevisaoEntregaRepository previsaoEntregaRepository,
+                            ConfiguracaoSistemaService configuracaoSistemaService) {
+        this.pedidoRepository = pedidoRepository;
+        this.enderecoRepository = enderecoRepository;
+        this.entregaRepository = entregaRepository;
+        this.previsaoEntregaRepository = previsaoEntregaRepository;
+        this.configuracaoSistemaService = configuracaoSistemaService;
+    }
 
     @Value("${AGERP_IA_URL:http://localhost:8000}")
     private String iaServiceUrl;
@@ -155,8 +166,9 @@ public class IaPrevisaoService {
 
         try {
             SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-            factory.setConnectTimeout(1500);
-            factory.setReadTimeout(2000);
+            int timeout = configuracaoSistemaService.timeoutIaMs();
+            factory.setConnectTimeout(timeout);
+            factory.setReadTimeout(timeout);
 
             RestTemplate restTemplate = new RestTemplate(factory);
             HttpHeaders headers = new HttpHeaders();
