@@ -7,11 +7,19 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      APP_DB_USER: ${SPRING_DATASOURCE_USERNAME}
+      APP_DB_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
     ports:
-      - "${HOST_POSTGRES_PORT}:5432"
+      # O backend iniciado pelo VS Code acessa o banco pelo host. Restringir o
+      # bind ao loopback evita expor o PostgreSQL na rede local e contorna
+      # conflitos do encaminhamento wildcard do Docker Desktop no Windows.
+      - "127.0.0.1:${HOST_POSTGRES_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      # Dados demonstrativos ficam fora do startup automático: somente estrutura
+      # e usuário técnico são aplicados quando o volume nasce vazio.
+      - ./docker/postgres/init/v2_create_users.sql:/docker-entrypoint-initdb.d/10_create_users.sql:ro
+      - ./docker/postgres/init/v2_init.sql:/docker-entrypoint-initdb.d/20_init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
@@ -55,9 +63,20 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      # Dentro da rede Docker, localhost seria o proprio container do backend.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      # DDL de migrations exige o proprietario das tabelas; a aplicacao continua
+      # usando a conta restrita acima para as operacoes normais.
+      SPRING_FLYWAY_USER: ${POSTGRES_USER}
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      # Obrigatórios para evitar subir o backend com segredo conhecido ou cookie
+      # incompatível com o protocolo usado no ambiente.
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET com pelo menos 32 caracteres}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      JWT_COOKIE_SECURE: ${JWT_COOKIE_SECURE:?Defina JWT_COOKIE_SECURE como true ou false}
+      AGERP_SEED_ENABLED: ${AGERP_SEED_ENABLED:-false}
       AGERP_IA_URL: http://python-ia-api:8000
     ports:
       - "${HOST_APP_PORT}:8080"
@@ -73,6 +92,9 @@ services:
     build:
       context: ./agerp-frontend
       dockerfile: Dockerfile
+      args:
+        # O navegador usa o proxy de mesma origem configurado no Nginx.
+        VITE_API_URL: /
     container_name: agerp-frontend
     restart: unless-stopped
     ports:
