@@ -7,7 +7,6 @@ import com.agerp.agerp.dto.PrevisaoEntregaResponse;
 import com.agerp.agerp.service.IaPrevisaoService;
 import com.agerp.agerp.service.PedidoService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
@@ -21,17 +20,22 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/pedidos")
-@RequiredArgsConstructor
 public class PedidoController {
 
     private final PedidoService pedidoService;
     private final IaPrevisaoService iaPrevisaoService;
 
+    public PedidoController(PedidoService pedidoService, IaPrevisaoService iaPrevisaoService) {
+        this.pedidoService = pedidoService;
+        this.iaPrevisaoService = iaPrevisaoService;
+    }
+
     // ====================== LISTAR ======================
 
     @GetMapping
-    public ResponseEntity<List<PedidoResponse>> listarTodos() {
-        return ResponseEntity.ok(pedidoService.listarTodos());
+    public ResponseEntity<List<PedidoResponse>> listarTodos(
+            @RequestParam(defaultValue = "false") boolean refresh) {
+        return ResponseEntity.ok(refresh ? pedidoService.recarregarTodos() : pedidoService.listarTodos());
     }
 
     @GetMapping("/paginado")

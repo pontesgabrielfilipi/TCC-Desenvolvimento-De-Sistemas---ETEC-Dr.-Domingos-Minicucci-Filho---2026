@@ -700,4 +700,31 @@ public class PedidoServiceTest {
 
         assertTrue(ex.getMessage().contains("não pertence ao cliente informado"));
     }
+
+    @Test
+    @DisplayName("Exclusão lógica deve rejeitar pedido entregue")
+    void testExcluirPedidoEntregue() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("ENTREGUE");
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> pedidoService.deletarSoft(1));
+
+        assertTrue(ex.getMessage().contains("entregue"));
+        verify(pedidoRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Exclusão lógica repetida de pedido cancelado deve ser idempotente")
+    void testExcluirPedidoCanceladoNovamente() {
+        Pedido pedido = new Pedido();
+        pedido.setId(1);
+        pedido.setStatus("CANCELADO");
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+
+        assertDoesNotThrow(() -> pedidoService.deletarSoft(1));
+        verify(pedidoRepository, never()).save(any());
+    }
 }

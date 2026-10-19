@@ -10,8 +10,8 @@ interface Cliente {
 }
 
 export const clienteService = {
-    async listar() {
-        return await api.get('/api/clientes');
+    async listar(refresh = false) {
+        return await api.get('/api/clientes', { params: refresh ? { refresh: true, _ts: Date.now() } : undefined });
     },
 
     async buscarPorId(id: number) {

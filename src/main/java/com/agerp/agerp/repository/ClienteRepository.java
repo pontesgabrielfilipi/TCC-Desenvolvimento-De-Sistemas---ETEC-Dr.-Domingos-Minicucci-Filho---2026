@@ -14,6 +14,8 @@ public interface ClienteRepository extends JpaRepository<Cliente, Integer> {
 
     boolean existsByCpfCnpj(String cpfCnpj);
     boolean existsByEmail(String email);
+    boolean existsByCpfCnpjAndIdNot(String cpfCnpj, Integer id);
+    boolean existsByEmailIgnoreCaseAndIdNot(String email, Integer id);
     Optional<Cliente> findByCpfCnpj(String cpfCnpj);
     @Query(value = """
     SELECT 

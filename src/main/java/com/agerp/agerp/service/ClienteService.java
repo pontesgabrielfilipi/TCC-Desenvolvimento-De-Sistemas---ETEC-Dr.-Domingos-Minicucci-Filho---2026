@@ -5,7 +5,8 @@ import com.agerp.agerp.dto.ClienteResponse;
 import com.agerp.agerp.entity.Cliente;
 import com.agerp.agerp.repository.ClienteRepository;
 import com.agerp.agerp.repository.EnderecoRepository;   // ← Adicionado
-import lombok.RequiredArgsConstructor;
+import com.agerp.agerp.repository.PedidoRepository;
+import com.agerp.agerp.config.BusinessConflictException;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -16,11 +17,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class ClienteService {
 
     private final ClienteRepository clienteRepository;
     private final EnderecoRepository enderecoRepository;   // ← Injetado
+    private final PedidoRepository pedidoRepository;
+
+    public ClienteService(ClienteRepository clienteRepository, EnderecoRepository enderecoRepository,
+            PedidoRepository pedidoRepository) {
+        this.clienteRepository = clienteRepository;
+        this.enderecoRepository = enderecoRepository;
+        this.pedidoRepository = pedidoRepository;
+    }
 
     @Cacheable("clientes")
     @Transactional(readOnly = true)
@@ -28,6 +36,12 @@ public class ClienteService {
         return clienteRepository.findAll().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @CacheEvict(cacheNames = "clientes", allEntries = true, beforeInvocation = true)
+    @Transactional(readOnly = true)
+    public List<ClienteResponse> recarregarTodos() {
+        return clienteRepository.findAll().stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Cacheable(value = "clientePorId", key = "#id")
@@ -41,6 +55,7 @@ public class ClienteService {
     @Caching(evict = {
             @CacheEvict(cacheNames = "clientes", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -67,6 +82,7 @@ public class ClienteService {
             @CacheEvict(cacheNames = "clientes", allEntries = true),
             @CacheEvict(cacheNames = "clientePorId", key = "#id"),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -74,7 +90,14 @@ public class ClienteService {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado com ID: " + id));
 
-        cliente.setNomeRazao(request.getNomeRazao());
+        if (request.getCpfCnpj() != null && clienteRepository.existsByCpfCnpjAndIdNot(request.getCpfCnpj(), id)) {
+            throw new BusinessConflictException("CPF/CNPJ já cadastrado para outro cliente.");
+        }
+        if (request.getEmail() != null && clienteRepository.existsByEmailIgnoreCaseAndIdNot(request.getEmail(), id)) {
+            throw new BusinessConflictException("E-mail já cadastrado para outro cliente.");
+        }
+
+        cliente.setNomeRazao(request.getNomeRazao().trim());
         cliente.setTipo(request.getTipo());
         cliente.setCpfCnpj(request.getCpfCnpj());
         cliente.setEmail(request.getEmail());
@@ -89,6 +112,7 @@ public class ClienteService {
             @CacheEvict(cacheNames = "clientes", allEntries = true),
             @CacheEvict(cacheNames = "clientePorId", key = "#id"),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -97,7 +121,12 @@ public class ClienteService {
             throw new IllegalArgumentException("Cliente não encontrado com ID: " + id);
         }
 
-        // Remove todos os endereços relacionados antes de excluir o cliente
+        if (pedidoRepository.existsByIdCliente_Id(id)) {
+            throw new BusinessConflictException(
+                    "Cliente possui pedidos vinculados e não pode ser excluído. Preserve o histórico comercial.");
+        }
+
+        // Sem histórico de pedidos, os endereços cadastrais podem ser removidos com o cliente.
         enderecoRepository.deleteByIdCliente_Id(id);
 
         // Agora é seguro excluir o cliente

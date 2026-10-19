@@ -4,8 +4,10 @@ export const dashboardService = {
     /**
      * Busca TODOS os dados do dashboard (estatísticas + gráficos)
      */
-    async getRelatorioCompleto() {
-        return await api.get('/api/dashboard/relatorio-completo');
+    async getRelatorioCompleto(refresh = false) {
+        return await api.get('/api/dashboard/relatorio-completo', {
+            params: refresh ? { refresh: true, _ts: Date.now() } : undefined
+        });
     },
 
     /**

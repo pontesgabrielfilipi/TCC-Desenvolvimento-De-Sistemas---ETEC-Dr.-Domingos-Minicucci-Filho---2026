@@ -6,7 +6,6 @@ import com.agerp.agerp.entity.Cliente;
 import com.agerp.agerp.entity.Endereco;
 import com.agerp.agerp.repository.ClienteRepository;
 import com.agerp.agerp.repository.EnderecoRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -17,11 +16,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class EnderecoService {
 
     private final EnderecoRepository enderecoRepository;
     private final ClienteRepository clienteRepository;
+
+    public EnderecoService(EnderecoRepository enderecoRepository, ClienteRepository clienteRepository) {
+        this.enderecoRepository = enderecoRepository;
+        this.clienteRepository = clienteRepository;
+    }
 
     @Cacheable(value = "enderecosPorCliente", key = "#clienteId")
     @Transactional(readOnly = true)

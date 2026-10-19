@@ -60,8 +60,8 @@ export interface PrevisaoEntregaResponse {
 }
 
 export const pedidoService = {
-    async listar() {
-        return await api.get<PedidoResponse[]>('/api/pedidos');
+    async listar(refresh = false) {
+        return await api.get<PedidoResponse[]>('/api/pedidos', { params: refresh ? { refresh: true, _ts: Date.now() } : undefined });
     },
 
     async listarPorStatus(status: string) {

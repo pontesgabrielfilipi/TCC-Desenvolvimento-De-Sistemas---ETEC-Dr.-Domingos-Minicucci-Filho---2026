@@ -5,7 +5,6 @@ import com.agerp.agerp.dto.ProdutoResponse;
 import com.agerp.agerp.dto.ProdutoUpdateRequest;
 import com.agerp.agerp.service.ProdutoService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,15 +14,19 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/produtos")
-@RequiredArgsConstructor
 public class ProdutoController {
 
     private final ProdutoService produtoService;
 
+    public ProdutoController(ProdutoService produtoService) {
+        this.produtoService = produtoService;
+    }
+
     /** Lista apenas ativos (padrão da aplicação) */
     @GetMapping
-    public ResponseEntity<List<ProdutoResponse>> listarAtivos() {
-        return ResponseEntity.ok(produtoService.listarAtivos());
+    public ResponseEntity<List<ProdutoResponse>> listarAtivos(
+            @RequestParam(defaultValue = "false") boolean refresh) {
+        return ResponseEntity.ok(refresh ? produtoService.recarregarAtivos() : produtoService.listarAtivos());
     }
 
     /** Lista TODOS os produtos (ativos + inativos) */

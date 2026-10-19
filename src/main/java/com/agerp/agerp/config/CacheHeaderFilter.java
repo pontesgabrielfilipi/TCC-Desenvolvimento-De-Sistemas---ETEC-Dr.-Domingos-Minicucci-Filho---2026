@@ -21,21 +21,11 @@ public class CacheHeaderFilter implements Filter {
 
         String path = request.getRequestURI();
 
-        if (path.startsWith("/api/auth") ||
-                path.startsWith("/api/admin/logs") ||
-                path.startsWith("/api/produtos") ||
-                path.startsWith("/api/health")) {
-
+        if (path.startsWith("/api/")) {
+            // APIs autenticadas são mutáveis; o cache de aplicação é controlado no service.
             response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-        } else if ("GET".equalsIgnoreCase(request.getMethod()) &&
-            (path.startsWith("/api/usuarios") ||
-                path.startsWith("/api/clientes"))) {
-
-            // Cache de 5 minutos para endpoints de listagem
-            response.setHeader("Cache-Control", "private, max-age=300"); // 5 minutos
-        } else {
-            // Sem cache para endpoints sensíveis
-            response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+            response.setHeader("Pragma", "no-cache");
+            response.setDateHeader("Expires", 0);
         }
 
         chain.doFilter(req, res);

@@ -81,6 +81,8 @@ public interface PedidoRepository extends JpaRepository<Pedido, Integer> {
 
     List<Pedido> findByIdCliente_IdOrderByDataPedidoDesc(Integer idCliente);
 
+    boolean existsByIdCliente_Id(Integer idCliente);
+
     Page<Pedido> findByStatus(String status, Pageable pageable);
 
     Page<Pedido> findByIdCliente_Id(Integer idCliente, Pageable pageable);

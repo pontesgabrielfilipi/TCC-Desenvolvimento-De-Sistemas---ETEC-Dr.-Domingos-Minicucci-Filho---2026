@@ -17,8 +17,8 @@ export interface ProdutoUpdateRequest extends Omit<ProdutoCreateRequest, 'quanti
 }
 
 export const produtoService = {
-    async listar() {
-        return await api.get('/api/produtos');
+    async listar(refresh = false) {
+        return await api.get('/api/produtos', { params: refresh ? { refresh: true, _ts: Date.now() } : undefined });
     },
 
     async criar(payload: ProdutoCreateRequest) {

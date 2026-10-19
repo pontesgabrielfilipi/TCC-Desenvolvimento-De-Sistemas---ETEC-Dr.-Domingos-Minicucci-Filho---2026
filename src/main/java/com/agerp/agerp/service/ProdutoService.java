@@ -7,7 +7,6 @@ import com.agerp.agerp.entity.Estoque;
 import com.agerp.agerp.entity.Produto;
 import com.agerp.agerp.repository.EstoqueRepository;
 import com.agerp.agerp.repository.ProdutoRepository;
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -20,11 +19,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
     private final EstoqueRepository estoqueRepository;
+
+    public ProdutoService(ProdutoRepository produtoRepository, EstoqueRepository estoqueRepository) {
+        this.produtoRepository = produtoRepository;
+        this.estoqueRepository = estoqueRepository;
+    }
 
     // ====================== LISTAR ATIVOS ======================
     @Cacheable("produtosAtivos")
@@ -34,6 +37,12 @@ public class ProdutoService {
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @CacheEvict(cacheNames = "produtosAtivos", allEntries = true, beforeInvocation = true)
+    @Transactional(readOnly = true)
+    public List<ProdutoResponse> recarregarAtivos() {
+        return produtoRepository.findByAtivoTrue().stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     // ====================== LISTAR TODOS (ativos + inativos)
@@ -61,6 +70,7 @@ public class ProdutoService {
             @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -103,6 +113,7 @@ public class ProdutoService {
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "produtoPorId", key = "#id"),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -162,6 +173,7 @@ public class ProdutoService {
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "produtoPorId", key = "#id"),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -179,6 +191,7 @@ public class ProdutoService {
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "produtoPorId", key = "#id"),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional

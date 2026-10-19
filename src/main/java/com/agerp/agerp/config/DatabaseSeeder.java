@@ -2,8 +2,8 @@ package com.agerp.agerp.config;
 
 import com.agerp.agerp.entity.*;
 import com.agerp.agerp.repository.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Random;
 
 @Component
-@RequiredArgsConstructor
+@ConditionalOnProperty(name = "agerp.seed.enabled", havingValue = "true")
 public class DatabaseSeeder implements CommandLineRunner {
 
     private final PerfilRepository perfilRepository;
@@ -31,6 +31,25 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     private final Random random = new Random();
+
+    public DatabaseSeeder(PerfilRepository perfilRepository, UsuarioRepository usuarioRepository,
+            ClienteRepository clienteRepository, EnderecoRepository enderecoRepository,
+            ProdutoRepository produtoRepository, EstoqueRepository estoqueRepository,
+            PedidoRepository pedidoRepository, ItemPedidoRepository itemPedidoRepository,
+            PagamentoRepository pagamentoRepository, EntregaRepository entregaRepository,
+            PasswordEncoder passwordEncoder) {
+        this.perfilRepository = perfilRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.clienteRepository = clienteRepository;
+        this.enderecoRepository = enderecoRepository;
+        this.produtoRepository = produtoRepository;
+        this.estoqueRepository = estoqueRepository;
+        this.pedidoRepository = pedidoRepository;
+        this.itemPedidoRepository = itemPedidoRepository;
+        this.pagamentoRepository = pagamentoRepository;
+        this.entregaRepository = entregaRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Override
     public void run(String... args) throws Exception {
@@ -131,6 +150,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         u.setEmail(email);
         u.setSenhaHash(passwordEncoder.encode(senha));
         u.setAtivo(true);
+        u.setStatusAcesso(StatusAcesso.APROVADO);
         u.setIdPerfil(perfil);
         return u;
     }
@@ -261,7 +281,7 @@ public class DatabaseSeeder implements CommandLineRunner {
             Pedido pedido = new Pedido();
             pedido.setIdCliente(cliente);
             pedido.setIdUsuario(usuario);
-            pedido.setStatus(random.nextBoolean() ? "CONCLUIDO" : "ENTREGUE");
+            pedido.setStatus(random.nextBoolean() ? "EM_PREPARACAO" : "ENTREGUE");
             pedido.setDataPedido(Instant.now().minus(random.nextInt(30), ChronoUnit.DAYS));
             pedido = pedidoRepository.save(pedido);
 

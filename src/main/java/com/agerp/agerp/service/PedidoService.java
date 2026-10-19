@@ -70,6 +70,13 @@ public class PedidoService {
                 .collect(Collectors.toList());
     }
 
+    @CacheEvict(cacheNames = "pedidos", allEntries = true, beforeInvocation = true)
+    @Transactional(readOnly = true)
+    public List<PedidoResponse> recarregarTodos() {
+        return pedidoRepository.findAllByOrderByDataPedidoDesc().stream()
+                .map(this::toResponse).collect(Collectors.toList());
+    }
+
     @Cacheable(value = "pedidosPorStatus", key = "#status")
     @Transactional(readOnly = true)
     public List<PedidoResponse> listarPorStatus(String status) {
@@ -132,6 +139,7 @@ public class PedidoService {
             @CacheEvict(cacheNames = "pedidosPorStatus", allEntries = true),
             @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -237,6 +245,7 @@ public class PedidoService {
             @CacheEvict(cacheNames = "pedidosPorCliente", allEntries = true),
             @CacheEvict(cacheNames = "pedidosPrevisaoIa", key = "#id"),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -342,6 +351,7 @@ public class PedidoService {
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "produtoPorId", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -454,6 +464,7 @@ public class PedidoService {
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "produtoPorId", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -473,6 +484,7 @@ public class PedidoService {
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
             @CacheEvict(cacheNames = "produtoPorId", allEntries = true),
             @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
             @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
     })
     @Transactional
@@ -480,10 +492,10 @@ public class PedidoService {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado com ID: " + id));
 
-        // Soft delete = cancelar pedido se ainda não foi entregue ou já cancelado
-        if (!"ENTREGUE".equals(pedido.getStatus()) && !"CANCELADO".equals(pedido.getStatus())) {
-            mudarStatus(id, "CANCELADO");
+        if ("ENTREGUE".equals(pedido.getStatus())) {
+            throw new IllegalArgumentException("Pedido entregue não pode ser excluído ou cancelado.");
         }
+        if (!"CANCELADO".equals(pedido.getStatus())) mudarStatus(id, "CANCELADO");
     }
 
     // ====================== CONVERSOR DTO ======================

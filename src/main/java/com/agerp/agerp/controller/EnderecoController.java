@@ -4,7 +4,6 @@ import com.agerp.agerp.dto.EnderecoCreateRequest;
 import com.agerp.agerp.dto.EnderecoResponse;
 import com.agerp.agerp.service.EnderecoService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +12,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/clientes/{clienteId}/enderecos")
-@RequiredArgsConstructor
 public class EnderecoController {
 
     private final EnderecoService enderecoService;
+
+    public EnderecoController(EnderecoService enderecoService) {
+        this.enderecoService = enderecoService;
+    }
 
     @GetMapping
     public ResponseEntity<List<EnderecoResponse>> listarPorCliente(@PathVariable Integer clienteId) {
