@@ -17,6 +17,14 @@ export const PrivateRoute = ({ allowedProfiles }: PrivateRouteProps) => {
         return <Navigate to="/login" replace />;
     }
 
+    if (user?.trocaSenhaObrigatoria && location.pathname !== '/alterar-senha-obrigatoria') {
+        return <Navigate to="/alterar-senha-obrigatoria" replace />;
+    }
+
+    if (!user?.trocaSenhaObrigatoria && location.pathname === '/alterar-senha-obrigatoria') {
+        return <Navigate to="/dashboard" replace />;
+    }
+
     // Evita o redirecionamento circular da própria página /sem-perfil.
     if (!user?.perfilNome && location.pathname !== '/sem-perfil') {
         return <Navigate to="/sem-perfil" replace />;

@@ -2,14 +2,20 @@ package com.agerp.agerp.controller;
 
 import com.agerp.agerp.dto.LoginRequest;
 import com.agerp.agerp.dto.UsuarioResponse;
+import com.agerp.agerp.dto.AlteracaoSenhaObrigatoriaRequest;
 import com.agerp.agerp.entity.Usuario;
+import com.agerp.agerp.entity.StatusAcesso;
 import com.agerp.agerp.security.CustomUserDetails;
+import com.agerp.agerp.security.ClientIpResolver;
+import com.agerp.agerp.security.jwt.JwtProperties;
 import com.agerp.agerp.security.jwt.JwtTokenProvider;
 import com.agerp.agerp.service.LogSistemaService;
+import com.agerp.agerp.service.UsuarioService;
+import jakarta.validation.Valid;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -17,18 +23,40 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final LogSistemaService logSistemaService;
+    private final UsuarioService usuarioService;
+    private final ClientIpResolver clientIpResolver;
+    private final JwtProperties jwtProperties;
+
+    @Autowired
+    public AuthController(AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider,
+            LogSistemaService logSistemaService, UsuarioService usuarioService,
+            ClientIpResolver clientIpResolver, JwtProperties jwtProperties) {
+        this.authenticationManager = authenticationManager;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.logSistemaService = logSistemaService;
+        this.usuarioService = usuarioService;
+        this.clientIpResolver = clientIpResolver;
+        this.jwtProperties = jwtProperties;
+    }
+
+    // Mantém compatibilidade com integrações que instanciam o controller diretamente.
+    AuthController(AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider,
+            LogSistemaService logSistemaService, UsuarioService usuarioService) {
+        this(authenticationManager, jwtTokenProvider, logSistemaService, usuarioService,
+                new ClientIpResolver(""), new JwtProperties());
+    }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest,
@@ -43,22 +71,34 @@ public class AuthController {
                     )
             );
 
+            CustomUserDetails authenticatedUser = (CustomUserDetails) authentication.getPrincipal();
+            StatusAcesso status = authenticatedUser.getUsuario().getStatusAcesso();
+            if (status != StatusAcesso.APROVADO) {
+                String code = status == StatusAcesso.PENDENTE ? "ACCOUNT_PENDING" : "ACCOUNT_BLOCKED";
+                String message = status == StatusAcesso.PENDENTE
+                        ? "Seu cadastro aguarda aprovação do administrador. Solicite a aprovação pelos canais oficiais da sua organização."
+                        : "Esta conta está bloqueada ou foi rejeitada. Procure o administrador pelos canais oficiais da sua organização.";
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("code", code, "message", message));
+            }
+
+            if (Boolean.TRUE.equals(authenticatedUser.getUsuario().getTrocaSenhaObrigatoria())) {
+                Usuario consumido = usuarioService.consumirCredencialTemporaria(authenticatedUser.getUsuario().getId());
+                authenticatedUser = new CustomUserDetails(consumido, authenticatedUser.getAuthorities());
+                authentication = new UsernamePasswordAuthenticationToken(
+                        authenticatedUser, null, authenticatedUser.getAuthorities());
+            }
+
             String jwtToken = jwtTokenProvider.generateToken(authentication);
 
             // Cookie JWT
-            Cookie cookie = new Cookie("jwtToken", jwtToken);
-            cookie.setHttpOnly(true);
-            cookie.setSecure(false);           // ← mude para true em produção (HTTPS)
-            cookie.setPath("/");
-            cookie.setMaxAge(24 * 60 * 60);
-
-            response.addCookie(cookie);
+            response.addCookie(jwtCookie(jwtToken, jwtMaxAgeSeconds()));
 
             // ====================== REGISTRO DE LOG COM IP REAL ======================
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
             Usuario usuarioLogado = userDetails.getUsuario();
 
-            String ipReal = getClientIpAddress(request);
+            String ipReal = clientIpResolver.resolve(request);
 
             logSistemaService.registrarLog(
                     usuarioLogado,
@@ -68,13 +108,17 @@ public class AuthController {
             );
             // =====================================================================
 
-            return ResponseEntity.ok(Map.of("message", "Login realizado com sucesso"));
+            return ResponseEntity.ok(Map.of(
+                    "message", "Login realizado com sucesso",
+                    "trocaSenhaObrigatoria", Boolean.TRUE.equals(authenticatedUser.getUsuario().getTrocaSenhaObrigatoria())));
 
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("code", "TEMPORARY_CREDENTIAL_INVALID", "message", e.getMessage()));
         } catch (AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Email ou senha inválidos"));
         } catch (Exception e) {
-            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Erro interno no servidor"));
         }
@@ -83,35 +127,6 @@ public class AuthController {
     /**
      * Método robusto para pegar o IP real do usuário mesmo atrás de proxy/Cloudflare/Docker
      */
-    private String getClientIpAddress(HttpServletRequest request) {
-        String[] headers = {
-                "X-Forwarded-For",
-                "X-Real-IP",
-                "CF-Connecting-IP",      // Cloudflare
-                "Proxy-Client-IP",
-                "WL-Proxy-Client-IP",
-                "HTTP_X_FORWARDED_FOR",
-                "HTTP_X_FORWARDED",
-                "HTTP_X_CLUSTER_CLIENT_IP",
-                "HTTP_CLIENT_IP",
-                "HTTP_FORWARDED_FOR",
-                "HTTP_FORWARDED",
-                "HTTP_VIA",
-                "REMOTE_ADDR"
-        };
-
-        for (String header : headers) {
-            String ip = request.getHeader(header);
-            if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-                // Pega o primeiro IP caso venha múltiplos (ex: "192.168.1.1, 10.0.0.1")
-                return ip.split(",")[0].trim();
-            }
-        }
-
-        // Último fallback
-        return request.getRemoteAddr();
-    }
-
     @GetMapping("/me")
     public ResponseEntity<UsuarioResponse> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -133,20 +148,41 @@ public class AuthController {
                 usuario.getIdPerfil() != null ? usuario.getIdPerfil().getNome() : null
         );
         responseDTO.setAtivo(usuario.isAtivo());
+        responseDTO.setStatusAcesso(usuario.getStatusAcesso().name());
+        responseDTO.setTrocaSenhaObrigatoria(Boolean.TRUE.equals(usuario.getTrocaSenhaObrigatoria()));
 
         return ResponseEntity.ok(responseDTO);
     }
 
+    @PostMapping("/alterar-senha-obrigatoria")
+    public ResponseEntity<?> alterarSenhaObrigatoria(@Valid @RequestBody AlteracaoSenhaObrigatoriaRequest body,
+            @AuthenticationPrincipal CustomUserDetails user, HttpServletRequest request,
+            HttpServletResponse response) {
+        usuarioService.alterarSenhaObrigatoria(user.getUsuario().getId(), body.getSenha(),
+                body.getConfirmacaoSenha(), clientIpResolver.resolve(request));
+        response.addCookie(jwtCookie(null, 0));
+        return ResponseEntity.ok(Map.of("message", "Senha alterada com sucesso. Faça login novamente."));
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletResponse response) {
-        Cookie cookie = new Cookie("jwtToken", null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-
-        response.addCookie(cookie);
+        response.addCookie(jwtCookie(null, 0));
 
         return ResponseEntity.ok(Map.of("message", "Logout realizado com sucesso"));
+    }
+
+    private Cookie jwtCookie(String value, int maxAgeSeconds) {
+        Cookie cookie = new Cookie("jwtToken", value);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(jwtProperties.isCookieSecure());
+        cookie.setPath("/");
+        cookie.setMaxAge(maxAgeSeconds);
+        cookie.setAttribute("SameSite", "Strict");
+        return cookie;
+    }
+
+    private int jwtMaxAgeSeconds() {
+        long seconds = Math.ceilDiv(jwtProperties.getExpiration(), 1_000L);
+        return (int) Math.min(seconds, Integer.MAX_VALUE);
     }
 }

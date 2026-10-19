@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { usuarioService } from '../../services/usuarioService';
+import { getHttpErrorMessage } from '../../utils/httpError';
+import { validatePassword } from '../../utils/passwordValidation';
 
 const Cadastro = () => {
     const navigate = useNavigate();
@@ -81,12 +84,9 @@ const Cadastro = () => {
     };
 
     const validarFormulario = () => {
-        if (formData.senha !== formData.confirmarSenha) {
-            showToast('error', 'As senhas não coincidem');
-            return false;
-        }
-        if (formData.senha.length < 6) {
-            showToast('error', 'A senha deve ter no mínimo 6 caracteres');
+        const erroSenha = validatePassword(formData.senha, formData.confirmarSenha);
+        if (erroSenha) {
+            showToast('error', erroSenha);
             return false;
         }
         if (formData.tipo === 'FISICA' && !validarCPF(formData.cpfCnpj)) {
@@ -103,27 +103,17 @@ const Cadastro = () => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8080/api/usuarios', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    nome: formData.nome,
-                    email: formData.email,
-                    senha: formData.senha,
-                    idPerfil: 2,
-                    ativo: true
-                }),
+            await usuarioService.criar({
+                nome: formData.nome,
+                email: formData.email,
+                senha: formData.senha,
+                idPerfil: 2,
             });
 
-            if (response.ok) {
-                showToast('success', 'Conta criada com sucesso!');
-                setTimeout(() => navigate('/login'), 1800);
-            } else {
-                const data = await response.json();
-                showToast('error', data.message || 'Erro ao criar conta');
-            }
-        } catch {
-            showToast('error', 'Erro de conexão com o servidor');
+            showToast('success', 'Cadastro realizado. Aguarde a aprovação do administrador para acessar o sistema.');
+            setTimeout(() => navigate('/login', { state: { cadastroPendente: true } }), 3000);
+        } catch (error) {
+            showToast('error', getHttpErrorMessage(error, 'Erro ao criar conta'));
         } finally {
             setLoading(false);
         }
@@ -189,7 +179,7 @@ const Cadastro = () => {
 
                     <Link
                         to="/login"
-                        className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-6 py-2.5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300"
+                        className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-6 py-2.5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium text-slate-900 hover:bg-gray-300"
                     >
                         Já tem conta? Entrar
                     </Link>
@@ -213,8 +203,9 @@ const Cadastro = () => {
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 {/* Tipo de Pessoa */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Pessoa</label>
+                                    <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Pessoa</label>
                                     <select
+                                        id="tipo"
                                         name="tipo"
                                         value={formData.tipo}
                                         onChange={handleChange}

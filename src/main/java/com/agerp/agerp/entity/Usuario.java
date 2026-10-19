@@ -36,9 +36,31 @@ public class Usuario {
     @Column(name = "senha_hash", nullable = false)
     private String senhaHash;
 
+    @NotNull
+    @Column(name = "credential_version", nullable = false)
+    private Long credentialVersion = 0L;
+
+    @NotNull
+    @Column(name = "troca_senha_obrigatoria", nullable = false)
+    private Boolean trocaSenhaObrigatoria = false;
+
+    @Column(name = "credencial_temporaria_hash")
+    private String credencialTemporariaHash;
+
+    @Column(name = "credencial_temporaria_expira_em")
+    private Instant credencialTemporariaExpiraEm;
+
+    @Column(name = "credencial_temporaria_usada_em")
+    private Instant credencialTemporariaUsadaEm;
+
     @ColumnDefault("true")
     @Column(name = "ativo")
     private Boolean ativo = true;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_acesso", nullable = false, length = 20)
+    private StatusAcesso statusAcesso = StatusAcesso.PENDENTE;
 
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "data_criacao", updatable = false)

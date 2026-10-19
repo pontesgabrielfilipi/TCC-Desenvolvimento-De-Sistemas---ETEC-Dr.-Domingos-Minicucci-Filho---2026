@@ -1,8 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { PrivateRoute } from './PrivateRoute';
+import { AuthenticatedLayout } from '../components/navigation/AuthenticatedLayout';
 
 // Páginas
 import Login from '../pages/auth/Login';
+import AlterarSenhaObrigatoria from '../pages/auth/AlterarSenhaObrigatoria';
 import Cadastro from '../pages/cadastro/Cadastro';
 import Dashboard from '../pages/dashboard/Dashboard';
 import Clientes from '../pages/clientes/Clientes';
@@ -26,12 +28,15 @@ const AppRoutes = () => {
 
             {/* Rotas Protegidas */}
             <Route element={<PrivateRoute />}>
+                <Route path="/alterar-senha-obrigatoria" element={<AlterarSenhaObrigatoria />} />
+                <Route element={<AuthenticatedLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/clientes" element={<Clientes />} />
                 <Route path={"/produtos"} element={<Produtos />} />
                 <Route path={"/pedidos"} element={<Pedidos />} />
                 <Route element={<PrivateRoute allowedProfiles={['ADMIN']} />}>
                     <Route path="/admin" element={<Admin />} />
+                </Route>
                 </Route>
 
                 {/* Página para usuários sem perfil */}

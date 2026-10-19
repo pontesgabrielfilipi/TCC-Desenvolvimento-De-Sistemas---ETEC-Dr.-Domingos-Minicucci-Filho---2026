@@ -4,17 +4,19 @@ import com.agerp.agerp.dto.PerfilCreateRequest;
 import com.agerp.agerp.dto.PerfilResponse;
 import com.agerp.agerp.entity.Perfil;
 import com.agerp.agerp.repository.PerfilRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class PerfilService {
 
     private final PerfilRepository perfilRepository;
+
+    public PerfilService(PerfilRepository perfilRepository) {
+        this.perfilRepository = perfilRepository;
+    }
 
     /**
      * Cria um novo perfil

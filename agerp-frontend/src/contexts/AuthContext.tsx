@@ -9,6 +9,8 @@ interface User {
     email: string;
     perfilNome: string | null;
     ativo: boolean;
+    statusAcesso?: 'PENDENTE' | 'APROVADO' | 'BLOQUEADO' | 'REJEITADO';
+    trocaSenhaObrigatoria?: boolean;
 }
 
 interface AuthContextType {
@@ -17,7 +19,7 @@ interface AuthContextType {
     isLoading: boolean;
     login: (email: string, senha: string) => Promise<void>;
     logout: () => Promise<void>;
-    checkAuth: () => Promise<void>;
+    checkAuth: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,23 +29,27 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
-    const isAuthenticated = !!user && user.ativo === true;
+    const isAuthenticated = !!user && user.ativo === true &&
+        (!user.statusAcesso || user.statusAcesso === 'APROVADO');
 
-    const checkAuth = async (): Promise<void> => {
+    const checkAuth = async (): Promise<User | null> => {
         try {
             const response = await authService.getCurrentUser();
             setUser(response.data);
+            return response.data;
         } catch {
             setUser(null);
+            return null;
         } finally {
             setIsLoading(false);
         }
     };
 
     const login = async (email: string, senha: string): Promise<void> => {
-        await authService.login(email, senha);
-        await checkAuth();
-        navigate('/dashboard', { replace: true });
+        const response = await authService.login(email, senha);
+        const usuarioAtual = await checkAuth();
+        const exigeTroca = response.data?.trocaSenhaObrigatoria === true || usuarioAtual?.trocaSenhaObrigatoria === true;
+        navigate(exigeTroca ? '/alterar-senha-obrigatoria' : '/dashboard', { replace: true });
     };
 
     const logout = async (): Promise<void> => {

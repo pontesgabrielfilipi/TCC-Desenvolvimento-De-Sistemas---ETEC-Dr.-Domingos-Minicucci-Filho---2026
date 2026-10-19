@@ -18,9 +18,38 @@ CREATE TABLE usuario (
     nome VARCHAR(150) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     senha_hash TEXT NOT NULL,
+    credential_version BIGINT NOT NULL DEFAULT 0,
+    troca_senha_obrigatoria BOOLEAN NOT NULL DEFAULT FALSE,
+    credencial_temporaria_hash VARCHAR(255),
+    credencial_temporaria_expira_em TIMESTAMP WITH TIME ZONE,
+    credencial_temporaria_usada_em TIMESTAMP WITH TIME ZONE,
     ativo BOOLEAN DEFAULT TRUE,
+    -- Controle de acesso
+    status_acesso VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     id_perfil INT NOT NULL,
+    CONSTRAINT ck_usuario_status_acesso CHECK (
+        status_acesso IN (
+            'PENDENTE',
+            'APROVADO',
+            'BLOQUEADO',
+            'REJEITADO'
+        )
+    ),
+    CONSTRAINT ck_usuario_credential_version CHECK (credential_version >= 0),
+    CONSTRAINT ck_usuario_credencial_temporaria_consistente CHECK (
+        (
+            credencial_temporaria_hash IS NULL
+            AND credencial_temporaria_expira_em IS NULL
+            AND credencial_temporaria_usada_em IS NULL
+        )
+        OR
+        (
+            credencial_temporaria_hash IS NOT NULL
+            AND credencial_temporaria_expira_em IS NOT NULL
+            AND troca_senha_obrigatoria
+        )
+    ),
     CONSTRAINT fk_usuario_perfil FOREIGN KEY (id_perfil) REFERENCES perfil(id_perfil)
 );
 -- =========================

@@ -37,7 +37,8 @@ INSERT INTO usuario (
         nome,
         email,
         senha_hash,
-        id_perfil
+        id_perfil,
+        status_acesso
     )
 SELECT CASE
         WHEN gs = 1 THEN 'Admin Master'
@@ -51,7 +52,8 @@ SELECT CASE
     CASE
         WHEN gs <= 5 THEN 1
         ELSE 2
-    END
+    END,
+    'APROVADO'
 FROM generate_series(1, 60) AS gs;
 -- ============================================================
 -- CLIENTES - 60 REGISTROS
@@ -202,10 +204,10 @@ INSERT INTO pedido (
     )
 SELECT gs,
     CASE
-        WHEN gs % 6 = 0 THEN 'CRIADO'
-        WHEN gs % 6 = 1 THEN 'EM_PROCESSAMENTO'
-        WHEN gs % 6 = 2 THEN 'SEPARADO'
-        WHEN gs % 6 = 3 THEN 'ENVIADO'
+        WHEN gs % 6 = 0 THEN 'PENDENTE'
+        WHEN gs % 6 = 1 THEN 'CONFIRMADO'
+        WHEN gs % 6 = 2 THEN 'EM_PREPARACAO'
+        WHEN gs % 6 = 3 THEN 'PRONTO'
         WHEN gs % 6 = 4 THEN 'ENTREGUE'
         ELSE 'CANCELADO'
     END,

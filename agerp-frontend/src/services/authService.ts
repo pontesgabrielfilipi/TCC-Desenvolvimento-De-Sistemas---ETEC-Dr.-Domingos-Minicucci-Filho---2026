@@ -26,6 +26,10 @@ export const authService = {
         return await api.get('/api/auth/me');
     },
 
+    async alterarSenhaObrigatoria(senha: string, confirmacaoSenha: string) {
+        return await api.post('/api/auth/alterar-senha-obrigatoria', { senha, confirmacaoSenha });
+    },
+
     // ==================== DASHBOARD ====================
     async getDashboardStats() {
         return await api.get('/api/dashboard/estatisticas');

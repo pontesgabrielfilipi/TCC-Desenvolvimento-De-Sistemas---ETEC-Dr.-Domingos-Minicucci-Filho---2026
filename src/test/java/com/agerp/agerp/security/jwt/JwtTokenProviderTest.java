@@ -1,5 +1,6 @@
 package com.agerp.agerp.security.jwt;
 
+import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,8 +34,25 @@ class JwtTokenProviderTest {
     void deveRejeitarTokenAdulterado() {
         String token = jwtTokenProvider.generateToken(
                 new UsernamePasswordAuthenticationToken("usuario@agerp.com", null));
-        String tokenAdulterado = token.substring(0, token.length() - 1) + "x";
+        String[] segmentos = token.split("\\.");
+        char primeiroCaractere = segmentos[1].charAt(0);
+        segmentos[1] = (primeiroCaractere == 'a' ? "b" : "a") + segmentos[1].substring(1);
+        String tokenAdulterado = String.join(".", segmentos);
 
         assertFalse(jwtTokenProvider.validateToken(tokenAdulterado));
+    }
+
+    @Test
+    void configuracaoRejeitaSegredoAusenteOuCurtoEExpiracaoInvalida() {
+        JwtProperties properties = new JwtProperties();
+        properties.setSecret("curto");
+        properties.setExpiration(0);
+
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var violations = factory.getValidator().validate(properties);
+            assertEquals(2, violations.size());
+            assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("secret")));
+            assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("expiration")));
+        }
     }
 }
