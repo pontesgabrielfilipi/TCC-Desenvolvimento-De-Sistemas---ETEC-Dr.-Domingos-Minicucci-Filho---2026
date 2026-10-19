@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import { dashboardService } from '../../services/dashboardService';
+import { useAparenciaSistema } from '../../hooks/useAparenciaSistema';
 import * as XLSX from 'xlsx';
 import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -22,8 +21,67 @@ interface DashboardData {
     estoqueBaixo: Array<{ nome: string; quantidade: number }>;
 }
 
+const STATUS_PEDIDO_META: Record<string, { label: string; color: string }> = {
+    PENDENTE: { label: 'Pendente', color: '#f59e0b' },
+    CONFIRMADO: { label: 'Confirmado', color: '#2563eb' },
+    EM_PREPARACAO: { label: 'Em preparação', color: '#7c3aed' },
+    PRONTO: { label: 'Pronto', color: '#0891b2' },
+    ENTREGUE: { label: 'Entregue', color: '#059669' },
+    CANCELADO: { label: 'Cancelado', color: '#e11d48' },
+    EM_ANDAMENTO: { label: 'Em andamento', color: '#4f46e5' },
+    EM_PROCESSAMENTO: { label: 'Em processamento', color: '#2563eb' },
+    ENVIADO: { label: 'Enviado', color: '#7c3aed' },
+    SEPARADO: { label: 'Separado', color: '#0891b2' },
+};
+
+const CORES_STATUS_DESCONHECIDO = ['#475569', '#0f766e', '#a16207', '#be123c', '#6d28d9'];
+
+const normalizarChaveStatus = (status: string) => status.trim().toUpperCase().replace(/[\s-]+/g, '_');
+
+const formatarStatus = (status: string) => STATUS_PEDIDO_META[status]?.label
+    ?? status.toLocaleLowerCase('pt-BR').replaceAll('_', ' ').replace(/^./, letra => letra.toLocaleUpperCase('pt-BR'));
+
+const corDoStatus = (status: string) => {
+    const corConhecida = STATUS_PEDIDO_META[status]?.color;
+    if (corConhecida) return corConhecida;
+    const indice = [...status].reduce((total, caractere) => total + caractere.charCodeAt(0), 0);
+    return CORES_STATUS_DESCONHECIDO[indice % CORES_STATUS_DESCONHECIDO.length];
+};
+
+const numeroNaoNegativo = (valor: unknown): number | null => {
+    const numero = Number(valor);
+    return Number.isFinite(numero) && numero >= 0 ? numero : null;
+};
+
+const normalizarSerie = (valor: unknown, chaveNome: string, chaveValor: string) => {
+    if (!Array.isArray(valor)) return [];
+    return valor.flatMap(item => {
+        if (!item || typeof item !== 'object') return [];
+        const registro = item as Record<string, unknown>;
+        const nome = typeof registro[chaveNome] === 'string' ? registro[chaveNome].trim() : '';
+        const quantidade = numeroNaoNegativo(registro[chaveValor]);
+        return nome && quantidade !== null ? [{ [chaveNome]: nome, [chaveValor]: quantidade }] : [];
+    });
+};
+
+const normalizarDashboard = (payload: unknown): DashboardData => {
+    const valor = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
+    return {
+        totalClientes: numeroNaoNegativo(valor.totalClientes) ?? 0,
+        totalProdutos: numeroNaoNegativo(valor.totalProdutos) ?? 0,
+        vendasMes: numeroNaoNegativo(valor.vendasMes) ?? 0,
+        pedidosPendentes: numeroNaoNegativo(valor.pedidosPendentes) ?? 0,
+        produtosEstoqueBaixo: numeroNaoNegativo(valor.produtosEstoqueBaixo) ?? 0,
+        vendasMensais: normalizarSerie(valor.vendasMensais, 'mes', 'valor') as DashboardData['vendasMensais'],
+        topProdutos: normalizarSerie(valor.topProdutos, 'nome', 'vendas') as DashboardData['topProdutos'],
+        distribuicaoClientes: normalizarSerie(valor.distribuicaoClientes, 'name', 'value') as DashboardData['distribuicaoClientes'],
+        statusPedidos: normalizarSerie(valor.statusPedidos, 'name', 'value') as DashboardData['statusPedidos'],
+        estoqueBaixo: normalizarSerie(valor.estoqueBaixo, 'nome', 'quantidade') as DashboardData['estoqueBaixo'],
+    };
+};
+
 const Dashboard = () => {
-    const { user, logout } = useAuth();
+    const { exibirAlertasEstoque } = useAparenciaSistema();
 
     const [data, setData] = useState<DashboardData>({
         totalClientes: 0,
@@ -39,15 +97,18 @@ const Dashboard = () => {
     });
 
     const [loading, setLoading] = useState(true);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [feedback, setFeedback] = useState('');
 
-    const carregarDashboard = async () => {
+    const carregarDashboard = async (refresh = false) => {
         try {
             setLoading(true);
-            const response = await dashboardService.getRelatorioCompleto();
-            setData(response.data);
+            setFeedback('');
+            const response = await dashboardService.getRelatorioCompleto(refresh);
+            setData(normalizarDashboard(response.data));
+            if (refresh) setFeedback('Dados atualizados com sucesso.');
         } catch (error) {
             console.error("Erro ao carregar dashboard:", error);
+            setFeedback('Não foi possível atualizar os dados.');
         } finally {
             setLoading(false);
         }
@@ -55,6 +116,9 @@ const Dashboard = () => {
 
     useEffect(() => {
         carregarDashboard();
+        const atualizar = () => { void carregarDashboard(); };
+        window.addEventListener('agerp:configuracoes-atualizadas', atualizar);
+        return () => window.removeEventListener('agerp:configuracoes-atualizadas', atualizar);
     }, []);
 
     const formatarMoeda = (valor: number) => {
@@ -101,78 +165,21 @@ const Dashboard = () => {
         XLSX.writeFile(wb, `Estoque_Baixo_${new Date().toISOString().slice(0,10)}.xlsx`);
     };
 
+    const statusPedidos = Array.from(data.statusPedidos.reduce((statusAgrupados, item) => {
+        const status = normalizarChaveStatus(item.name);
+        if (!status || item.value <= 0) return statusAgrupados;
+        statusAgrupados.set(status, (statusAgrupados.get(status) ?? 0) + item.value);
+        return statusAgrupados;
+    }, new Map<string, number>())).map(([name, value]) => ({
+        name,
+        value,
+        label: formatarStatus(name),
+        color: corDoStatus(name),
+    }));
+    const totalStatusPedidos = statusPedidos.reduce((total, item) => total + item.value, 0);
+
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
-
-            {/* SIDEBAR DESKTOP */}
-            <div className="hidden lg:flex w-64 bg-slate-900 text-white flex-col h-screen">
-                <div className="p-6 border-b border-slate-800">
-                    <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                    <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 pt-2 mb-0">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.nome?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight mb-1">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-slate-400">Online</p>
-                        </div>
-                    </div>
-                    <button onClick={logout} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-1 w-full py-2 text-red-400 hover:bg-slate-800 rounded-xl">
-                        Sair da conta
-                    </button>
-                </div>
-            </div>
-
-            {/* SIDEBAR MOBILE */}
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col transform transition-transform duration-300 lg:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                    <div>
-                        <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                        <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                    </div>
-                    <button onClick={() => setIsSidebarOpen(false)} className="text-3xl text-white">✕</button>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-300 no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 py-2">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-slate-400">Online</p>
-                        </div>
-                    </div>
-                    <button onClick={logout} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-6 w-full py-3 text-red-400 hover:bg-slate-800 rounded-xl">Sair da conta</button>
-                </div>
-            </div>
-
-            {/* Overlay mobile */}
-            {isSidebarOpen && (
-                <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-            )}
+        <div className="h-full min-w-0 bg-slate-100 flex overflow-hidden">
 
             {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -180,7 +187,6 @@ const Dashboard = () => {
                 {/* HEADER */}
                 <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-3xl text-gray-700">☰</button>
                         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
                     </div>
 
@@ -192,21 +198,22 @@ const Dashboard = () => {
                             <button onClick={exportarEstoqueBaixo} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-2.5 py-2.5 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300">📦 Estoque Baixo</button>
                         </div>
 
-                        <button onClick={carregarDashboard} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-3 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700">Atualizar</button>
+                        <button onClick={() => void carregarDashboard(true)} disabled={loading} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-3 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 disabled:opacity-50">{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
                     </div>
                 </header>
 
                 {/* Relatórios - Mobile / Tablet */}
-                <div className="lg:hidden bg-white border-b px-6 py-3">
-                    <div className="flex flex-wrap gap-3 overflow-x-auto pb-1">
-                        <button onClick={exportarVendasDoMes} className="flex-1 min-w-[140px] px-5 py-3 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300 transition">📄 Vendas do Mês</button>
-                        <button onClick={exportarClientesInativos} className="flex-1 min-w-[140px] px-5 py-3 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300 transition">👥 Clientes Inativos</button>
-                        <button onClick={exportarEstoqueBaixo} className="flex-1 min-w-[140px] px-5 py-3 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300 transition">📦 Estoque Baixo</button>
+                <div className="lg:hidden bg-white border-b px-4 py-3 sm:px-6">
+                    <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
+                        <button onClick={exportarVendasDoMes} className="min-w-[150px] shrink-0 px-5 py-3 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300 transition sm:min-w-0">📄 Vendas do Mês</button>
+                        <button onClick={exportarClientesInativos} className="min-w-[150px] shrink-0 px-5 py-3 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300 transition sm:min-w-0">👥 Clientes Inativos</button>
+                        <button onClick={exportarEstoqueBaixo} className="min-w-[150px] shrink-0 px-5 py-3 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300 transition sm:min-w-0">📦 Estoque Baixo</button>
                     </div>
                 </div>
 
                 {/* CONTEÚDO COM SCROLL */}
-                <div className="p-6 md:p-8 flex-1 overflow-auto">
+                <div className="flex-1 overflow-auto bg-slate-100 p-4 sm:p-6 md:p-8">
+                    {feedback && <p role="status" className="mb-4 text-sm text-gray-600">{feedback}</p>}
                     {loading ? (
                         <p className="text-center text-gray-500 py-10">Carregando estatísticas...</p>
                     ) : (
@@ -245,13 +252,13 @@ const Dashboard = () => {
                                         <div className="text-6xl text-orange-500">📋</div>
                                     </div>
 
-                                    <div className="bg-white rounded-3xl p-6 shadow flex items-center justify-between flex-1">
+                                    {exibirAlertasEstoque && <div className="bg-white rounded-3xl p-6 shadow flex items-center justify-between flex-1">
                                         <div>
                                             <p className="text-gray-500 text-sm">Estoque Baixo</p>
                                             <p className="text-4xl font-bold mt-2 text-red-600">{data.produtosEstoqueBaixo}</p>
                                         </div>
                                         <div className="text-6xl text-red-500">⚠️</div>
-                                    </div>
+                                    </div>}
                                 </div>
 
                             {/* GRÁFICOS */}
@@ -260,8 +267,8 @@ const Dashboard = () => {
                                         <h2 className="mx-auto text-3xl font-semibold text-gray-800">Visão Geral</h2>
                                     </div>
 
-                                    <div className="grid lg:flex md:flex flex-wrap grid-cols-1 gap-8 justify-content-center">
-                                        <div className="bg-white rounded-3xl p-6 shadow">
+                                    <div className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-2">
+                                        <div className="min-w-0 bg-white rounded-3xl p-6 shadow">
                                             <h3 className="font-medium mb-4">Evolução de Vendas (últimos 6 meses)</h3>
                                             <ResponsiveContainer width="100%" height={300}>
                                                 <LineChart data={data.vendasMensais}>
@@ -274,7 +281,7 @@ const Dashboard = () => {
                                             </ResponsiveContainer>
                                         </div>
 
-                                        <div className="bg-white rounded-3xl p-6 shadow">
+                                        <div className="min-w-0 bg-white rounded-3xl p-6 shadow">
                                             <h3 className="font-medium mb-4">Top 5 Produtos Mais Vendidos</h3>
                                             <ResponsiveContainer width="100%" height={300}>
                                                 <BarChart data={data.topProdutos} layout="vertical">
@@ -286,7 +293,7 @@ const Dashboard = () => {
                                                 </BarChart>
                                             </ResponsiveContainer>
                                         </div>
-                                        <div className="bg-white rounded-3xl p-6 shadow">
+                                        <div className="min-w-0 bg-white rounded-3xl p-6 shadow">
                                             <h3 className="font-medium mb-4">Distribuição de Clientes</h3>
                                             <ResponsiveContainer width="100%" height={280}>
                                                 <PieChart>
@@ -301,22 +308,57 @@ const Dashboard = () => {
                                             </ResponsiveContainer>
                                         </div>
 
-                                        <div className="bg-white rounded-3xl p-6 shadow">
+                                        <div className="min-w-0 bg-white rounded-3xl p-4 shadow sm:p-6">
                                             <h3 className="font-medium mb-4">Status dos Pedidos</h3>
-                                            <ResponsiveContainer width="100%" height={280}>
-                                                <PieChart>
-                                                    <Pie data={data.statusPedidos} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                                                        {data.statusPedidos.map((entry, index) => (
-                                                            <Cell key={`cell-${index}`} fill={entry.name === 'PENDENTE' ? '#f59e0b' : entry.name === 'EM_ANDAMENTO' ? '#10b981' : '#3b82f6'} />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip />
-                                                    <Legend />
-                                                </PieChart>
-                                            </ResponsiveContainer>
+                                            {statusPedidos.length > 0 ? <>
+                                                <div className="h-56 w-full min-w-0 sm:h-64" aria-label={`Distribuição de ${totalStatusPedidos.toLocaleString('pt-BR')} pedidos por status`}>
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+                                                            <Pie
+                                                                data={statusPedidos}
+                                                                dataKey="value"
+                                                                nameKey="label"
+                                                                cx="50%"
+                                                                cy="50%"
+                                                                innerRadius="48%"
+                                                                outerRadius="78%"
+                                                                paddingAngle={2}
+                                                                stroke="#ffffff"
+                                                                strokeWidth={2}
+                                                            >
+                                                                {statusPedidos.map(item => (
+                                                                    <Cell key={item.name} fill={item.color} />
+                                                                ))}
+                                                            </Pie>
+                                                            <Tooltip
+                                                                formatter={(value: unknown, name: unknown) => {
+                                                                    const quantidade = Number(value);
+                                                                    const percentual = totalStatusPedidos > 0 ? (quantidade / totalStatusPedidos) * 100 : 0;
+                                                                    return [`${quantidade.toLocaleString('pt-BR')} pedido${quantidade === 1 ? '' : 's'} (${percentual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)`, String(name)];
+                                                                }}
+                                                            />
+                                                        </PieChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                                <p className="mb-3 text-center text-sm text-slate-500">
+                                                    Total: <span className="font-semibold text-slate-700">{totalStatusPedidos.toLocaleString('pt-BR')}</span>
+                                                </p>
+                                                <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2" aria-label="Legenda dos status dos pedidos">
+                                                    {statusPedidos.map(item => {
+                                                        const percentual = (item.value / totalStatusPedidos) * 100;
+                                                        return <li key={item.name} className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+                                                            <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                                                            <span className="min-w-0 flex-1 break-words text-slate-700">{item.label}</span>
+                                                            <span className="shrink-0 font-semibold tabular-nums text-slate-900">{item.value.toLocaleString('pt-BR')} <span className="font-normal text-slate-500">({percentual.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)</span></span>
+                                                        </li>;
+                                                    })}
+                                                </ul>
+                                            </> : <div className="flex h-64 items-center justify-center rounded-2xl bg-slate-50 px-4 text-center text-sm text-slate-500" role="status">
+                                                Nenhum pedido com status contabilizável.
+                                            </div>}
                                         </div>
 
-                                        <div className="bg-white rounded-3xl p-6 shadow">
+                                        {exibirAlertasEstoque && <div className="min-w-0 bg-white rounded-3xl p-6 shadow">
                                             <h3 className="font-medium mb-4">Produtos com Estoque Baixo</h3>
                                             <ResponsiveContainer width="100%" height={280}>
                                                 <BarChart data={data.estoqueBaixo}>
@@ -327,7 +369,7 @@ const Dashboard = () => {
                                                     <Bar dataKey="quantidade" fill="#ef4444" radius={8} />
                                                 </BarChart>
                                             </ResponsiveContainer>
-                                        </div>
+                                        </div>}
                                     </div>
                                 </div>
                         </>

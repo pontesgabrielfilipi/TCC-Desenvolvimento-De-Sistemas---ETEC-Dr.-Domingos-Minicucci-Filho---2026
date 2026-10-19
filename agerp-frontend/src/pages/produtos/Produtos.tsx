@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { produtoService } from '../../services/produtoService';
 import { getHttpErrorMessage } from '../../utils/httpError';
 
@@ -24,12 +22,11 @@ interface Toast {
 }
 
 const Produtos = () => {
-    const { user, logout } = useAuth();
 
     const [produtos, setProdutos] = useState<Produto[]>([]);
     const [busca, setBusca] = useState('');
     const [loading, setLoading] = useState(true);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [sort, setSort] = useState<{ key: keyof Produto; direction: 'asc' | 'desc' }>({ key: 'nome', direction: 'asc' });
 
     // Modal
     const [modalOpen, setModalOpen] = useState(false);
@@ -59,11 +56,12 @@ const Produtos = () => {
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
     }, []);
 
-    const carregarProdutos = useCallback(async () => {
+    const carregarProdutos = useCallback(async (refresh = false) => {
         try {
             setLoading(true);
-            const response = await produtoService.listar();
+            const response = await produtoService.listar(refresh);
             setProdutos(response.data);
+            if (refresh) showToast('success', 'Produtos atualizados com sucesso.');
         } catch (error) {
             console.error('Erro ao carregar produtos:', error);
             showToast('error', 'Erro ao carregar lista de produtos');
@@ -76,9 +74,25 @@ const Produtos = () => {
         carregarProdutos();
     }, [carregarProdutos]);
 
-    const produtosFiltrados = produtos.filter((p) =>
-        p.nome.toLowerCase().includes(busca.toLowerCase())
-    );
+    const produtosFiltrados = useMemo(() => {
+        const termo = busca.trim().toLocaleLowerCase('pt-BR');
+        const filtrados = produtos.filter(p => !termo || [p.id, p.nome, p.descricao, p.ativo ? 'ativo' : 'inativo']
+            .some(valor => String(valor ?? '').toLocaleLowerCase('pt-BR').includes(termo)));
+        return [...filtrados].sort((a, b) => {
+            const av = a[sort.key] ?? '';
+            const bv = b[sort.key] ?? '';
+            const resultado = typeof av === 'number' && typeof bv === 'number'
+                ? av - bv
+                : String(av).localeCompare(String(bv), 'pt-BR', { numeric: true, sensitivity: 'base' });
+            return sort.direction === 'asc' ? resultado : -resultado;
+        });
+    }, [busca, produtos, sort]);
+
+    const ordenar = (key: keyof Produto) => setSort(atual => ({
+        key,
+        direction: atual.key === key && atual.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    const indicador = (key: keyof Produto) => sort.key === key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : '';
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -234,85 +248,14 @@ const Produtos = () => {
     };
 
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
-
-            {/* SIDEBAR DESKTOP */}
-            <div className="hidden lg:flex w-64 bg-slate-900 text-white flex-col h-screen">
-                <div className="p-6 border-b border-slate-800">
-                    <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                    <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 py-2">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight mb-1">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-slate-400">Online</p>
-                        </div>
-                    </div>
-                    <button onClick={logout} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-1 w-full py-2 text-red-400 hover:bg-slate-800 rounded-xl">
-                        Sair da conta
-                    </button>
-                </div>
-            </div>
-
-            {/* SIDEBAR MOBILE */}
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col transform transition-transform duration-300 lg:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                    <div>
-                        <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                        <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                    </div>
-                    <button onClick={() => setIsSidebarOpen(false)} className="text-3xl text-white">✕</button>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 py-2">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-slate-400">Online</p>
-                        </div>
-                    </div>
-                    <button onClick={logout} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-6 w-full py-3 text-red-400 hover:bg-slate-800 rounded-xl">Sair da conta</button>
-                </div>
-            </div>
-
-            {/* Overlay mobile */}
-            {isSidebarOpen && (
-                <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-            )}
+        <div className="h-full min-w-0 bg-gray-50 flex overflow-hidden">
 
             {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col overflow-hidden">
 
                 {/* HEADER */}
-                <header className="bg-white border-b px-6 py-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-3xl text-gray-700">☰</button>
+                <header className="bg-white border-b px-3 sm:px-6 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex w-full sm:w-auto min-w-0 flex-wrap items-center gap-2 sm:gap-4">
                         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">📦 Produtos</h1>
                     </div>
 
@@ -322,8 +265,13 @@ const Produtos = () => {
                             placeholder="Buscar por nome do produto..."
                             value={busca}
                             onChange={(e) => setBusca(e.target.value)}
-                            className="w-80 px-5 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm"
+                            aria-label="Buscar produtos" className="w-full min-w-0 sm:w-72 px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm"
                         />
+                        <button
+                            onClick={() => void carregarProdutos(true)}
+                            disabled={loading}
+                            className="px-4 py-3 border border-gray-300 rounded-2xl font-medium hover:bg-gray-50 disabled:opacity-50"
+                        >{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
                         <button
                             onClick={() => abrirModal()}
                             className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-medium flex items-center gap-2"
@@ -334,20 +282,20 @@ const Produtos = () => {
                 </header>
 
                 {/* CONTEÚDO COM SCROLL */}
-                <div className="p-6 md:p-8 flex-1 overflow-auto">
+                <div className="min-w-0 p-3 sm:p-6 md:p-8 flex-1 overflow-y-auto overflow-x-hidden">
                     {loading ? (
                         <div className="text-center py-16 text-gray-500 font-medium">Carregando produtos...</div>
                     ) : (
-                        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-                        <table className="w-full">
+                        <div className="bg-white rounded-3xl shadow-sm overflow-x-auto" role="region" aria-label="Tabela de produtos" tabIndex={0}>
+                        <table className="w-full min-w-[800px]">
                             <thead className="bg-gray-50 border-b">
                             <tr>
-                                <th className="px-6 py-4 text-left">Nome</th>
-                                <th className="px-6 py-4 text-left">Preço</th>
-                                <th className="px-6 py-4 text-left">Custo</th>
-                                <th className="px-6 py-4 text-center">Estoque Atual</th>
-                                <th className="px-6 py-4 text-center">Mínimo</th>
-                                <th className="px-6 py-4 text-center">Ativo</th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('nome')}>Nome{indicador('nome')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('preco')}>Preço{indicador('preco')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('custo')}>Custo{indicador('custo')}</button></th>
+                                <th className="px-6 py-4 text-center"><button onClick={() => ordenar('quantidadeAtual')}>Estoque Atual{indicador('quantidadeAtual')}</button></th>
+                                <th className="px-6 py-4 text-center"><button onClick={() => ordenar('quantidadeMinima')}>Mínimo{indicador('quantidadeMinima')}</button></th>
+                                <th className="px-6 py-4 text-center"><button onClick={() => ordenar('ativo')}>Ativo{indicador('ativo')}</button></th>
                                 <th className="px-6 py-4 text-center">Ações</th>
                             </tr>
                             </thead>

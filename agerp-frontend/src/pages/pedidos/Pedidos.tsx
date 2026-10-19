@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { pedidoService } from '../../services/pedidoService';
 import type { 
     PedidoResponse, 
@@ -34,7 +32,6 @@ interface Toast {
 }
 
 const Pedidos = () => {
-    const { user, logout } = useAuth();
 
     const [pedidos, setPedidos] = useState<PedidoResponse[]>([]);
     const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -44,7 +41,7 @@ const Pedidos = () => {
     const [filtroCliente, setFiltroCliente] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [salvando, setSalvando] = useState(false);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [sort, setSort] = useState<{ key: 'id' | 'nomeCliente' | 'dataPedido' | 'status' | 'valorTotal'; direction: 'asc' | 'desc' }>({ key: 'dataPedido', direction: 'desc' });
 
     // Modal de Criação / Edição
     const [modalOpen, setModalOpen] = useState(false);
@@ -82,11 +79,12 @@ const Pedidos = () => {
     }, []);
 
     // Carregar dados
-    const carregarPedidos = useCallback(async () => {
+    const carregarPedidos = useCallback(async (refresh = false) => {
         try {
             setLoading(true);
-            const response = await pedidoService.listar();
+            const response = await pedidoService.listar(refresh);
             setPedidos(response.data);
+            if (refresh) showToast('success', 'Pedidos atualizados com sucesso.');
         } catch (error) {
             console.error('Erro ao carregar pedidos:', error);
             showToast('error', 'Erro ao carregar lista de pedidos');
@@ -95,18 +93,18 @@ const Pedidos = () => {
         }
     }, [showToast]);
 
-    const carregarProdutos = useCallback(async () => {
+    const carregarProdutos = useCallback(async (refresh = false) => {
         try {
-            const response = await produtoService.listar();
+            const response = await produtoService.listar(refresh);
             setProdutos(response.data);
         } catch (error) {
             console.error('Erro ao carregar produtos:', error);
         }
     }, []);
 
-    const carregarClientes = useCallback(async () => {
+    const carregarClientes = useCallback(async (refresh = false) => {
         try {
-            const response = await clienteService.listar();
+            const response = await clienteService.listar(refresh);
             setClientes(response.data);
         } catch (error) {
             console.error('Erro ao carregar clientes:', error);
@@ -119,14 +117,37 @@ const Pedidos = () => {
         carregarClientes();
     }, [carregarClientes, carregarPedidos, carregarProdutos]);
 
-    // Filtrar pedidos
-    const pedidosFiltrados = pedidos.filter(p => {
-        const matchBusca = p.id.toString().includes(busca) || 
-                          (p.nomeCliente && p.nomeCliente.toLowerCase().includes(busca.toLowerCase()));
+    const pedidosFiltrados = useMemo(() => {
+        const termo = busca.trim().toLocaleLowerCase('pt-BR');
+        const filtrados = pedidos.filter(p => {
+        const matchBusca = !termo || [p.id, p.nomeCliente, p.nomeUsuario, p.status, p.dataPedido,
+            ...p.itens.map(item => item.nomeProduto)]
+            .some(valor => String(valor ?? '').toLocaleLowerCase('pt-BR').includes(termo));
         const matchStatus = filtroStatus === '' || p.status === filtroStatus;
         const matchCliente = filtroCliente === '' || p.idCliente.toString() === filtroCliente;
         return matchBusca && matchStatus && matchCliente;
-    });
+        });
+        return [...filtrados].sort((a, b) => {
+            const av = a[sort.key] ?? '';
+            const bv = b[sort.key] ?? '';
+            const resultado = typeof av === 'number' && typeof bv === 'number'
+                ? av - bv
+                : sort.key === 'dataPedido'
+                    ? new Date(String(av)).getTime() - new Date(String(bv)).getTime()
+                    : String(av).localeCompare(String(bv), 'pt-BR', { numeric: true, sensitivity: 'base' });
+            return sort.direction === 'asc' ? resultado : -resultado;
+        });
+    }, [busca, filtroCliente, filtroStatus, pedidos, sort]);
+
+    const ordenar = (key: typeof sort.key) => setSort(atual => ({
+        key,
+        direction: atual.key === key && atual.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    const indicador = (key: typeof sort.key) => sort.key === key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : '';
+
+    const atualizarTudo = async () => {
+        await Promise.all([carregarPedidos(true), carregarProdutos(true), carregarClientes(true)]);
+    };
 
     // Adicionar item ao pedido
     const adicionarItem = () => {
@@ -420,87 +441,12 @@ const Pedidos = () => {
     };
 
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
-            {/* SIDEBAR DESKTOP */}
-            <div className="hidden lg:flex w-64 bg-slate-900 text-white flex-col h-screen">
-                <div className="p-6 border-b border-slate-800">
-                    <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                    <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline hover:no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline hover:no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline hover:no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline hover:no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 py-2">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight mb-1">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-emerald-400">Online</p>
-                        </div>
-                    </div>
-                    <button 
-                        onClick={logout} 
-                        className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-1 w-full py-2 text-red-400 hover:bg-slate-800 rounded-xl"
-                    >
-                        Sair da conta
-                    </button>
-                </div>
-            </div>
-
-            {/* SIDEBAR MOBILE */}
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col transform transition-transform duration-300 lg:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                    <div>
-                        <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                        <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                    </div>
-                    <button onClick={() => setIsSidebarOpen(false)} className="text-3xl text-white">✕</button>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 py-2">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-emerald-400">Online</p>
-                        </div>
-                    </div>
-                    <button onClick={logout} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-6 w-full py-3 text-red-400 hover:bg-slate-800 rounded-xl">
-                        Sair da conta
-                    </button>
-                </div>
-            </div>
-
-            {isSidebarOpen && (
-                <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-            )}
-
+        <div className="h-full min-w-0 bg-gray-50 flex overflow-hidden">
             {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* HEADER */}
-                <header className="bg-white border-b px-6 py-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-3xl text-gray-700">☰</button>
+                <header className="bg-white border-b px-3 sm:px-6 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex w-full sm:w-auto min-w-0 flex-wrap items-center gap-2 sm:gap-4">
                         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">📋 Pedidos</h1>
                     </div>
 
@@ -510,8 +456,10 @@ const Pedidos = () => {
                             placeholder="Buscar por ID ou cliente..."
                             value={busca}
                             onChange={(e) => setBusca(e.target.value)}
-                            className="w-80 px-5 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm"
+                            aria-label="Buscar pedidos"
+                            className="w-full min-w-0 sm:w-72 px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm"
                         />
+                        <button onClick={() => void atualizarTudo()} disabled={loading} className="px-4 py-3 border border-gray-300 rounded-2xl font-medium hover:bg-gray-50 disabled:opacity-50">{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
                         <button
                             onClick={() => abrirModal()}
                             className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-medium flex items-center gap-2"
@@ -585,15 +533,15 @@ const Pedidos = () => {
                     {!loading && pedidosFiltrados.length > 0 && (
                         <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left">
+                                <table className="w-full min-w-[850px] text-left">
                                     <thead className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider font-semibold">
                                         <tr>
-                                            <th className="px-6 py-4">ID</th>
-                                            <th className="px-6 py-4">Cliente</th>
-                                            <th className="px-6 py-4">Data</th>
-                                            <th className="px-6 py-4">Status</th>
+                                            <th className="px-6 py-4"><button onClick={() => ordenar('id')}>ID{indicador('id')}</button></th>
+                                            <th className="px-6 py-4"><button onClick={() => ordenar('nomeCliente')}>Cliente{indicador('nomeCliente')}</button></th>
+                                            <th className="px-6 py-4"><button onClick={() => ordenar('dataPedido')}>Data{indicador('dataPedido')}</button></th>
+                                            <th className="px-6 py-4"><button onClick={() => ordenar('status')}>Status{indicador('status')}</button></th>
                                             <th className="px-6 py-4 text-center">Itens</th>
-                                            <th className="px-6 py-4 text-right">Valor Total</th>
+                                            <th className="px-6 py-4 text-right"><button onClick={() => ordenar('valorTotal')}>Valor Total{indicador('valorTotal')}</button></th>
                                             <th className="px-6 py-4 text-center">Ações</th>
                                         </tr>
                                     </thead>

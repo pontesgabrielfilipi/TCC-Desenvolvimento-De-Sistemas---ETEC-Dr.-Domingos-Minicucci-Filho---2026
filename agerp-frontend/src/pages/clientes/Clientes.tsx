@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { clienteService } from '../../services/clienteService';
 import { EnderecosModal } from './EnderecosModal';
+import { getHttpErrorMessage } from '../../utils/httpError';
 
 interface Cliente {
     id: number;
@@ -11,6 +10,7 @@ interface Cliente {
     cpfCnpj: string;
     email: string;
     telefone: string;
+    dataCadastro?: string;
 }
 
 interface Toast {
@@ -20,12 +20,11 @@ interface Toast {
 }
 
 const Clientes = () => {
-    const { user, logout } = useAuth();
 
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [busca, setBusca] = useState('');
     const [loading, setLoading] = useState(true);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [sort, setSort] = useState<{ key: keyof Cliente; direction: 'asc' | 'desc' }>({ key: 'nomeRazao', direction: 'asc' });
 
     // Modal Cliente
     const [modalOpen, setModalOpen] = useState(false);
@@ -56,11 +55,12 @@ const Clientes = () => {
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
     }, []);
 
-    const carregarClientes = useCallback(async () => {
+    const carregarClientes = useCallback(async (refresh = false) => {
         try {
             setLoading(true);
-            const response = await clienteService.listar();
+            const response = await clienteService.listar(refresh);
             setClientes(response.data);
+            if (refresh) showToast('success', 'Clientes atualizados com sucesso.');
         } catch (error) {
             console.error('Erro ao carregar clientes:', error);
             showToast('error', 'Erro ao carregar lista de clientes');
@@ -73,10 +73,25 @@ const Clientes = () => {
         carregarClientes();
     }, [carregarClientes]);
 
-    const clientesFiltrados = clientes.filter((c) =>
-        c.nomeRazao.toLowerCase().includes(busca.toLowerCase()) ||
-        c.cpfCnpj.includes(busca)
-    );
+    const clientesFiltrados = useMemo(() => {
+        const termo = busca.trim().toLocaleLowerCase('pt-BR');
+        const filtrados = clientes.filter(c => !termo || [c.id, c.nomeRazao, c.tipo, c.cpfCnpj, c.email, c.telefone]
+            .some(valor => String(valor ?? '').toLocaleLowerCase('pt-BR').includes(termo)));
+        return [...filtrados].sort((a, b) => {
+            const av = a[sort.key] ?? '';
+            const bv = b[sort.key] ?? '';
+            const resultado = typeof av === 'number' && typeof bv === 'number'
+                ? av - bv
+                : String(av).localeCompare(String(bv), 'pt-BR', { numeric: true, sensitivity: 'base' });
+            return sort.direction === 'asc' ? resultado : -resultado;
+        });
+    }, [busca, clientes, sort]);
+
+    const ordenar = (key: keyof Cliente) => setSort(atual => ({
+        key,
+        direction: atual.key === key && atual.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    const indicador = (key: keyof Cliente) => sort.key === key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : '';
 
     // Máscaras
     const formatarTelefone = (value: string) =>
@@ -184,7 +199,7 @@ const Clientes = () => {
                 showToast('success', 'Cliente cadastrado com sucesso!');
             }
             fecharModal();
-            carregarClientes();
+            await carregarClientes(true);
         } catch (error) {
             showToast('error', `Erro ao salvar cliente ${error}`);
         }
@@ -198,104 +213,38 @@ const Clientes = () => {
             await clienteService.excluir(deleteConfirmId);
             showToast('success', 'Cliente excluído com sucesso!');
             carregarClientes();
-        } catch {
-            showToast('error', 'Erro ao excluir cliente');
+        } catch (error) {
+            showToast('error', getHttpErrorMessage(error, 'Erro ao excluir cliente'));
         } finally {
             setDeleteConfirmId(null);
         }
     };
 
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
-
-            {/* SIDEBAR DESKTOP */}
-            <div className="hidden lg:flex w-64 bg-slate-900 text-white flex-col h-screen">
-                <div className="p-6 border-b border-slate-800">
-                    <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                    <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 pt-2 mb-0">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.nome?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight mb-1">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-slate-400">Online</p>
-                        </div>
-                    </div>
-                    <button onClick={logout} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-1 w-full py-2 text-red-400 hover:bg-slate-800 rounded-xl">
-                        Sair da conta
-                    </button>
-                </div>
-            </div>
-
-            {/* SIDEBAR MOBILE */}
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col transform transition-transform duration-300 lg:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                    <div>
-                        <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                        <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                    </div>
-                    <button onClick={() => setIsSidebarOpen(false)} className="text-3xl text-white">✕</button>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 py-2">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-slate-400">Online</p>
-                        </div>
-                    </div>
-                    <button onClick={logout} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-6 w-full py-3 text-red-400 hover:bg-slate-800 rounded-xl">Sair da conta</button>
-                </div>
-            </div>
-
-            {/* Overlay mobile */}
-            {isSidebarOpen && (
-                <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-            )}
+        <div className="h-full min-w-0 bg-gray-50 flex overflow-hidden">
 
             {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col overflow-hidden">
 
                 {/* HEADER */}
-                <header className="bg-white border-b px-6 py-5 flex items-center justify-between">
+                <header className="bg-white border-b px-3 sm:px-6 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-3xl text-gray-700">☰</button>
-                        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">👥 Clientes</h1>
+                        <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">👥 Clientes</h1>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex w-full sm:w-auto min-w-0 flex-wrap items-center gap-2 sm:gap-4">
                         <input
                             type="text"
                             placeholder="Buscar por nome ou CPF/CNPJ..."
                             value={busca}
                             onChange={(e) => setBusca(e.target.value)}
-                            className="w-80 px-5 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm"
+                            aria-label="Buscar clientes" className="w-full min-w-0 sm:w-72 px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm"
                         />
+                        <button
+                            onClick={() => void carregarClientes(true)}
+                            disabled={loading}
+                            className="px-4 py-3 border border-gray-300 rounded-2xl font-medium hover:bg-gray-50 disabled:opacity-50"
+                        >{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
                         <button
                             onClick={() => abrirModal()}
                             className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-medium flex items-center gap-2"
@@ -306,19 +255,19 @@ const Clientes = () => {
                 </header>
 
                 {/* CONTEÚDO COM SCROLL */}
-                <div className="p-6 md:p-8 flex-1 overflow-auto">
+                <div className="min-w-0 p-3 sm:p-6 md:p-8 flex-1 overflow-y-auto overflow-x-hidden">
                     {loading ? (
                         <div className="text-center py-16 text-gray-500 font-medium">Carregando clientes...</div>
                     ) : (
-                        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-                        <table className="w-full">
+                        <div className="bg-white rounded-3xl shadow-sm overflow-x-auto" role="region" aria-label="Tabela de clientes" tabIndex={0}>
+                        <table className="w-full min-w-[800px]">
                             <thead className="bg-gray-50 border-b">
                             <tr>
-                                <th className="px-6 py-4 text-left">Nome / Razão Social</th>
-                                <th className="px-6 py-4 text-left">Tipo</th>
-                                <th className="px-6 py-4 text-left">CPF / CNPJ</th>
-                                <th className="px-6 py-4 text-left">E-mail</th>
-                                <th className="px-6 py-4 text-left">Telefone</th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('nomeRazao')}>Nome / Razão Social{indicador('nomeRazao')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('tipo')}>Tipo{indicador('tipo')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('cpfCnpj')}>CPF / CNPJ{indicador('cpfCnpj')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('email')}>E-mail{indicador('email')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('telefone')}>Telefone{indicador('telefone')}</button></th>
                                 <th className="px-6 py-4 text-center">Ações</th>
                             </tr>
                             </thead>
