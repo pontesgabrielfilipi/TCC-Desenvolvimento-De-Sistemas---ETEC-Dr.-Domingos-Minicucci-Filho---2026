@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+    --agerp-app-background: #e2e8f0;
+}
+
 /* Estilos globais */
 body {
     font-family: 'Inter', system-ui, sans-serif;
@@ -11,10 +15,27 @@ html { -webkit-text-size-adjust: 100%; }
 html, body, #root {
     min-width: 0;
     min-height: 100%;
-    background-color: #f1f5f9;
+    background-color: var(--agerp-app-background);
 }
-#root { min-height: 100vh; }
+#root { min-height: 100vh; min-height: 100dvh; }
 button, input, select, textarea { max-width: 100%; }
+/* Avoid iOS auto-zoom on focused form fields and keep long values inside flex/grid items. */
+@media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
+}
+.agerp-modal-overlay { padding: max(.75rem, env(safe-area-inset-top)) .75rem max(.75rem, env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
+.agerp-modal-panel { min-width: 0; max-height: calc(100dvh - 1.5rem); overflow-y: auto; overscroll-behavior: contain; }
+.agerp-mobile-card { min-width: 0; overflow-wrap: anywhere; }
+.agerp-mobile-card button { min-height: 44px; }
+.agerp-responsive-chart { min-width: 0; width: 100%; }
+/* Os indicadores precisam de largura útil real; break-words não deve dividir cifras. */
+.agerp-indicator-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+    gap: 1rem;
+    min-width: 0;
+    width: 100%;
+}
 :where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid #4f46e5; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

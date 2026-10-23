@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { configuracoesService } from '../../services/configuracoesService';
 import type { ConfiguracoesSistema, DiagnosticoSistema } from '../../services/configuracoesService';
 import { getHttpErrorMessage } from '../../utils/httpError';
+import GerenciamentoCargos from './GerenciamentoCargos';
 
 export default function AdminConfiguracoes() {
     const [salvo, setSalvo] = useState<ConfiguracoesSistema | null>(null);
@@ -35,6 +36,7 @@ export default function AdminConfiguracoes() {
     const modificado = !!salvo && !!form && (
         salvo.nomeEmpresa !== form.nomeEmpresa ||
         salvo.limiteEstoqueBaixo !== form.limiteEstoqueBaixo ||
+        salvo.usarEstoqueMinimoGeral !== form.usarEstoqueMinimoGeral ||
         salvo.exibirAlertasEstoque !== form.exibirAlertasEstoque ||
         salvo.timeoutIaMs !== form.timeoutIaMs
     );
@@ -53,7 +55,9 @@ export default function AdminConfiguracoes() {
             setErro('Verifique o limite de estoque (1–100000) e o timeout da IA (500–15000 ms).');
             return;
         }
-        if ((form.limiteEstoqueBaixo !== salvo?.limiteEstoqueBaixo || form.timeoutIaMs !== salvo?.timeoutIaMs) &&
+        if ((form.limiteEstoqueBaixo !== salvo?.limiteEstoqueBaixo ||
+            form.usarEstoqueMinimoGeral !== salvo?.usarEstoqueMinimoGeral ||
+            form.timeoutIaMs !== salvo?.timeoutIaMs) &&
             !window.confirm('Alterar estes parâmetros afeta os indicadores de estoque e as próximas previsões de entrega. Confirmar?')) return;
 
         setSalvando(true);
@@ -61,6 +65,7 @@ export default function AdminConfiguracoes() {
             const { data } = await configuracoesService.atualizar({
                 nomeEmpresa: form.nomeEmpresa.trim(),
                 limiteEstoqueBaixo: form.limiteEstoqueBaixo,
+                usarEstoqueMinimoGeral: form.usarEstoqueMinimoGeral,
                 exibirAlertasEstoque: form.exibirAlertasEstoque,
                 timeoutIaMs: form.timeoutIaMs,
                 versao: form.versao,
@@ -77,10 +82,10 @@ export default function AdminConfiguracoes() {
         }
     };
 
-    if (carregando) return <div className="rounded-2xl bg-white p-10 text-gray-600" role="status">Carregando configurações...</div>;
-    if (!form) return <div className="rounded-2xl bg-white p-8"><p role="alert" className="text-red-700">{erro || 'Configurações indisponíveis.'}</p><button className="mt-4 rounded-xl border px-4 py-2" onClick={() => void carregar()}>Tentar novamente</button></div>;
+    if (carregando) return <div className="space-y-8"><div className="rounded-2xl bg-white p-10 text-gray-600" role="status">Carregando configurações...</div><GerenciamentoCargos /></div>;
+    if (!form) return <div className="space-y-8"><div className="rounded-2xl bg-white p-8"><p role="alert" className="text-red-700">{erro || 'Configurações indisponíveis.'}</p><button className="mt-4 rounded-xl border px-4 py-2" onClick={() => void carregar()}>Tentar novamente</button></div><GerenciamentoCargos /></div>;
 
-    return <form onSubmit={salvar} className="max-w-5xl space-y-5 pb-8">
+    return <div className="min-w-0 space-y-8"><form onSubmit={salvar} className="max-w-5xl min-w-0 space-y-5 pb-8">
         <div><h2 className="text-xl font-semibold text-gray-900">Configurações do sistema</h2><p className="mt-1 text-sm text-gray-500">Alterações persistidas no banco de dados, aplicadas sem reiniciar o servidor.</p></div>
         <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6 space-y-4" aria-labelledby="config-gerais">
             <h3 id="config-gerais" className="text-lg font-semibold">Geral</h3>
@@ -91,8 +96,15 @@ export default function AdminConfiguracoes() {
         </section>
         <section className="rounded-2xl bg-white p-4 shadow-sm sm:p-6 space-y-4" aria-labelledby="config-estoque">
             <h3 id="config-estoque" className="text-lg font-semibold">Estoque</h3>
-            <label className="block text-sm font-medium">Limite de estoque baixo (unidades)
+            <label className="flex items-start gap-3 text-sm font-medium">
+                <input type="checkbox" checked={form.usarEstoqueMinimoGeral} onChange={e => setForm({ ...form, usarEstoqueMinimoGeral: e.target.checked })} className="mt-0.5 h-5 w-5 shrink-0 accent-indigo-600" />
+                <span>Usar estoque mínimo geral
+                    <span className="mt-1 block text-xs font-normal text-gray-500">Habilitada: limite geral em todos os produtos. Desabilitada: mínimos individuais. A troca preserva os limites cadastrados.</span>
+                </span>
+            </label>
+            <label className="block text-sm font-medium">Limite geral de estoque baixo (unidades inteiras)
                 <input required type="number" min={1} max={100000} step={1} value={form.limiteEstoqueBaixo} onChange={e => setForm({ ...form, limiteEstoqueBaixo: Number(e.target.value) })} className="mt-2 block w-full rounded-xl border border-gray-300 p-3" />
+                <span className="mt-1 block text-xs font-normal text-gray-500">{form.usarEstoqueMinimoGeral ? 'Limite aplicado a todos os produtos.' : 'Limite preservado para quando o modo geral for reativado.'} O alerta considera a quantidade estritamente inferior ao mínimo. Registros sem mínimo individual usam 10 unidades.</span>
                 <span className="mt-1 block text-xs font-normal text-gray-500">Produtos com quantidade inferior ao limite entram nos indicadores administrativos e do dashboard. Não altera o mínimo cadastrado por produto.</span>
             </label>
             <label className="flex items-center gap-3 text-sm font-medium"><input type="checkbox" checked={form.exibirAlertasEstoque} onChange={e => setForm({ ...form, exibirAlertasEstoque: e.target.checked })} className="h-5 w-5 accent-indigo-600" />Exibir alertas e gráfico de estoque baixo no dashboard</label>
@@ -122,10 +134,10 @@ export default function AdminConfiguracoes() {
         </section>
         {erro && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{erro}</p>}
         {sucesso && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm text-green-700">{sucesso}</p>}
-        <div className="sticky bottom-0 flex flex-wrap gap-3 rounded-2xl border bg-white/95 p-4 shadow-sm backdrop-blur">
-            <button type="submit" disabled={!modificado || salvando} className="rounded-xl bg-indigo-600 px-6 py-3 font-medium text-white disabled:opacity-50">{salvando ? 'Salvando...' : 'Salvar alterações'}</button>
-            <button type="button" disabled={!modificado || salvando} onClick={() => { setForm(salvo); setErro(''); setSucesso(''); }} className="rounded-xl border px-5 py-3 disabled:opacity-50">Restaurar alterações não salvas</button>
-            <button type="button" disabled={salvando} onClick={() => void carregar()} className="rounded-xl border px-5 py-3">Recarregar do servidor</button>
+        <div className="sticky bottom-0 z-10 grid grid-cols-1 gap-2 rounded-2xl border bg-white/95 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] shadow-sm backdrop-blur sm:flex sm:flex-wrap sm:gap-3 sm:p-4">
+            <button type="submit" disabled={!modificado || salvando} className="min-h-11 rounded-xl bg-indigo-600 px-6 py-3 font-medium text-white disabled:opacity-50">{salvando ? 'Salvando...' : 'Salvar alterações'}</button>
+            <button type="button" disabled={!modificado || salvando} onClick={() => { setForm(salvo); setErro(''); setSucesso(''); }} className="min-h-11 rounded-xl border px-5 py-3 disabled:opacity-50">Restaurar alterações não salvas</button>
+            <button type="button" disabled={salvando} onClick={() => void carregar()} className="min-h-11 rounded-xl border px-5 py-3">Recarregar do servidor</button>
         </div>
-    </form>;
+    </form><GerenciamentoCargos /></div>;
 }

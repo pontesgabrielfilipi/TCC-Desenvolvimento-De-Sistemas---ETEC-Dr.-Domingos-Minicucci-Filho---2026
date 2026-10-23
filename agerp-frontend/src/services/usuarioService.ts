@@ -17,6 +17,18 @@ export interface PerfilResponse {
     id: number;
     nome: string;
     descricao?: string;
+    nivelAutoridade: number;
+    protegido: boolean;
+    paginas: string[];
+    versao: number;
+}
+
+export interface PerfilSaveRequest {
+    nome: string;
+    descricao: string;
+    nivelAutoridade: number;
+    paginas: string[];
+    versao?: number;
 }
 
 export interface RedefinicaoSenhaResponse {
@@ -48,6 +60,18 @@ export const usuarioService = {
 
     async listarPerfis() {
         return await api.get<PerfilResponse[]>('/api/admin/perfis');
+    },
+
+    async criarCargo(cargo: PerfilSaveRequest) {
+        return api.post<PerfilResponse>('/api/admin/perfis', cargo);
+    },
+
+    async editarCargo(id: number, cargo: PerfilSaveRequest) {
+        return api.put<PerfilResponse>(`/api/admin/perfis/${id}`, cargo);
+    },
+
+    async excluirCargo(id: number) {
+        return api.delete(`/api/admin/perfis/${id}`);
     },
 
     async deletar(id: number) {

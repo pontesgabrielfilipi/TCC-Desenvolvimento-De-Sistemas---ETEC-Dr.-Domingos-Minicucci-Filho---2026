@@ -3,6 +3,7 @@ import api from '../api/axiosInstance';
 export interface ConfiguracoesSistema {
     nomeEmpresa: string;
     limiteEstoqueBaixo: number;
+    usarEstoqueMinimoGeral: boolean;
     exibirAlertasEstoque: boolean;
     timeoutIaMs: number;
     versao: number;

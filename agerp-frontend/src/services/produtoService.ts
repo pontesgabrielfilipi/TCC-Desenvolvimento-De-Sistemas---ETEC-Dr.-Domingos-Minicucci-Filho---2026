@@ -21,6 +21,10 @@ export const produtoService = {
         return await api.get('/api/produtos', { params: refresh ? { refresh: true, _ts: Date.now() } : undefined });
     },
 
+    async listarTodos() {
+        return await api.get('/api/produtos/todos');
+    },
+
     async criar(payload: ProdutoCreateRequest) {
         return await api.post('/api/produtos', payload);
     },

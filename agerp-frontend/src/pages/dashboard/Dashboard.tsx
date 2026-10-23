@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useMobileHeaderActionTarget } from '../../components/navigation/MobileHeaderActionContext';
 import { dashboardService } from '../../services/dashboardService';
 import { useAparenciaSistema } from '../../hooks/useAparenciaSistema';
+import { IndicatorCard } from '../../components/indicators/IndicatorCard';
 import * as XLSX from 'xlsx';
 import {
     LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 
 interface DashboardData {
@@ -36,6 +39,16 @@ const STATUS_PEDIDO_META: Record<string, { label: string; color: string }> = {
 
 const CORES_STATUS_DESCONHECIDO = ['#475569', '#0f766e', '#a16207', '#be123c', '#6d28d9'];
 
+// O endpoint do dashboard devolve nomes de categorias, não os códigos de cadastro.
+const CORES_CLIENTES: Record<string, string> = {
+    'Pessoa Física': '#3b82f6',
+    'Pessoa Jurídica': '#8b5cf6',
+    'Não informado': '#64748b',
+};
+const ORDEM_CLIENTES = ['Pessoa Física', 'Pessoa Jurídica', 'Não informado'];
+const formatarPercentual = (quantidade: number, total: number) =>
+    (total > 0 ? (quantidade / total) * 100 : 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+
 const normalizarChaveStatus = (status: string) => status.trim().toUpperCase().replace(/[\s-]+/g, '_');
 
 const formatarStatus = (status: string) => STATUS_PEDIDO_META[status]?.label
@@ -52,6 +65,15 @@ const numeroNaoNegativo = (valor: unknown): number | null => {
     const numero = Number(valor);
     return Number.isFinite(numero) && numero >= 0 ? numero : null;
 };
+
+// Rótulos curtos mantêm o eixo legível até no celular; o tooltip exibe o valor completo.
+const formatoEixoVendas = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+});
+const formatarEixoVendas = (valor: number) => formatoEixoVendas.format(valor);
 
 const normalizarSerie = (valor: unknown, chaveNome: string, chaveValor: string) => {
     if (!Array.isArray(valor)) return [];
@@ -81,6 +103,7 @@ const normalizarDashboard = (payload: unknown): DashboardData => {
 };
 
 const Dashboard = () => {
+    const mobileHeaderActionTarget = useMobileHeaderActionTarget();
     const { exibirAlertasEstoque } = useAparenciaSistema();
 
     const [data, setData] = useState<DashboardData>({
@@ -151,18 +174,26 @@ const Dashboard = () => {
         XLSX.writeFile(wb, `Clientes_Inativos_${new Date().toISOString().slice(0,10)}.xlsx`);
     };
 
-    const exportarEstoqueBaixo = () => {
-        const dados = data.estoqueBaixo.length > 0
-            ? data.estoqueBaixo.map(item => ({
-                Produto: item.nome,
-                Quantidade_Atual: item.quantidade
-            }))
-            : [{ Produto: "Nenhum produto com estoque baixo no momento", Quantidade_Atual: 0 }];
+    const exportarEstoqueBaixo = async () => {
+        try {
+            setFeedback('');
+            const { data: estoqueAtual } = await dashboardService.listarEstoqueBaixo();
+            const dados = estoqueAtual.length > 0
+                ? estoqueAtual.map(item => ({
+                    Produto: item.nome,
+                    Quantidade_Atual: item.quantidade,
+                    Minimo_Aplicado: item.minimo
+                }))
+                : [{ Produto: 'Nenhum produto com estoque baixo no momento', Quantidade_Atual: 0, Minimo_Aplicado: 0 }];
 
-        const ws = XLSX.utils.json_to_sheet(dados);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Estoque Baixo");
-        XLSX.writeFile(wb, `Estoque_Baixo_${new Date().toISOString().slice(0,10)}.xlsx`);
+            const ws = XLSX.utils.json_to_sheet(dados);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Estoque Baixo');
+            XLSX.writeFile(wb, `Estoque_Baixo_${new Date().toISOString().slice(0,10)}.xlsx`);
+        } catch (error) {
+            console.error('Erro ao exportar estoque baixo:', error);
+            setFeedback('Não foi possível exportar o estoque baixo. Atualize e tente novamente.');
+        }
     };
 
     const statusPedidos = Array.from(data.statusPedidos.reduce((statusAgrupados, item) => {
@@ -178,134 +209,174 @@ const Dashboard = () => {
     }));
     const totalStatusPedidos = statusPedidos.reduce((total, item) => total + item.value, 0);
 
+    const distribuicaoClientes = Array.from(data.distribuicaoClientes.reduce((agrupados, item) => {
+        if (item.value > 0) agrupados.set(item.name, (agrupados.get(item.name) ?? 0) + item.value);
+        return agrupados;
+    }, new Map<string, number>())).map(([name, value]) => ({
+        name,
+        value,
+        color: CORES_CLIENTES[name] ?? '#64748b',
+    })).sort((a, b) => {
+        const posicaoA = ORDEM_CLIENTES.indexOf(a.name);
+        const posicaoB = ORDEM_CLIENTES.indexOf(b.name);
+        return (posicaoA < 0 ? ORDEM_CLIENTES.length : posicaoA) -
+            (posicaoB < 0 ? ORDEM_CLIENTES.length : posicaoB) || a.name.localeCompare(b.name, 'pt-BR');
+    });
+    const totalDistribuicaoClientes = distribuicaoClientes.reduce((total, item) => total + item.value, 0);
+
     return (
-        <div className="h-full min-w-0 bg-slate-100 flex overflow-hidden">
+        <div data-testid="dashboard-page" className="h-full min-w-0 bg-app-background flex overflow-hidden">
 
             {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col overflow-hidden">
 
+                {mobileHeaderActionTarget && createPortal(
+                    <button type="button" aria-label="Atualizar Dashboard" onClick={() => void carregarDashboard(true)} disabled={loading} className="min-h-11 whitespace-nowrap rounded-xl bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50">
+                        {loading ? 'Atualizando...' : '↻ Atualizar'}
+                    </button>,
+                    mobileHeaderActionTarget
+                )}
+
                 {/* HEADER */}
-                <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+                <header className="hidden flex-wrap items-center justify-between gap-3 border-b bg-white px-3 py-4 sm:flex sm:px-6">
+                    <div className="min-w-0">
+                        <h1 className="text-xl font-bold text-gray-900 sm:text-3xl">Dashboard</h1>
                     </div>
 
-                    <div className={"flex flex-row gap-2 "}>
+                    <div className="flex min-w-0 items-center gap-2">
                         {/* Relatórios - Apenas Desktop (PC) */}
-                        <div className="hidden lg:flex gap-2">
-                            <button onClick={exportarVendasDoMes} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-2.5 py-2.5 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300">📄 Vendas do Mês</button>
-                            <button onClick={exportarClientesInativos} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-2.5 py-2.5 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300">👥 Clientes Inativos</button>
-                            <button onClick={exportarEstoqueBaixo} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-2.5 py-2.5 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300">📦 Estoque Baixo</button>
-                        </div>
+                        <section aria-labelledby="dashboard-relatorios-desktop" className="hidden lg:flex flex-col gap-1">
+                            <h2 id="dashboard-relatorios-desktop" className="text-xs font-semibold uppercase tracking-wide text-gray-600">Relatórios</h2>
+                            <div className="flex gap-2">
+                                <button onClick={exportarVendasDoMes} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-2.5 py-2.5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300">📄 Vendas do Mês</button>
+                                <button onClick={exportarClientesInativos} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-2.5 py-2.5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300">👥 Clientes Inativos</button>
+                                <button onClick={exportarEstoqueBaixo} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-2.5 py-2.5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300">📦 Estoque Baixo</button>
+                            </div>
+                        </section>
 
-                        <button onClick={() => void carregarDashboard(true)} disabled={loading} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-3 py-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 disabled:opacity-50">{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
+                        <button onClick={() => void carregarDashboard(true)} disabled={loading} className="min-h-11 whitespace-nowrap rounded-2xl bg-indigo-600 px-3 py-2.5 text-sm font-medium text-white transition-all duration-300 ease-in-out hover:scale-105 hover:bg-indigo-700 hover:shadow-lg disabled:opacity-50">{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
                     </div>
                 </header>
 
                 {/* Relatórios - Mobile / Tablet */}
-                <div className="lg:hidden bg-white border-b px-4 py-3 sm:px-6">
-                    <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible">
-                        <button onClick={exportarVendasDoMes} className="min-w-[150px] shrink-0 px-5 py-3 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300 transition sm:min-w-0">📄 Vendas do Mês</button>
-                        <button onClick={exportarClientesInativos} className="min-w-[150px] shrink-0 px-5 py-3 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300 transition sm:min-w-0">👥 Clientes Inativos</button>
-                        <button onClick={exportarEstoqueBaixo} className="min-w-[150px] shrink-0 px-5 py-3 bg-gay-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300 transition sm:min-w-0">📦 Estoque Baixo</button>
+                <section aria-labelledby="dashboard-relatorios-mobile" className="min-w-0 max-w-full border-b bg-white px-4 py-3 sm:px-6 lg:hidden">
+                    <h2 id="dashboard-relatorios-mobile" className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Relatórios</h2>
+                    <div
+                        data-testid="dashboard-report-scroll"
+                        role="group"
+                        aria-label="Opções de relatórios"
+                        tabIndex={0}
+                        className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain pb-1 sm:overflow-visible sm:overscroll-x-auto sm:pb-0"
+                    >
+                        <div className="flex w-max min-w-full gap-2 sm:grid sm:w-full sm:grid-cols-3">
+                            <button onClick={exportarVendasDoMes} className="min-h-11 shrink-0 whitespace-nowrap rounded-2xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm font-medium transition hover:bg-gray-300 sm:min-w-0 sm:whitespace-normal">📄 Vendas do Mês</button>
+                            <button onClick={exportarClientesInativos} className="min-h-11 shrink-0 whitespace-nowrap rounded-2xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm font-medium transition hover:bg-gray-300 sm:min-w-0 sm:whitespace-normal">👥 Clientes Inativos</button>
+                            <button onClick={exportarEstoqueBaixo} className="min-h-11 shrink-0 whitespace-nowrap rounded-2xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm font-medium transition hover:bg-gray-300 sm:min-w-0 sm:whitespace-normal">📦 Estoque Baixo</button>
+                        </div>
                     </div>
-                </div>
+                </section>
 
                 {/* CONTEÚDO COM SCROLL */}
-                <div className="flex-1 overflow-auto bg-slate-100 p-4 sm:p-6 md:p-8">
+                <div data-testid="dashboard-scroll-surface" className="flex-1 overflow-auto bg-app-background p-4 sm:p-6 md:p-8">
                     {feedback && <p role="status" className="mb-4 text-sm text-gray-600">{feedback}</p>}
                     {loading ? (
                         <p className="text-center text-gray-500 py-10">Carregando estatísticas...</p>
                     ) : (
                         <>
                             {/* CARDS */}
-                                <div className="grid lg:flex md:flex flex-wrap grid-cols-1 gap-6 w-full justify-evenly">
-                                    <div className="bg-white rounded-3xl p-6 shadow flex items-center justify-between flex-1">
-                                        <div>
-                                            <p className="text-gray-500 text-sm">Total Clientes</p>
-                                            <p className="text-4xl font-bold mt-2">{data.totalClientes}</p>
-                                        </div>
-                                        <div className="text-6xl text-blue-500">👥</div>
-                                    </div>
-
-                                    <div className="bg-white rounded-3xl p-6 shadow flex items-center justify-between flex-1">
-                                        <div>
-                                            <p className="text-gray-500 text-sm">Vendas do Mês</p>
-                                            <p className="text-4xl font-bold mt-2">{formatarMoeda(data.vendasMes)}</p>
-                                        </div>
-                                        <div className="text-6xl text-green-500">💰</div>
-                                    </div>
-
-                                    <div className="bg-white rounded-3xl p-6 shadow flex items-center justify-between flex-1">
-                                        <div>
-                                            <p className="text-gray-500 text-sm">Produtos em Estoque</p>
-                                            <p className="text-4xl font-bold mt-2">{data.totalProdutos}</p>
-                                        </div>
-                                        <div className="text-6xl text-amber-500">📦</div>
-                                    </div>
-
-                                    <div className="bg-white rounded-3xl p-6 shadow flex items-center justify-between flex-1">
-                                        <div>
-                                            <p className="text-gray-500 text-sm">Pedidos Pendentes</p>
-                                            <p className="text-4xl font-bold mt-2">{data.pedidosPendentes}</p>
-                                        </div>
-                                        <div className="text-6xl text-orange-500">📋</div>
-                                    </div>
-
-                                    {exibirAlertasEstoque && <div className="bg-white rounded-3xl p-6 shadow flex items-center justify-between flex-1">
-                                        <div>
-                                            <p className="text-gray-500 text-sm">Estoque Baixo</p>
-                                            <p className="text-4xl font-bold mt-2 text-red-600">{data.produtosEstoqueBaixo}</p>
-                                        </div>
-                                        <div className="text-6xl text-red-500">⚠️</div>
-                                    </div>}
+                                <div className="agerp-indicator-grid">
+                                    <IndicatorCard variant="dashboard" testId="dashboard-summary-card" label="Total Clientes" value={data.totalClientes} icon="👥" iconClassName="text-blue-500" />
+                                    <IndicatorCard variant="dashboard" label="Vendas do Mês" value={formatarMoeda(data.vendasMes)} icon="💰" iconClassName="text-green-500" />
+                                    <IndicatorCard variant="dashboard" label="Produtos em Estoque" value={data.totalProdutos} icon="📦" iconClassName="text-amber-500" />
+                                    <IndicatorCard variant="dashboard" label="Pedidos Pendentes" value={data.pedidosPendentes} icon="📋" iconClassName="text-orange-500" />
+                                    {exibirAlertasEstoque && <IndicatorCard variant="dashboard" label="Estoque Baixo" value={data.produtosEstoqueBaixo} icon="⚠️" iconClassName="text-red-500" valueClassName="text-red-600" />}
                                 </div>
 
                             {/* GRÁFICOS */}
-                                <div className="mt-10">
+                                <div className="mt-8 sm:mt-10">
                                     <div className={"border-y-2 my-4 p-3 flex mx-auto"}>
-                                        <h2 className="mx-auto text-3xl font-semibold text-gray-800">Visão Geral</h2>
+                                        <h2 className="mx-auto text-2xl font-semibold text-gray-800 sm:text-3xl">Visão Geral</h2>
                                     </div>
 
-                                    <div className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-2">
-                                        <div className="min-w-0 bg-white rounded-3xl p-6 shadow">
+                                    <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-8">
+                                        <div data-testid="dashboard-vendas-chart-card" className="min-w-0 rounded-3xl bg-white p-4 shadow sm:p-6">
                                             <h3 className="font-medium mb-4">Evolução de Vendas (últimos 6 meses)</h3>
-                                            <ResponsiveContainer width="100%" height={300}>
-                                                <LineChart data={data.vendasMensais}>
+                                            <div className="agerp-responsive-chart h-64 sm:h-[300px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={data.vendasMensais} margin={{ top: 8, right: 12, bottom: 4, left: 8 }}>
                                                     <CartesianGrid strokeDasharray="3 3" />
-                                                    <XAxis dataKey="mes" />
-                                                    <YAxis />
+                                                    <XAxis dataKey="mes" tick={{ fontSize: 11 }} tickMargin={8} minTickGap={10} interval="preserveStartEnd" />
+                                                    <YAxis width="auto" tick={{ fontSize: 11 }} tickMargin={8} tickFormatter={formatarEixoVendas} />
                                                     <Tooltip formatter={(value: unknown) => formatarMoeda(Number(value))} />
                                                     <Line type="monotone" dataKey="valor" stroke="#4f46e5" strokeWidth={3} />
                                                 </LineChart>
                                             </ResponsiveContainer>
+                                            </div>
                                         </div>
 
-                                        <div className="min-w-0 bg-white rounded-3xl p-6 shadow">
+                                        <div className="min-w-0 rounded-3xl bg-white p-4 shadow sm:p-6">
                                             <h3 className="font-medium mb-4">Top 5 Produtos Mais Vendidos</h3>
-                                            <ResponsiveContainer width="100%" height={300}>
-                                                <BarChart data={data.topProdutos} layout="vertical">
+                                            <div className="agerp-responsive-chart h-64 sm:h-[300px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={data.topProdutos} layout="vertical" margin={{ top: 8, right: 8, bottom: 4, left: 4 }}>
                                                     <CartesianGrid strokeDasharray="3 3" />
                                                     <XAxis type="number" />
-                                                    <YAxis dataKey="nome" type="category" width={140} />
+                                                    <YAxis dataKey="nome" type="category" width={96} tick={{ fontSize: 11 }} />
                                                     <Tooltip />
                                                     <Bar dataKey="vendas" fill="#4f46e5" radius={8} />
                                                 </BarChart>
                                             </ResponsiveContainer>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0 bg-white rounded-3xl p-6 shadow">
+                                        <div data-testid="dashboard-clientes-chart-card" className="min-w-0 rounded-3xl bg-white p-4 shadow sm:p-6">
                                             <h3 className="font-medium mb-4">Distribuição de Clientes</h3>
-                                            <ResponsiveContainer width="100%" height={280}>
-                                                <PieChart>
-                                                    <Pie data={data.distribuicaoClientes} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
-                                                        {data.distribuicaoClientes.map((entry, index) => (
-                                                            <Cell key={`cell-${index}`} fill={entry.name.includes('Física') ? '#3b82f6' : '#8b5cf6'} />
-                                                        ))}
-                                                    </Pie>
-                                                    <Tooltip />
-                                                    <Legend />
-                                                </PieChart>
-                                            </ResponsiveContainer>
+                                            {totalDistribuicaoClientes > 0 ? (
+                                                <div className="h-56 w-full min-w-0 sm:h-64" aria-label={`Clientes distribuídos: ${totalDistribuicaoClientes.toLocaleString('pt-BR')}`}>
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+                                                            <Pie
+                                                                data={distribuicaoClientes}
+                                                                dataKey="value"
+                                                                nameKey="name"
+                                                                cx="50%"
+                                                                cy="50%"
+                                                                innerRadius="48%"
+                                                                outerRadius="78%"
+                                                                paddingAngle={distribuicaoClientes.length > 1 ? 2 : 0}
+                                                                stroke="#ffffff"
+                                                                strokeWidth={2}
+                                                            >
+                                                                {distribuicaoClientes.map(item => (
+                                                                    <Cell key={item.name} fill={item.color} />
+                                                                ))}
+                                                            </Pie>
+                                                            <Tooltip content={({ active, payload }) => {
+                                                                if (!active || !payload?.length) return null;
+                                                                const nome = String(payload[0].name ?? '');
+                                                                const item = distribuicaoClientes.find(categoria => categoria.name === nome);
+                                                                if (!item) return null;
+                                                                return <div data-testid="dashboard-clientes-tooltip" className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-lg">
+                                                                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                                                                    <span className="text-slate-700">{item.name}:</span>
+                                                                    <span className="font-semibold tabular-nums text-slate-900">{item.value.toLocaleString('pt-BR')} ({formatarPercentual(item.value, totalDistribuicaoClientes)}%)</span>
+                                                                </div>;
+                                                            }} />
+                                                        </PieChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            ) : <div className="flex h-56 items-center justify-center rounded-2xl bg-slate-50 px-4 text-center text-sm text-slate-500 sm:h-64" role="status">
+                                                Nenhum cliente para exibir.
+                                            </div>}
+                                            <p className="mb-3 text-center text-sm text-slate-500">
+                                                Total: <span className="font-semibold text-slate-700">{totalDistribuicaoClientes.toLocaleString('pt-BR')}</span>
+                                            </p>
+                                            {distribuicaoClientes.length > 0 && <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2" aria-label="Legenda da distribuição de clientes">
+                                                {distribuicaoClientes.map(item => <li key={item.name} className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+                                                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: item.color }} aria-hidden="true" />
+                                                    <span className="min-w-0 flex-1 break-words text-slate-700">{item.name}</span>
+                                                    <span className="shrink-0 font-semibold tabular-nums text-slate-900">{item.value.toLocaleString('pt-BR')} <span className="font-normal text-slate-500">({formatarPercentual(item.value, totalDistribuicaoClientes)}%)</span></span>
+                                                </li>)}
+                                            </ul>}
                                         </div>
 
                                         <div className="min-w-0 bg-white rounded-3xl p-4 shadow sm:p-6">
@@ -358,17 +429,19 @@ const Dashboard = () => {
                                             </div>}
                                         </div>
 
-                                        {exibirAlertasEstoque && <div className="min-w-0 bg-white rounded-3xl p-6 shadow">
+                                        {exibirAlertasEstoque && <div className="min-w-0 rounded-3xl bg-white p-4 shadow sm:p-6">
                                             <h3 className="font-medium mb-4">Produtos com Estoque Baixo</h3>
-                                            <ResponsiveContainer width="100%" height={280}>
-                                                <BarChart data={data.estoqueBaixo}>
+                                            <div className="agerp-responsive-chart h-64 sm:h-[280px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={data.estoqueBaixo} layout="vertical" margin={{ top: 8, right: 8, bottom: 4, left: 4 }}>
                                                     <CartesianGrid strokeDasharray="3 3" />
-                                                    <XAxis dataKey="nome" />
-                                                    <YAxis />
+                                                    <XAxis type="number" />
+                                                    <YAxis dataKey="nome" type="category" width={96} tick={{ fontSize: 11 }} />
                                                     <Tooltip />
                                                     <Bar dataKey="quantidade" fill="#ef4444" radius={8} />
                                                 </BarChart>
                                             </ResponsiveContainer>
+                                            </div>
                                         </div>}
                                     </div>
                                 </div>

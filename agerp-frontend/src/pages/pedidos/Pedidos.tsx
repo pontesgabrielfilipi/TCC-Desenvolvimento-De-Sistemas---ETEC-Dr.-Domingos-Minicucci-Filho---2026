@@ -12,13 +12,26 @@ import { clienteService } from '../../services/clienteService';
 import { enderecoService, type Endereco } from '../../services/enderecoService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getHttpErrorMessage } from '../../utils/httpError';
+import { useAuth } from '../../contexts/AuthContext';
+import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
 
 interface Produto {
     id: number;
     nome: string;
     preco: number;
     ativo: boolean;
+    quantidadeAtual?: number | null;
+    unidadeMedida?: string | null;
 }
+
+const formatarEstoqueProduto = (produto: Produto): string => {
+    if (produto.quantidadeAtual == null) return 'Estoque: não informado';
+    const unidade = produto.unidadeMedida?.trim();
+    return `Estoque: ${produto.quantidadeAtual}${unidade ? ` ${unidade}` : ''}`;
+};
+
+const rotuloProduto = (produto: Produto): string =>
+    `Cód. #${produto.id} · ${produto.nome} — ${formatCurrency(produto.preco)} · ${formatarEstoqueProduto(produto)}`;
 
 interface Cliente {
     id: number;
@@ -32,9 +45,14 @@ interface Toast {
 }
 
 const Pedidos = () => {
+    const isMobileViewport = useIsMobileViewport();
+    const { user } = useAuth();
+    const podeCancelar = (user?.nivelAutoridade ?? 0) >= 60 && user?.paginas?.includes('PEDIDOS');
 
     const [pedidos, setPedidos] = useState<PedidoResponse[]>([]);
     const [produtos, setProdutos] = useState<Produto[]>([]);
+    const [loadingProdutos, setLoadingProdutos] = useState(false);
+    const [erroProdutos, setErroProdutos] = useState(false);
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [busca, setBusca] = useState('');
     const [filtroStatus, setFiltroStatus] = useState<string>('');
@@ -94,11 +112,17 @@ const Pedidos = () => {
     }, [showToast]);
 
     const carregarProdutos = useCallback(async (refresh = false) => {
+        setLoadingProdutos(true);
+        setErroProdutos(false);
         try {
             const response = await produtoService.listar(refresh);
             setProdutos(response.data);
         } catch (error) {
             console.error('Erro ao carregar produtos:', error);
+            setProdutos([]);
+            setErroProdutos(true);
+        } finally {
+            setLoadingProdutos(false);
         }
     }, []);
 
@@ -266,6 +290,8 @@ const Pedidos = () => {
             });
             setModalOpen(true);
         }
+        // Uma única consulta de produtos com estoque ao abrir o seletor.
+        void carregarProdutos(true);
     };
 
     // Fechar modal
@@ -383,7 +409,7 @@ const Pedidos = () => {
     const executarExclusao = async () => {
         if (!deleteConfirmId) return;
         try {
-            await pedidoService.deletar(deleteConfirmId);
+            await pedidoService.cancelar(deleteConfirmId);
             showToast('success', 'Pedido cancelado/excluído com sucesso!');
             carregarPedidos();
         } catch (error: unknown) {
@@ -440,29 +466,35 @@ const Pedidos = () => {
         'CANCELADO': '✗ Cancelado'
     };
 
+    const campoBusca = (
+        <input
+            type="text"
+            placeholder="Buscar por ID ou cliente..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            aria-label="Buscar pedidos"
+            className={isMobileViewport
+                ? 'mb-3 block w-full min-w-0 rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none'
+                : 'min-w-0 w-72 rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none'}
+        />
+    );
+
     return (
-        <div className="h-full min-w-0 bg-gray-50 flex overflow-hidden">
+        <div className="h-full min-w-0 bg-app-background flex overflow-hidden">
             {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* HEADER */}
-                <header className="bg-white border-b px-3 sm:px-6 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex w-full sm:w-auto min-w-0 flex-wrap items-center gap-2 sm:gap-4">
-                        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">📋 Pedidos</h1>
+                <header className="bg-white border-b px-3 sm:px-6 py-3 sm:py-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="hidden min-w-0 items-center gap-4 sm:flex">
+                        <h1 className="flex items-center gap-3 text-xl font-bold text-gray-900 sm:text-3xl">📋 Pedidos</h1>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <input
-                            type="text"
-                            placeholder="Buscar por ID ou cliente..."
-                            value={busca}
-                            onChange={(e) => setBusca(e.target.value)}
-                            aria-label="Buscar pedidos"
-                            className="w-full min-w-0 sm:w-72 px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm"
-                        />
-                        <button onClick={() => void atualizarTudo()} disabled={loading} className="px-4 py-3 border border-gray-300 rounded-2xl font-medium hover:bg-gray-50 disabled:opacity-50">{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
+                    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:gap-4">
+                        {!isMobileViewport && campoBusca}
+                        <button onClick={() => void atualizarTudo()} disabled={loading} className="min-h-11 flex-1 whitespace-nowrap rounded-2xl border border-gray-300 px-3 py-3 font-medium hover:bg-gray-50 disabled:opacity-50 sm:flex-none sm:px-4">{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
                         <button
                             onClick={() => abrirModal()}
-                            className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-medium flex items-center gap-2"
+                            className="flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-indigo-600 px-3 py-3 font-medium text-white transition-all duration-300 ease-in-out hover:scale-105 hover:bg-indigo-700 hover:shadow-lg sm:flex-none sm:px-6"
                         >
                             + Novo Pedido
                         </button>
@@ -470,13 +502,15 @@ const Pedidos = () => {
                 </header>
 
                 {/* FILTROS E CORPO */}
-                <div className="p-6 md:p-8 flex-1 overflow-auto">
+                <div data-testid="pedidos-scroll" className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 md:p-8">
+                    {isMobileViewport && campoBusca}
                     {/* BARRA DE FILTROS RÁPIDOS */}
-                    <div className="flex flex-wrap items-center gap-4 mb-6">
+                    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center lg:gap-4">
                         <select
                             value={filtroStatus}
                             onChange={(e) => setFiltroStatus(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            aria-label="Filtrar pedidos por status"
+                            className="min-h-11 min-w-0 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                             <option value="">Todos os Status</option>
                             <option value="PENDENTE">⏳ Pendente</option>
@@ -490,7 +524,8 @@ const Pedidos = () => {
                         <select
                             value={filtroCliente}
                             onChange={(e) => setFiltroCliente(e.target.value)}
-                            className="px-4 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            aria-label="Filtrar pedidos por cliente"
+                            className="min-h-11 min-w-0 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                             <option value="">Todos os Clientes</option>
                             {clientes.map(c => (
@@ -498,7 +533,7 @@ const Pedidos = () => {
                             ))}
                         </select>
 
-                        <div className="text-xs text-gray-500 ml-auto font-medium">
+                        <div className="text-xs font-medium text-gray-500 sm:col-span-2 lg:ml-auto">
                             Total exibido: {pedidosFiltrados.length} {pedidosFiltrados.length === 1 ? 'pedido' : 'pedidos'}
                         </div>
                     </div>
@@ -512,7 +547,7 @@ const Pedidos = () => {
 
                     {/* EMPTY STATE */}
                     {!loading && pedidosFiltrados.length === 0 && (
-                        <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-gray-100 max-w-lg mx-auto mt-8">
+                        <div className="mx-auto mt-8 max-w-lg rounded-3xl border border-gray-100 bg-white p-6 text-center shadow-sm sm:p-12">
                             <span className="text-5xl block mb-4">📋</span>
                             <h3 className="text-lg font-bold text-gray-900 mb-1">Nenhum pedido encontrado</h3>
                             <p className="text-gray-500 text-sm mb-6">
@@ -531,8 +566,45 @@ const Pedidos = () => {
 
                     {/* TABELA DE PEDIDOS */}
                     {!loading && pedidosFiltrados.length > 0 && (
-                        <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
-                            <div className="overflow-x-auto">
+                        <>
+                            <div className="mb-3 flex items-center gap-2 md:hidden">
+                                <label htmlFor="ordenacao-pedidos-mobile" className="shrink-0 text-sm font-medium text-gray-600">Ordenar:</label>
+                                <select id="ordenacao-pedidos-mobile" value={sort.key} onChange={(event) => setSort(atual => ({ ...atual, key: event.target.value as typeof sort.key }))} className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm">
+                                    <option value="dataPedido">Data</option><option value="id">ID</option><option value="nomeCliente">Cliente</option><option value="status">Status</option><option value="valorTotal">Valor total</option>
+                                </select>
+                                <button type="button" onClick={() => setSort(atual => ({ ...atual, direction: atual.direction === 'asc' ? 'desc' : 'asc' }))} className="min-h-11 min-w-11 rounded-xl border border-gray-300 bg-white px-3" aria-label={`Ordem ${sort.direction === 'asc' ? 'crescente' : 'decrescente'}; alternar direção`}>{sort.direction === 'asc' ? '↑' : '↓'}</button>
+                            </div>
+                            <div className="grid gap-3 md:hidden" aria-label="Lista de pedidos">
+                                {pedidosFiltrados.map((pedido) => (
+                                    <article key={pedido.id} className="agerp-mobile-card rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                                        <div className="flex min-w-0 items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-indigo-600">Pedido #{pedido.id}</p>
+                                                <h2 className="mt-1 break-words font-semibold text-gray-900">{pedido.nomeCliente || `Cliente #${pedido.idCliente}`}</h2>
+                                            </div>
+                                            <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${getStatusBadge(pedido.status)}`}>{labels[pedido.status] || pedido.status}</span>
+                                        </div>
+                                        {pedido.enderecoResumo && <p className="mt-2 break-words text-xs text-gray-500">📍 {pedido.enderecoResumo}</p>}
+                                        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                                            <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Data</dt><dd className="mt-0.5 text-gray-800">{formatDate(pedido.dataPedido)}</dd></div>
+                                            <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Itens</dt><dd className="mt-0.5 font-semibold text-gray-800">{pedido.itens?.length || 0}</dd></div>
+                                            <div className="col-span-2"><dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Valor total</dt><dd className="mt-0.5 break-words text-lg font-bold text-gray-900">{formatCurrency(pedido.valorTotal)}</dd></div>
+                                        </dl>
+                                        <div className="mt-4 grid grid-cols-2 gap-2">
+                                            <button onClick={() => abrirDetalhes(pedido)} className="rounded-xl bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">Ver detalhes e IA</button>
+                                            {pedido.status === 'PENDENTE' && <button onClick={() => abrirModal(pedido)} className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">Editar</button>}
+                                            {transicoes[pedido.status]?.some(status => podeCancelar || status !== 'CANCELADO') && <button onClick={() => setStatusChangeId(statusChangeId === pedido.id ? null : pedido.id)} aria-expanded={statusChangeId === pedido.id} className="rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100">Mudar status</button>}
+                                            {podeCancelar && pedido.status !== 'ENTREGUE' && pedido.status !== 'CANCELADO' && <button onClick={() => confirmarExclusao(pedido.id)} className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Cancelar</button>}
+                                        </div>
+                                        {statusChangeId === pedido.id && transicoes[pedido.status]?.length > 0 && <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50/50 p-3">
+                                            <p className="mb-2 text-xs font-semibold uppercase text-gray-500">Avançar para</p>
+                                            <div className="grid gap-2">{transicoes[pedido.status].filter(status => podeCancelar || status !== 'CANCELADO').map((proxStatus) => <button key={proxStatus} onClick={() => executarMudancaStatus(pedido.id, proxStatus)} className="rounded-xl bg-white px-3 py-2 text-left text-sm font-medium text-gray-800 shadow-sm hover:text-indigo-700">{labels[proxStatus] || proxStatus}</button>)}</div>
+                                        </div>}
+                                    </article>
+                                ))}
+                            </div>
+                        <div className="hidden overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm md:block">
+                            <div className="overflow-x-auto" role="region" aria-label="Tabela de pedidos" tabIndex={0}>
                                 <table className="w-full min-w-[850px] text-left">
                                     <thead className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider font-semibold">
                                         <tr>
@@ -579,8 +651,9 @@ const Pedidos = () => {
                                                         {/* Botão Ver Detalhes + IA */}
                                                         <button
                                                             onClick={() => abrirDetalhes(pedido)}
-                                                            className="p-1.5 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                                                            className="min-h-11 min-w-11 rounded-lg p-2.5 text-gray-600 transition hover:bg-indigo-50 hover:text-indigo-600"
                                                             title="Ver detalhes e Previsão IA"
+                                                            aria-label={`Ver detalhes e previsão do pedido ${pedido.id}`}
                                                         >
                                                             👁
                                                         </button>
@@ -589,48 +662,29 @@ const Pedidos = () => {
                                                         {pedido.status === 'PENDENTE' && (
                                                             <button
                                                                 onClick={() => abrirModal(pedido)}
-                                                                className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                                                className="min-h-11 min-w-11 rounded-lg p-2.5 text-gray-600 transition hover:bg-blue-50 hover:text-blue-600"
                                                                 title="Editar pedido"
+                                                                aria-label={`Editar pedido ${pedido.id}`}
                                                             >
                                                                 ✎
                                                             </button>
                                                         )}
 
                                                         {/* Transições de Status */}
-                                                        {transicoes[pedido.status]?.length > 0 && (
-                                                            <div className="relative">
-                                                                <button
-                                                                    onClick={() => setStatusChangeId(statusChangeId === pedido.id ? null : pedido.id)}
-                                                                    className="p-1.5 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
-                                                                    title="Mudar status"
-                                                                >
-                                                                    ↻
-                                                                </button>
-                                                                {statusChangeId === pedido.id && (
-                                                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-20 text-left">
-                                                                        <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase">
-                                                                            Avançar para:
-                                                                        </div>
-                                                                        {transicoes[pedido.status].map((proxStatus) => (
-                                                                            <button
-                                                                                key={proxStatus}
-                                                                                onClick={() => executarMudancaStatus(pedido.id, proxStatus)}
-                                                                                className="block w-full text-left px-4 py-2 text-xs font-medium hover:bg-indigo-50 hover:text-indigo-600 transition"
-                                                                            >
-                                                                                {labels[proxStatus] || proxStatus}
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                                        {transicoes[pedido.status]?.some(status => podeCancelar || status !== 'CANCELADO') && (
+                                                            <select value="" onChange={(event) => event.target.value && void executarMudancaStatus(pedido.id, event.target.value)} aria-label={`Mudar status do pedido ${pedido.id}`} className="min-h-11 max-w-40 rounded-lg border border-amber-200 bg-amber-50 px-2 text-xs font-medium text-amber-800">
+                                                                <option value="">Status...</option>
+                                                                {transicoes[pedido.status].filter(status => podeCancelar || status !== 'CANCELADO').map((proxStatus) => <option key={proxStatus} value={proxStatus}>{labels[proxStatus] || proxStatus}</option>)}
+                                                            </select>
                                                         )}
 
                                                         {/* Cancelar */}
-                                                        {pedido.status !== 'ENTREGUE' && pedido.status !== 'CANCELADO' && (
+                                                        {podeCancelar && pedido.status !== 'ENTREGUE' && pedido.status !== 'CANCELADO' && (
                                                             <button
                                                                 onClick={() => confirmarExclusao(pedido.id)}
-                                                                className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                                                className="min-h-11 min-w-11 rounded-lg p-2.5 text-gray-600 transition hover:bg-red-50 hover:text-red-600"
                                                                 title="Cancelar pedido"
+                                                                aria-label={`Cancelar pedido ${pedido.id}`}
                                                             >
                                                                 ✕
                                                             </button>
@@ -643,17 +697,18 @@ const Pedidos = () => {
                                 </table>
                             </div>
                         </div>
+                        </>
                     )}
                 </div>
             </div>
 
             {/* MODAL DETALHES DO PEDIDO + IA */}
             {detalhesOpen && pedidoDetalhe && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="detalhes-pedido-titulo">
+                    <div className="agerp-modal-panel w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
+                        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-3xl border-b border-gray-100 bg-white p-4 sm:p-6">
+                            <div className="min-w-0">
+                                <h2 id="detalhes-pedido-titulo" className="flex flex-wrap items-center gap-2 text-xl font-bold text-gray-900">
                                     Pedido #{pedidoDetalhe.id}
                                     <span className={`text-xs px-2.5 py-0.5 rounded-full border ${getStatusBadge(pedidoDetalhe.status)}`}>
                                         {labels[pedidoDetalhe.status] || pedidoDetalhe.status}
@@ -665,15 +720,16 @@ const Pedidos = () => {
                             </div>
                             <button
                                 onClick={() => setDetalhesOpen(false)}
-                                className="text-gray-400 hover:text-gray-600 text-2xl"
+                                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-2xl text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                aria-label="Fechar detalhes do pedido"
                             >
                                 ✕
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-6">
+                        <div className="space-y-6 p-4 sm:p-6">
                             {/* DADOS BÁSICOS */}
-                            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-2xl text-sm">
+                            <div className="grid grid-cols-1 gap-4 rounded-2xl bg-gray-50 p-4 text-sm sm:grid-cols-2">
                                 <div>
                                     <span className="text-gray-500 text-xs block">Cliente</span>
                                     <span className="font-semibold text-gray-900">{pedidoDetalhe.nomeCliente}</span>
@@ -682,9 +738,9 @@ const Pedidos = () => {
                                     <span className="text-gray-500 text-xs block">Responsável</span>
                                     <span className="font-semibold text-gray-900">{pedidoDetalhe.nomeUsuario || 'Sistema'}</span>
                                 </div>
-                                <div className="col-span-2 pt-2 border-t border-gray-200/60">
+                                <div className="border-t border-gray-200/60 pt-2 sm:col-span-2">
                                     <span className="text-gray-500 text-xs block">Endereço de Entrega</span>
-                                    <span className="font-semibold text-gray-900 flex items-center gap-1.5 mt-0.5">
+                                    <span className="mt-0.5 flex min-w-0 items-start gap-1.5 break-words font-semibold text-gray-900">
                                         <span>📍</span>
                                         {pedidoDetalhe.enderecoResumo || (
                                             <span className="text-gray-400 font-normal italic">Nenhum endereço vinculado (Retirada ou Padrão)</span>
@@ -692,7 +748,7 @@ const Pedidos = () => {
                                     </span>
                                 </div>
                                 {pedidoDetalhe.observacoes && (
-                                    <div className="col-span-2 pt-2 border-t border-gray-200/60">
+                                    <div className="border-t border-gray-200/60 pt-2 sm:col-span-2">
                                         <span className="text-gray-500 text-xs block">Observações</span>
                                         <span className="text-gray-700 text-xs mt-0.5 block whitespace-pre-wrap">
                                             {pedidoDetalhe.observacoes}
@@ -702,15 +758,15 @@ const Pedidos = () => {
                             </div>
 
                             {/* PAINEL DE INTELIGÊNCIA ARTIFICIAL - PREVISÃO DE ENTREGA */}
-                            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-5">
-                                <div className="flex items-center justify-between mb-3">
-                                    <h3 className="text-sm font-bold text-indigo-950 flex items-center gap-2">
+                            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 sm:p-5">
+                                <div className="mb-3 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
+                                    <h3 className="flex min-w-0 items-start gap-2 break-words text-sm font-bold text-indigo-950">
                                         <span>⚡</span> Previsão de Entrega Inteligente (Machine Learning)
                                     </h3>
                                     <button
                                         onClick={() => carregarPrevisaoIa(pedidoDetalhe.id)}
                                         disabled={loadingPrevisao}
-                                        className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
+                                        className="min-h-11 rounded-xl px-3 text-xs font-semibold text-indigo-600 hover:bg-white/70 hover:text-indigo-800"
                                     >
                                         {loadingPrevisao ? 'Calculando...' : 'Recalcular'}
                                     </button>
@@ -722,7 +778,7 @@ const Pedidos = () => {
                                     </div>
                                 ) : previsaoIa ? (
                                     <div className="space-y-3">
-                                        <div className="grid grid-cols-3 gap-3 text-center">
+                                        <div className="grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
                                             <div className="bg-white p-3 rounded-xl shadow-xs border border-indigo-50">
                                                 <span className="text-xs text-gray-500 block">Prazo Mínimo</span>
                                                 <span className="text-lg font-bold text-indigo-600">{previsaoIa.prazoMinimoDias} dias</span>
@@ -736,9 +792,9 @@ const Pedidos = () => {
                                                 <span className="text-lg font-bold text-indigo-900">{previsaoIa.prazoMaximoDias} dias</span>
                                             </div>
                                         </div>
-                                        <div className="text-xs text-gray-600 flex justify-between items-center px-1">
-                                            <span>Rota: <strong>{previsaoIa.cidadeOrigem}/{previsaoIa.estadoOrigem} → {previsaoIa.cidadeDestino}/{previsaoIa.estadoDestino}</strong></span>
-                                            <span className="text-indigo-700 font-medium">{previsaoIa.modeloVersao}</span>
+                                        <div className="flex min-w-0 flex-col gap-2 px-1 text-xs text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+                                            <span className="min-w-0 break-words">Rota: <strong>{previsaoIa.cidadeOrigem}/{previsaoIa.estadoOrigem} → {previsaoIa.cidadeDestino}/{previsaoIa.estadoDestino}</strong></span>
+                                            <span className="shrink-0 font-medium text-indigo-700">{previsaoIa.modeloVersao}</span>
                                         </div>
                                     </div>
                                 ) : (
@@ -751,8 +807,14 @@ const Pedidos = () => {
                             {/* LISTA DE ITENS */}
                             <div>
                                 <h4 className="text-sm font-bold text-gray-900 mb-3">Itens do Pedido</h4>
-                                <div className="border border-gray-100 rounded-2xl overflow-hidden">
-                                    <table className="w-full text-left text-sm">
+                                <div className="grid gap-2 sm:hidden">
+                                    {pedidoDetalhe.itens?.map((item) => <div key={item.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3 text-sm">
+                                        <p className="break-words font-medium text-gray-900">{item.nomeProduto}</p>
+                                        <dl className="mt-2 grid grid-cols-2 gap-2"><div><dt className="text-xs text-gray-500">Quantidade</dt><dd className="font-semibold">{item.quantidade}</dd></div><div><dt className="text-xs text-gray-500">Preço unitário</dt><dd>{formatCurrency(item.precoUnitario)}</dd></div><div className="col-span-2"><dt className="text-xs text-gray-500">Subtotal</dt><dd className="break-words font-bold">{formatCurrency(item.subtotal)}</dd></div></dl>
+                                    </div>)}
+                                </div>
+                                <div className="hidden overflow-x-auto rounded-2xl border border-gray-100 sm:block">
+                                    <table className="w-full min-w-[560px] text-left text-sm">
                                         <thead className="bg-gray-50 text-xs text-gray-500 uppercase border-b border-gray-100">
                                             <tr>
                                                 <th className="px-4 py-3">Produto</th>
@@ -776,18 +838,18 @@ const Pedidos = () => {
                             </div>
 
                             {/* TOTAL */}
-                            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl">
+                            <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-4 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
                                 <span className="font-semibold text-gray-700">Total do Pedido</span>
-                                <span className="text-2xl font-bold text-indigo-600">
+                                <span className="break-words text-2xl font-bold text-indigo-600">
                                     {formatCurrency(pedidoDetalhe.valorTotal)}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="p-6 border-t border-gray-100 flex justify-end">
+                        <div className="flex justify-end border-t border-gray-100 p-4 sm:p-6">
                             <button
                                 onClick={() => setDetalhesOpen(false)}
-                                className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium text-sm transition"
+                                className="min-h-11 w-full rounded-xl bg-gray-100 px-6 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-200 sm:w-auto"
                             >
                                 Fechar
                             </button>
@@ -798,21 +860,22 @@ const Pedidos = () => {
 
             {/* MODAL CRIAÇÃO / EDIÇÃO */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                            <h2 className="text-xl font-bold text-gray-900">
+                <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="pedido-modal-titulo">
+                    <div className="agerp-modal-panel w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
+                        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-t-3xl border-b border-gray-100 bg-white p-4 sm:p-6">
+                            <h2 id="pedido-modal-titulo" className="min-w-0 break-words text-xl font-bold text-gray-900">
                                 {editandoId ? `Editar Pedido #${editandoId}` : 'Novo Pedido'}
                             </h2>
                             <button
                                 onClick={fecharModal}
-                                className="text-gray-400 hover:text-gray-600 text-2xl"
+                                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-2xl text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                aria-label="Fechar formulário de pedido"
                             >
                                 ✕
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-6">
+                        <div className="space-y-6 p-4 sm:p-6">
                             {/* SELEÇÃO DO CLIENTE */}
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
@@ -832,7 +895,7 @@ const Pedidos = () => {
 
                             {/* SELEÇÃO DO ENDEREÇO DE ENTREGA */}
                             <div>
-                                <div className="flex items-center justify-between mb-2">
+                                <div className="mb-2 flex flex-col items-start justify-between gap-1 sm:flex-row sm:items-center">
                                     <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                         Endereço de Entrega
                                     </label>
@@ -888,7 +951,7 @@ const Pedidos = () => {
                                 )}
 
                                 {formData.idEndereco && (
-                                    <div className="mt-2 text-xs text-gray-500 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
+                                    <div className="mt-2 break-words rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500">
                                         📍 <strong>Entrega selecionada:</strong> {
                                             enderecosCliente.find(e => e.id?.toString() === formData.idEndereco)
                                                 ? formatarEnderecoAmigavel(enderecosCliente.find(e => e.id?.toString() === formData.idEndereco)!)
@@ -900,14 +963,14 @@ const Pedidos = () => {
 
                             {/* ITENS DO PEDIDO */}
                             <div>
-                                <div className="flex items-center justify-between mb-3">
+                                <div className="mb-3 flex flex-col items-start justify-between gap-2 min-[360px]:flex-row min-[360px]:items-center">
                                     <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                         Produtos e Quantidades *
                                     </label>
                                     <button
                                         type="button"
                                         onClick={adicionarItem}
-                                        className="text-xs text-indigo-600 hover:text-indigo-800 font-bold"
+                                        className="min-h-11 rounded-xl px-3 text-xs font-bold text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800"
                                     >
                                         + Adicionar Produto
                                     </button>
@@ -915,28 +978,44 @@ const Pedidos = () => {
 
                                 <div className="space-y-3">
                                     {formData.itens.map((item, index) => (
-                                        <div key={index} className="flex items-center gap-3 bg-gray-50 p-3 rounded-2xl border border-gray-100">
-                                            <div className="flex-1">
+                                        <div key={index} className="grid min-w-0 grid-cols-1 gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3 sm:grid-cols-[minmax(0,1fr)_6rem_auto] sm:items-center">
+                                            <div className="min-w-0">
+                                                <label htmlFor={`produto-item-${index}`} className="mb-1 block text-xs text-gray-500 sm:sr-only">Produto {index + 1}</label>
                                                 <select
+                                                    id={`produto-item-${index}`}
                                                     value={item.idProduto}
                                                     onChange={(e) => atualizarItem(index, 'idProduto', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                    disabled={loadingProdutos || erroProdutos}
+                                                    aria-describedby={`estoque-produto-${index}`}
+                                                    className="min-h-11 w-full min-w-0 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
                                                 >
-                                                    <option value="">Selecione um produto...</option>
+                                                    <option value="">{loadingProdutos ? 'Atualizando estoque...' : erroProdutos ? 'Erro ao carregar produtos' : 'Selecione um produto...'}</option>
                                                     {produtos.filter(p => p.ativo).map(p => (
-                                                        <option key={p.id} value={p.id}>
-                                                            {p.nome} — {formatCurrency(p.preco)}
+                                                        <option key={p.id} value={p.id} title={rotuloProduto(p)}>
+                                                            {rotuloProduto(p)}
                                                         </option>
                                                     ))}
                                                 </select>
+                                                <div id={`estoque-produto-${index}`} className="mt-1.5 min-w-0 text-xs leading-relaxed text-gray-600" aria-live="polite">
+                                                    {loadingProdutos ? 'Consultando estoque atual...' : erroProdutos ? (
+                                                        <button type="button" className="text-rose-700 underline" onClick={() => void carregarProdutos(true)}>Não foi possível carregar os produtos. Tentar novamente</button>
+                                                    ) : produtos.filter(p => String(p.id) === item.idProduto).map(p => (
+                                                        <p key={p.id} className="break-words [overflow-wrap:anywhere]">
+                                                            <span className="font-medium text-gray-800">{p.nome}</span>
+                                                            <span className="block">Cód. #{p.id} · {formatCurrency(p.preco)} · <span className={p.quantidadeAtual === 0 ? 'font-semibold text-amber-700' : 'font-semibold text-gray-700'}>{formatarEstoqueProduto(p)}</span></span>
+                                                        </p>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="w-24">
+                                            <div className="w-full sm:w-24">
+                                                <label htmlFor={`quantidade-item-${index}`} className="mb-1 block text-xs text-gray-500 sm:sr-only">Quantidade</label>
                                                 <input
+                                                    id={`quantidade-item-${index}`}
                                                     type="number"
                                                     min="1"
                                                     value={item.quantidade}
                                                     onChange={(e) => atualizarItem(index, 'quantidade', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm text-center bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-left text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-center"
                                                     placeholder="Qtd"
                                                 />
                                             </div>
@@ -944,10 +1023,11 @@ const Pedidos = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => removerItem(index)}
-                                                    className="text-gray-400 hover:text-red-600 px-2 py-1 text-lg font-bold"
+                                                    className="min-h-11 w-full rounded-xl px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 sm:min-w-11 sm:w-auto"
                                                     title="Remover produto"
+                                                    aria-label={`Remover produto ${index + 1}`}
                                                 >
-                                                    ✕
+                                                    <span aria-hidden="true">✕</span><span className="ml-2 sm:sr-only">Remover produto</span>
                                                 </button>
                                             )}
                                         </div>
@@ -970,19 +1050,19 @@ const Pedidos = () => {
                             </div>
 
                             {/* TOTAL ESTIMADO */}
-                            <div className="bg-gray-50 p-4 rounded-2xl flex justify-between items-center text-sm">
+                            <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-4 text-sm min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
                                 <span className="text-gray-600">Total Previsto:</span>
-                                <span className="text-xl font-bold text-gray-900">
+                                <span className="break-words text-xl font-bold text-gray-900">
                                     {formatCurrency(calcularTotalVisual())}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50 rounded-b-3xl">
+                        <div className="sticky bottom-0 flex flex-col-reverse items-stretch justify-end gap-2 rounded-b-3xl border-t border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:p-6">
                             <button
                                 type="button"
                                 onClick={fecharModal}
-                                className="px-5 py-2.5 text-gray-600 hover:text-gray-800 text-sm font-medium transition"
+                                className="min-h-11 rounded-xl px-5 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
                             >
                                 Cancelar
                             </button>
@@ -990,7 +1070,7 @@ const Pedidos = () => {
                                 type="button"
                                 onClick={salvarPedido}
                                 disabled={salvando}
-                                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+                                className="min-h-11 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
                             >
                                 {salvando ? 'Salvando...' : editandoId ? 'Atualizar Pedido' : 'Criar Pedido'}
                             </button>
@@ -1000,24 +1080,24 @@ const Pedidos = () => {
             )}
 
             {/* CONFIRMAÇÃO DE CANCELAMENTO */}
-            {deleteConfirmId && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+            {deleteConfirmId && podeCancelar && (
+                <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="cancelar-pedido-titulo">
+                    <div className="agerp-modal-panel w-full max-w-sm rounded-3xl bg-white p-5 text-center shadow-2xl sm:p-6">
                         <span className="text-4xl block mb-3">⚠️</span>
-                        <h3 className="text-lg font-bold text-gray-900 mb-2">Cancelar Pedido?</h3>
+                        <h3 id="cancelar-pedido-titulo" className="mb-2 text-lg font-bold text-gray-900">Cancelar Pedido?</h3>
                         <p className="text-sm text-gray-500 mb-6">
                             Tem certeza que deseja cancelar o pedido #{deleteConfirmId}? Se o estoque já foi baixado, ele será estornado automaticamente.
                         </p>
-                        <div className="flex gap-3 justify-center">
+                        <div className="flex flex-col-reverse justify-center gap-3 min-[360px]:flex-row">
                             <button
                                 onClick={() => setDeleteConfirmId(null)}
-                                className="px-5 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
+                                className="min-h-11 rounded-xl px-5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-800"
                             >
                                 Voltar
                             </button>
                             <button
                                 onClick={executarExclusao}
-                                className="px-5 py-2 text-sm bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-semibold transition"
+                                className="min-h-11 rounded-xl bg-rose-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-rose-700"
                             >
                                 Sim, Cancelar
                             </button>
@@ -1027,7 +1107,7 @@ const Pedidos = () => {
             )}
 
             {/* TOASTS */}
-            <div className="fixed bottom-6 right-6 space-y-2 z-50">
+            <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map(toast => (
                     <div
                         key={toast.id}

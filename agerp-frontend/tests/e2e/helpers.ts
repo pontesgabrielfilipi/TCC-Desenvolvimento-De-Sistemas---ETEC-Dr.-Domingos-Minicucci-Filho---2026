@@ -9,10 +9,36 @@ export const viewports = [
   { name: 'tablet-landscape', width: 1024, height: 768 },
   { name: 'notebook-hd', width: 1280, height: 720 },
   { name: 'notebook', width: 1366, height: 768 },
+  { name: 'desktop', width: 1440, height: 900 },
   { name: 'full-hd', width: 1920, height: 1080 },
   { name: 'qhd', width: 2560, height: 1440 },
   { name: 'ultrawide', width: 3440, height: 1440 },
 ] as const;
+
+/** Ajusta a largura real em CSS px (WebKit no Windows pode aplicar o DPI do SO). */
+export async function ajustarViewportCss(page: Page, largura: number, altura = 844) {
+  await page.setViewportSize({ width: largura, height: altura });
+  await page.goto('/dashboard');
+
+  for (let tentativa = 0; tentativa < 6; tentativa++) {
+    const { cssWidth, ehTablet } = await page.evaluate(() => ({
+      cssWidth: window.innerWidth,
+      ehTablet: matchMedia('(min-width: 640px)').matches,
+    }));
+    if (Math.abs(cssWidth - largura) <= 1 && ehTablet === (largura >= 640)) break;
+    const viewport = page.viewportSize()!;
+    const novoValor = Math.max(200, Math.round(viewport.width * largura / cssWidth));
+    const ajuste = ehTablet !== (largura >= 640) ? (largura >= 640 ? 1 : -1) : Math.sign(largura - cssWidth);
+    await page.setViewportSize({ width: novoValor === viewport.width ? novoValor + ajuste : novoValor, height: altura });
+  }
+
+  const { larguraCss, tabletCss } = await page.evaluate(() => ({
+    larguraCss: window.innerWidth,
+    tabletCss: matchMedia('(min-width: 640px)').matches,
+  }));
+  expect(Math.abs(larguraCss - largura)).toBeLessThanOrEqual(1);
+  expect(tabletCss).toBe(largura >= 640);
+}
 
 export async function assertNoDocumentOverflow(page: Page) {
   const violations = await page.evaluate(() => {

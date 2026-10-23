@@ -15,5 +15,10 @@ export const dashboardService = {
      */
     async getEstatisticasBasicas() {
         return await api.get('/api/dashboard/estatisticas');
+    },
+
+    /** Lista completa e atual de produtos abaixo do mínimo calculado pelo backend. */
+    async listarEstoqueBaixo() {
+        return await api.get<Array<{ nome: string; quantidade: number; minimo: number }>>('/api/dashboard/estoque-baixo');
     }
 };

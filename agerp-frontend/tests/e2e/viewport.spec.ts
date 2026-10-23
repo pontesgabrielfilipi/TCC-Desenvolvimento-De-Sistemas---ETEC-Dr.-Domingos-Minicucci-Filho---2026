@@ -3,13 +3,15 @@ import { assertNoDocumentOverflow, viewports } from './helpers';
 
 for (const viewport of viewports) {
   test(`public pages fit ${viewport.name} (${viewport.width}x${viewport.height})`, async ({ page }, testInfo) => {
+    test.setTimeout(60_000);
     await page.setViewportSize(viewport);
-    for (const route of ['/login', '/cadastro']) {
+    for (const route of ['/', '/login', '/cadastro', '/termos', '/privacidade']) {
       await page.goto(route);
       await expect(page.locator('body')).toBeVisible();
       await assertNoDocumentOverflow(page);
     }
     if (['mobile-small', 'tablet-portrait', 'full-hd', 'ultrawide'].includes(viewport.name)) {
+      await page.goto('/login');
       await page.screenshot({ path: testInfo.outputPath(`${viewport.name}.png`), fullPage: true });
     }
   });

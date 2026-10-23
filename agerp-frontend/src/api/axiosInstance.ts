@@ -1,8 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-    // baseURL: import.meta.env.VITE_API_URL, // URL do backend Spring Boot
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+    // A API passa pelo proxy da mesma origem (Vite em dev, Nginx no Docker).
+    // Nunca aponte o navegador do cliente remoto para o localhost dele.
+    baseURL: '/',
     withCredentials: true,        // Essencial para cookies HttpOnly
     timeout: 10000,
 });

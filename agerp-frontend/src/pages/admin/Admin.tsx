@@ -10,6 +10,9 @@ import { clienteService } from '../../services/clienteService';
 import type { PerfilResponse } from '../../services/usuarioService';
 import { getHttpErrorMessage } from '../../utils/httpError';
 import AdminConfiguracoes from './AdminConfiguracoes';
+import AdminRelatorios from './AdminRelatorios';
+import { IndicatorCard } from '../../components/indicators/IndicatorCard';
+import { ClientOrdersChart } from '../../components/admin/ClientOrdersChart';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface Usuario {
@@ -185,8 +188,9 @@ const Admin = () => {
 
     const abrirEdicao = async (usuario: Usuario) => {
         try {
-            const response = perfis.length ? { data: perfis } : await usuarioService.listarPerfis();
-            if (!perfis.length) setPerfis(response.data);
+            // Cargos podem ter sido criados/alterados na aba Configurações.
+            const response = await usuarioService.listarPerfis();
+            setPerfis(response.data);
             const idPerfil = usuario.idPerfil ?? response.data.find(perfil => perfil.nome === usuario.perfilNome)?.id;
             if (!idPerfil) throw new Error('Perfil atual não encontrado.');
             const form = { id: usuario.id, nome: usuario.nome, email: usuario.email, idPerfil };
@@ -251,6 +255,13 @@ const Admin = () => {
             carregarEstatisticas();
         }
     }, [abaAtiva, carregarEstatisticas, carregarLogs, carregarOpcoesEstatisticas, carregarUsuarios]);
+
+    useEffect(() => {
+        if (abaAtiva !== 'estatisticas') return;
+        const atualizar = () => { void carregarEstatisticas(true); };
+        window.addEventListener('agerp:configuracoes-atualizadas', atualizar);
+        return () => window.removeEventListener('agerp:configuracoes-atualizadas', atualizar);
+    }, [abaAtiva, carregarEstatisticas]);
 
     const statusDoUsuario = (usuario: Usuario) => usuario.statusAcesso || usuario.status || (usuario.ativo ? 'APROVADO' : 'BLOQUEADO');
 
@@ -360,31 +371,21 @@ const Admin = () => {
 
     const moeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-    const evolucaoClientesAgrupada = (evolucao: AdminEstatisticas['clientes']['evolucao']) => {
-        const porPeriodo = new Map<string, Record<string, string | number>>();
-        evolucao.forEach(item => {
-            const linha = porPeriodo.get(item.periodo) ?? { periodo: item.periodo };
-            linha[`cliente_${item.id}`] = item.pedidos;
-            porPeriodo.set(item.periodo, linha);
-        });
-        return Array.from(porPeriodo.values());
-    };
-
     const abas = [
-        { id: 'usuarios', label: '👥 Gerenciar Usuários', icon: '👥' },
-        { id: 'logs',     label: '📜 Logs do Sistema',    icon: '📜' },
-        { id: 'estatisticas', label: '📊 Estatísticas', icon: '📊' },
-        { id: 'configuracoes', label: '⚙️ Configurações', icon: '⚙️' },
-        { id: 'relatorios', label: '📈 Relatórios', icon: '📈' },
+        { id: 'usuarios', label: 'Gerenciar Usuários', icon: '👥' },
+        { id: 'logs', label: 'Logs do Sistema', icon: '📜' },
+        { id: 'estatisticas', label: 'Estatísticas', icon: '📊' },
+        { id: 'configuracoes', label: 'Configurações', icon: '⚙️' },
+        { id: 'relatorios', label: 'Relatórios', icon: '📈' },
     ];
 
     return (
-        <div className="flex h-full min-w-0 bg-gray-50">
+        <div className="flex h-full min-w-0 bg-app-background">
             {/* Conteúdo Principal */}
             <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
-                <header className="bg-white border-b px-4 sm:px-8 py-4 sm:py-5 flex items-center gap-3">
-                    <span className="text-3xl">🔧</span>
-                    <h1 className="text-2xl font-semibold text-gray-800">Painel Administrativo</h1>
+                <header className="hidden items-center gap-3 border-b bg-white px-4 py-4 sm:flex sm:px-8 sm:py-5">
+                    <span className="text-2xl sm:text-3xl" aria-hidden="true">🔧</span>
+                    <h1 className="min-w-0 text-xl font-semibold text-gray-800 sm:text-2xl">Painel Administrativo</h1>
                 </header>
 
                 <div className="min-w-0 p-3 sm:p-6 xl:p-8 flex-1 overflow-y-auto overflow-x-hidden">
@@ -394,7 +395,7 @@ const Admin = () => {
                             <button
                                 key={aba.id}
                                 onClick={() => setAbaAtiva(aba.id)}
-                                className={`shrink-0 whitespace-nowrap px-4 sm:px-8 py-3 sm:py-4 font-medium transition border-b-2 flex items-center gap-2 ${
+                                className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 font-medium transition sm:px-8 sm:py-4 ${
                                     abaAtiva === aba.id
                                         ? 'border-indigo-600 text-indigo-600'
                                         : 'border-transparent hover:text-gray-700'
@@ -408,13 +409,13 @@ const Admin = () => {
                     {/* Aba Usuários */}
                     {abaAtiva === 'usuarios' && (
                         <div>
-                            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                <h2 className="text-xl font-semibold">Gerenciamento de Usuários</h2>
-                                <input value={buscaUsuarios} onChange={event => setBuscaUsuarios(event.target.value)} placeholder="Pesquisar nome, e-mail, perfil ou ID" aria-label="Pesquisar usuários" className="min-w-0 sm:w-72 rounded-xl border border-gray-300 px-4 py-2" />
-                                <button onClick={() => void carregarUsuarios(true)} disabled={loading} className="rounded-xl border border-gray-300 px-4 py-2 font-medium disabled:opacity-50">{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
-                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <div className="mb-6 grid grid-cols-1 items-center gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_18rem_auto_auto]">
+                                <h2 className="text-xl font-semibold sm:col-span-2 xl:col-span-1">Gerenciamento de Usuários</h2>
+                                <input value={buscaUsuarios} onChange={event => setBuscaUsuarios(event.target.value)} placeholder="Pesquisar nome, e-mail, perfil ou ID" aria-label="Pesquisar usuários" className="min-h-11 min-w-0 rounded-xl border border-gray-300 px-4 py-2" />
+                                <button onClick={() => void carregarUsuarios(true)} disabled={loading} className="min-h-11 rounded-xl border border-gray-300 px-4 py-2 font-medium disabled:opacity-50">{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
+                                <label className="flex min-w-0 items-center gap-2 text-sm text-gray-700">
                                     Status
-                                    <select value={filtroStatus} onChange={event => setFiltroStatus(event.target.value)} className="rounded-xl border border-gray-300 px-4 py-2 bg-white">
+                                    <select value={filtroStatus} onChange={event => setFiltroStatus(event.target.value)} className="min-h-11 min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2">
                                         <option value="TODOS">Todos</option>
                                         <option value="PENDENTE">Pendentes</option>
                                         <option value="APROVADO">Aprovados</option>
@@ -425,8 +426,27 @@ const Admin = () => {
                             </div>
                             {loading ? (
                                 <div className="text-center py-16 text-gray-500 font-medium">Carregando painel de usuários...</div>
-                            ) : (
-                                <div className="bg-white rounded-3xl shadow-sm overflow-x-auto" role="region" aria-label="Tabela de usuários" tabIndex={0}>
+                            ) : (<>
+                                <div className="mb-3 flex items-center gap-2 md:hidden">
+                                    <label htmlFor="ordenacao-usuarios-mobile" className="shrink-0 text-sm font-medium text-gray-600">Ordenar:</label>
+                                    <select id="ordenacao-usuarios-mobile" value={sortUsuarios.key} onChange={event => setSortUsuarios(atual => ({ ...atual, key: event.target.value as typeof sortUsuarios.key }))} className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm"><option value="nome">Nome</option><option value="email">E-mail</option><option value="perfilNome">Perfil</option><option value="status">Status</option></select>
+                                    <button type="button" onClick={() => setSortUsuarios(atual => ({ ...atual, direction: atual.direction === 'asc' ? 'desc' : 'asc' }))} className="min-h-11 min-w-11 rounded-xl border border-gray-300 bg-white" aria-label={`Ordem ${sortUsuarios.direction === 'asc' ? 'crescente' : 'decrescente'}; alternar direção`}>{sortUsuarios.direction === 'asc' ? '↑' : '↓'}</button>
+                                </div>
+                                <div className="grid gap-3 md:hidden" aria-label="Lista de usuários">
+                                    {usuariosFiltrados.map(u => { const status = statusDoUsuario(u); const badge = status === 'APROVADO' ? 'bg-green-100 text-green-700' : status === 'PENDENTE' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700'; return <article key={u.id} className="agerp-mobile-card rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                                        <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-semibold text-gray-900">{u.nome}</h3><p className="mt-1 break-all text-sm text-gray-600">{u.email}</p></div><span className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${badge}`}>{status}</span></div>
+                                        <dl className="mt-3 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-xs uppercase text-gray-500">ID</dt><dd>{u.id}</dd></div><div><dt className="text-xs uppercase text-gray-500">Perfil</dt><dd className="break-words">{u.perfilNome || '—'}</dd></div></dl>
+                                        <div className="mt-4 grid grid-cols-2 gap-2">
+                                            <button onClick={() => abrirEdicao(u)} className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700">Editar</button>
+                                            {status !== 'APROVADO' && <button onClick={() => setAcaoConfirmacao({ usuario: u, acao: 'aprovar' })} className="rounded-xl bg-green-50 px-3 py-2 text-sm font-medium text-green-700">Aprovar</button>}
+                                            {status === 'PENDENTE' && <button onClick={() => setAcaoConfirmacao({ usuario: u, acao: 'rejeitar' })} className="rounded-xl bg-orange-50 px-3 py-2 text-sm font-medium text-orange-700">Rejeitar</button>}
+                                            {status === 'APROVADO' && <button onClick={() => setAcaoConfirmacao({ usuario: u, acao: 'bloquear' })} className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">Bloquear</button>}
+                                            {u.id !== user?.id && <button onClick={() => { setUsuarioRedefinicao(u); setCredencialTemporaria(null); }} className="col-span-2 rounded-xl bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700">Redefinir senha</button>}
+                                        </div>
+                                    </article>; })}
+                                    {usuariosFiltrados.length === 0 && <div className="rounded-3xl bg-white p-8 text-center text-gray-500">Nenhum usuário neste status.</div>}
+                                </div>
+                                <div className="hidden rounded-3xl bg-white shadow-sm md:block md:overflow-x-auto" role="region" aria-label="Tabela de usuários" tabIndex={0}>
                                 <table className="w-full min-w-[760px]">
                                     <thead className="bg-gray-50">
                                     <tr>
@@ -466,7 +486,7 @@ const Admin = () => {
                                     </tbody>
                                 </table>
                             </div>
-                            )}
+                            </>)}
                         </div>
                     )}
 
@@ -477,25 +497,34 @@ const Admin = () => {
                                 <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Auditoria do Sistema</h2><button onClick={() => void carregarLogs(true)} disabled={logsCarregando} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium disabled:opacity-50">{logsCarregando ? 'Atualizando...' : '↻ Atualizar'}</button></div>
                                 <p className="text-sm text-gray-500 mt-1">{totalLogs} evento{totalLogs === 1 ? '' : 's'} encontrado{totalLogs === 1 ? '' : 's'}</p>
                             </div>
-                            <form onSubmit={pesquisarLogs} className="bg-white rounded-3xl shadow-sm p-5 mb-5" aria-label="Filtros de auditoria">
+                            <form onSubmit={pesquisarLogs} className="mb-5 rounded-3xl bg-white p-4 shadow-sm sm:p-5" aria-label="Filtros de auditoria">
                                 <div className="flex flex-col lg:flex-row gap-3">
                                     <label className="flex-1"><span className="sr-only">Termo de pesquisa</span><input value={buscaLogs} onChange={event => setBuscaLogs(event.target.value)} placeholder="Pesquisar nos campos selecionados" className="w-full rounded-xl border border-gray-300 px-4 py-3" /></label>
-                                    <label className="text-sm text-gray-700"><span className="block mb-1">Data inicial</span><input type="date" value={dataInicioLog} max={dataFimLog || undefined} onChange={event => { setDataInicioLog(event.target.value); setPaginaLogs(0); }} className="rounded-xl border border-gray-300 px-3 py-2" /></label>
-                                    <label className="text-sm text-gray-700"><span className="block mb-1">Data final</span><input type="date" value={dataFimLog} min={dataInicioLog || undefined} onChange={event => { setDataFimLog(event.target.value); setPaginaLogs(0); }} className="rounded-xl border border-gray-300 px-3 py-2" /></label>
+                                    <label className="text-sm text-gray-700"><span className="block mb-1">Data inicial</span><input type="date" value={dataInicioLog} max={dataFimLog || undefined} onChange={event => { setDataInicioLog(event.target.value); setPaginaLogs(0); }} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 py-2" /></label>
+                                    <label className="text-sm text-gray-700"><span className="block mb-1">Data final</span><input type="date" value={dataFimLog} min={dataInicioLog || undefined} onChange={event => { setDataFimLog(event.target.value); setPaginaLogs(0); }} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 py-2" /></label>
                                 </div>
                                 <fieldset className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
                                     <legend className="sr-only">Campos pesquisados</legend>
                                     {([['email', 'E-mail'], ['perfil', 'Cargo/Perfil'], ['acao', 'Ação'], ['entidade', 'Entidade'], ['ip', 'IP']] as const).map(([campo, rotulo]) => (
                                         <label key={campo} className="inline-flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={camposFiltroLog[campo]} onChange={() => { setCamposFiltroLog(atuais => ({ ...atuais, [campo]: !atuais[campo] })); setPaginaLogs(0); }} className="h-4 w-4 rounded border-gray-300" />{rotulo}</label>
                                     ))}
-                                    <div className="sm:ml-auto flex gap-2">
-                                        <button type="button" onClick={limparFiltrosLogs} className="rounded-xl border border-gray-300 px-4 py-2 text-sm">Limpar</button>
-                                        <button type="submit" className="rounded-xl bg-indigo-600 px-5 py-2 text-sm text-white">Pesquisar</button>
+                                    <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto">
+                                        <button type="button" onClick={limparFiltrosLogs} className="min-h-11 rounded-xl border border-gray-300 px-4 py-2 text-sm">Limpar</button>
+                                        <button type="submit" className="min-h-11 rounded-xl bg-indigo-600 px-5 py-2 text-sm text-white">Pesquisar</button>
                                     </div>
                                 </fieldset>
                             </form>
                             <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-                                <div className="overflow-x-auto">
+                                <div className="border-b border-gray-100 p-3 md:hidden">
+                                    <div className="flex items-center gap-2"><label htmlFor="ordenacao-logs-mobile" className="shrink-0 text-sm font-medium text-gray-600">Ordenar:</label><select id="ordenacao-logs-mobile" value={sortLogs.key} onChange={event => setSortLogs(atual => ({ ...atual, key: event.target.value as typeof sortLogs.key }))} className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-2.5 text-sm"><option value="dataHora">Data/Hora</option><option value="acao">Ação</option><option value="entidade">Entidade</option></select><button type="button" onClick={() => setSortLogs(atual => ({ ...atual, direction: atual.direction === 'asc' ? 'desc' : 'asc' }))} className="min-h-11 min-w-11 rounded-xl border border-gray-300" aria-label={`Ordem ${sortLogs.direction === 'asc' ? 'crescente' : 'decrescente'}; alternar direção`}>{sortLogs.direction === 'asc' ? '↑' : '↓'}</button></div>
+                                </div>
+                                <div className="grid gap-3 p-3 md:hidden" aria-label="Eventos de auditoria">
+                                    {logsCarregando ? <p className="py-10 text-center text-gray-500">Carregando eventos de auditoria...</p> : logsErro ? <div className="py-8 text-center"><p className="text-red-700">{logsErro}</p><button onClick={() => void carregarLogs()} className="mt-3 min-h-11 rounded-xl px-4 font-medium text-indigo-700">Tentar novamente</button></div> : logs.length === 0 ? <p className="py-10 text-center text-gray-500">Nenhum evento encontrado para os filtros informados.</p> : logs.map(log => <article key={log.id} className="agerp-mobile-card rounded-2xl border border-gray-100 p-4">
+                                        <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-semibold text-gray-900">{log.acao}</h3><p className="mt-1 text-xs text-gray-500">{new Date(log.dataHora).toLocaleString('pt-BR')}</p></div><button onClick={() => setLogDetalhado(log)} className="min-h-11 shrink-0 rounded-xl bg-indigo-50 px-3 text-sm font-medium text-indigo-700">Ver detalhes</button></div>
+                                        <dl className="mt-3 grid gap-2 text-sm"><div><dt className="text-xs uppercase text-gray-500">Usuário</dt><dd className="break-words">{valorLog(log, 'nomeUsuario', 'usuarioNome')}</dd></div><div><dt className="text-xs uppercase text-gray-500">E-mail</dt><dd className="break-all">{valorLog(log, 'emailUsuario', 'usuarioEmail')}</dd></div><div className="grid grid-cols-2 gap-2"><div><dt className="text-xs uppercase text-gray-500">Cargo/Perfil</dt><dd className="break-words">{valorLog(log, 'perfilUsuario', 'usuarioPerfil')}</dd></div><div><dt className="text-xs uppercase text-gray-500">Entidade</dt><dd className="break-words">{log.entidade}</dd></div></div><div><dt className="text-xs uppercase text-gray-500">IP</dt><dd className="break-all font-mono">{log.ip || '—'}</dd></div></dl>
+                                    </article>)}
+                                </div>
+                                <div className="hidden overflow-x-auto md:block" role="region" aria-label="Tabela de auditoria" tabIndex={0}>
                                 <table className="w-full min-w-[1050px]">
                                     <thead className="bg-gray-50">
                                     <tr>
@@ -543,17 +572,17 @@ const Admin = () => {
 
                     {abaAtiva === 'estatisticas' && (
                         <div className="space-y-6">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                                 <div><h2 className="text-xl font-semibold">Estatísticas administrativas</h2><p className="text-sm text-gray-500 mt-1">Indicadores calculados a partir dos dados reais do período.</p></div>
-                                <div className="flex gap-2"><button onClick={limparFiltrosEstatisticas} className="rounded-xl border border-gray-300 px-4 py-2 text-sm">Limpar filtros</button><button onClick={() => void carregarEstatisticas(true)} disabled={estatisticasCarregando} className="rounded-xl bg-indigo-600 text-white px-5 py-2 text-sm disabled:opacity-50">Atualizar</button></div>
+                                <div className="grid grid-cols-2 gap-2"><button onClick={limparFiltrosEstatisticas} className="min-h-11 rounded-xl border border-gray-300 px-4 py-2 text-sm">Limpar filtros</button><button onClick={() => void carregarEstatisticas(true)} disabled={estatisticasCarregando} className="min-h-11 rounded-xl bg-indigo-600 px-5 py-2 text-sm text-white disabled:opacity-50">Atualizar</button></div>
                             </div>
 
-                            <div className="bg-white rounded-3xl shadow-sm p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                            <div className="grid grid-cols-1 gap-4 rounded-3xl bg-white p-4 shadow-sm sm:p-5 md:grid-cols-2 xl:grid-cols-5">
                                 <label className="text-sm text-gray-700"><span className="block mb-1">Data inicial</span><input type="date" value={inicioEstatisticas} max={fimEstatisticas || undefined} onChange={event => { setInicioEstatisticas(event.target.value); reiniciarPaginasEstatisticas(); }} className="w-full rounded-xl border border-gray-300 px-3 py-2" /></label>
                                 <label className="text-sm text-gray-700"><span className="block mb-1">Data final</span><input type="date" value={fimEstatisticas} min={inicioEstatisticas || undefined} onChange={event => { setFimEstatisticas(event.target.value); reiniciarPaginasEstatisticas(); }} className="w-full rounded-xl border border-gray-300 px-3 py-2" /></label>
-                                <details className="relative"><summary className="cursor-pointer rounded-xl border border-gray-300 px-4 py-2.5 text-sm list-none">Usuários ({usuariosSelecionados.length || 'todos'})</summary><div className="absolute z-20 mt-2 max-h-64 overflow-auto w-72 bg-white border rounded-xl shadow-xl p-3 space-y-2">{usuarios.map(item => <label key={item.id} className="flex gap-2 text-sm"><input type="checkbox" checked={usuariosSelecionados.includes(item.id)} onChange={() => alternarFiltroEstatisticas(item.id, usuariosSelecionados, setUsuariosSelecionados)} /><span>{item.nome} <span className="text-gray-500">({item.email})</span></span></label>)}</div></details>
-                                <details className="relative"><summary className="cursor-pointer rounded-xl border border-gray-300 px-4 py-2.5 text-sm list-none">Clientes ({clientesSelecionados.length || 'todos'})</summary><div className="absolute z-20 mt-2 max-h-64 overflow-auto w-72 bg-white border rounded-xl shadow-xl p-3 space-y-2">{clientesOpcoes.length ? clientesOpcoes.map(item => <label key={item.id} className="flex gap-2 text-sm"><input type="checkbox" checked={clientesSelecionados.includes(item.id)} onChange={() => alternarFiltroEstatisticas(item.id, clientesSelecionados, setClientesSelecionados)} />{item.nomeRazao}</label>) : <p className="text-sm text-gray-500">Nenhum cliente disponível.</p>}</div></details>
-                                <details className="relative"><summary className="cursor-pointer rounded-xl border border-gray-300 px-4 py-2.5 text-sm list-none">Status ({statusSelecionados.length || 'todos'})</summary><div className="absolute z-20 mt-2 max-h-64 overflow-auto w-64 bg-white border rounded-xl shadow-xl p-3 space-y-2">{estatisticas?.filtrosDisponiveis.statusPedidos?.map(status => <label key={status} className="flex gap-2 text-sm"><input type="checkbox" checked={statusSelecionados.includes(status)} onChange={() => alternarFiltroEstatisticas(status, statusSelecionados, setStatusSelecionados)} />{status}</label>) ?? <p className="text-sm text-gray-500">Carregando opções...</p>}</div></details>
+                                <details className="relative"><summary className="flex min-h-11 cursor-pointer items-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm list-none">Usuários ({usuariosSelecionados.length || 'todos'})</summary><div className="z-20 mt-2 max-h-64 w-full min-w-0 space-y-2 overflow-auto rounded-xl border bg-white p-3 shadow-xl md:absolute md:left-0 md:w-72">{usuarios.map(item => <label key={item.id} className="flex min-w-0 gap-2 text-sm"><input type="checkbox" checked={usuariosSelecionados.includes(item.id)} onChange={() => alternarFiltroEstatisticas(item.id, usuariosSelecionados, setUsuariosSelecionados)} /><span className="min-w-0 break-words">{item.nome} <span className="break-all text-gray-500">({item.email})</span></span></label>)}</div></details>
+                                <details className="relative"><summary className="flex min-h-11 cursor-pointer items-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm list-none">Clientes ({clientesSelecionados.length || 'todos'})</summary><div className="z-20 mt-2 max-h-64 w-full min-w-0 space-y-2 overflow-auto rounded-xl border bg-white p-3 shadow-xl md:absolute md:left-0 md:w-72">{clientesOpcoes.length ? clientesOpcoes.map(item => <label key={item.id} className="flex min-w-0 gap-2 break-words text-sm"><input type="checkbox" checked={clientesSelecionados.includes(item.id)} onChange={() => alternarFiltroEstatisticas(item.id, clientesSelecionados, setClientesSelecionados)} />{item.nomeRazao}</label>) : <p className="text-sm text-gray-500">Nenhum cliente disponível.</p>}</div></details>
+                                <details className="relative"><summary className="flex min-h-11 cursor-pointer items-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm list-none">Status ({statusSelecionados.length || 'todos'})</summary><div className="z-20 mt-2 max-h-64 w-full min-w-0 space-y-2 overflow-auto rounded-xl border bg-white p-3 shadow-xl md:absolute md:right-0 md:w-64">{estatisticas?.filtrosDisponiveis.statusPedidos?.map(status => <label key={status} className="flex gap-2 text-sm"><input type="checkbox" checked={statusSelecionados.includes(status)} onChange={() => alternarFiltroEstatisticas(status, statusSelecionados, setStatusSelecionados)} />{status}</label>) ?? <p className="text-sm text-gray-500">Carregando opções...</p>}</div></details>
                                 <label className="md:col-span-2 xl:col-span-5 text-sm text-gray-500"><span className="block mb-1">Categoria/Tipo de produto</span><input disabled value="Filtro indisponível" className="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-2 text-gray-500" /><span className="block mt-1 text-xs">{estatisticas?.metadados.categoriaProduto || 'O schema atual não possui categoria de produto.'}</span></label>
                             </div>
 
@@ -561,21 +590,21 @@ const Admin = () => {
 
                             {estatisticasCarregando ? <div className="bg-white rounded-3xl py-20 text-center text-gray-500">Carregando estatísticas...</div> : estatisticasErro ? <div className="bg-white rounded-3xl py-16 text-center"><p className="text-red-700">{estatisticasErro}</p><button onClick={() => void carregarEstatisticas()} className="mt-3 text-indigo-700 font-medium">Tentar novamente</button></div> : !estatisticas ? <div className="bg-white rounded-3xl py-20 text-center text-gray-500">Nenhum dado disponível.</div> : (
                                 <>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-                                        {[['Usuários', estatisticas.usuarios.total], ['Clientes', estatisticas.clientes.total], ['Pedidos', estatisticas.pedidos.total], ['Faturamento', moeda(estatisticas.pedidos.faturamento)], ['Ticket médio', moeda(estatisticas.pedidos.ticketMedio)], ['Estoque baixo', estatisticas.produtos.estoqueBaixo]].map(([rotulo, valor]) => <div key={rotulo} className="bg-white rounded-2xl shadow-sm p-5"><p className="text-xs uppercase tracking-wide text-gray-500">{rotulo}</p><p className="text-2xl font-semibold mt-2 break-words">{valor}</p></div>)}
+                                    <div className="agerp-indicator-grid">
+                                        {[['Usuários', estatisticas.usuarios.total], ['Clientes', estatisticas.clientes.total], ['Pedidos', estatisticas.pedidos.total], ['Faturamento', moeda(estatisticas.pedidos.faturamento)], ['Ticket médio', moeda(estatisticas.pedidos.ticketMedio)], ['Estoque baixo', estatisticas.produtos.estoqueBaixo]].map(([rotulo, valor]) => <IndicatorCard key={rotulo} label={String(rotulo)} value={valor} />)}
                                     </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-                                        {[['Usuários ativos', estatisticas.usuarios.ativos], ['Usuários pendentes', estatisticas.usuarios.pendentes], ['Usuários bloqueados', estatisticas.usuarios.bloqueados], ['Clientes com pedidos', estatisticas.clientes.comPedidos], ['Produtos', estatisticas.produtos.total], ['Quantidade vendida', estatisticas.produtos.quantidadeVendida], ['Valor vendido', moeda(estatisticas.produtos.valorVendido)], ['Estoque disponível', estatisticas.produtos.estoqueDisponivel], ['Pedidos pendentes', estatisticas.pedidos.pendentes], ['Pedidos em andamento', estatisticas.pedidos.emAndamento], ['Pedidos concluídos', estatisticas.pedidos.concluidos], ['Pedidos cancelados', estatisticas.pedidos.cancelados]].map(([rotulo, valor]) => <div key={rotulo} className="bg-white rounded-2xl shadow-sm p-5"><p className="text-xs uppercase tracking-wide text-gray-500">{rotulo}</p><p className="text-xl font-semibold mt-2 break-words">{valor}</p></div>)}
+                                    <div className="agerp-indicator-grid">
+                                        {[['Usuários ativos', estatisticas.usuarios.ativos], ['Usuários pendentes', estatisticas.usuarios.pendentes], ['Usuários bloqueados', estatisticas.usuarios.bloqueados], ['Clientes com pedidos', estatisticas.clientes.comPedidos], ['Produtos', estatisticas.produtos.total], ['Quantidade vendida', estatisticas.produtos.quantidadeVendida], ['Valor vendido', moeda(estatisticas.produtos.valorVendido)], ['Estoque disponível', estatisticas.produtos.estoqueDisponivel], ['Pedidos pendentes', estatisticas.pedidos.pendentes], ['Pedidos em andamento', estatisticas.pedidos.emAndamento], ['Pedidos concluídos', estatisticas.pedidos.concluidos], ['Pedidos cancelados', estatisticas.pedidos.cancelados]].map(([rotulo, valor]) => <IndicatorCard key={rotulo} label={String(rotulo)} value={valor} variant="secondary" />)}
                                     </div>
                                     {estatisticas.pedidos.total === 0 && estatisticas.clientes.evolucao.length === 0 && estatisticas.usuarios.movimentacoes.totalElementos === 0 ? <div className="bg-white rounded-3xl py-14 text-center text-gray-500">Não há dados transacionais para os filtros selecionados.</div> : (
-                                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                            <div className="bg-white rounded-3xl shadow-sm p-5"><h3 className="font-semibold mb-4">Evolução de pedidos</h3><div className="h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={estatisticas.pedidos.evolucaoMensal}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="periodo" /><YAxis /><Tooltip formatter={(value) => moeda(Number(value))} /><Legend /><Line type="monotone" dataKey="valor" name="Faturamento" stroke="#4f46e5" /><Line type="monotone" dataKey="quantidade" name="Pedidos" stroke="#059669" /></LineChart></ResponsiveContainer></div></div>
-                                            <div className="bg-white rounded-3xl shadow-sm p-5"><h3 className="font-semibold mb-4">Pedidos por status</h3><div className="h-72"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={estatisticas.pedidos.distribuicaoStatus} dataKey="quantidade" nameKey="nome" fill="#4f46e5" label /><Tooltip /></PieChart></ResponsiveContainer></div></div>
-                                            <div className="bg-white rounded-3xl shadow-sm p-5"><h3 className="font-semibold mb-4">Perfis de usuários</h3><div className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={estatisticas.usuarios.distribuicaoPerfis}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="nome" /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="quantidade" name="Usuários" fill="#7c3aed" /></BarChart></ResponsiveContainer></div></div>
+                                        <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-2">
+                                            <div className="min-w-0 rounded-3xl bg-white p-4 shadow-sm sm:p-5"><h3 className="mb-4 font-semibold">Evolução de pedidos</h3><div className="agerp-responsive-chart h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={estatisticas.pedidos.evolucaoMensal} margin={{ left: -12, right: 8 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="periodo" /><YAxis /><Tooltip formatter={(value) => moeda(Number(value))} /><Legend /><Line type="monotone" dataKey="valor" name="Faturamento" stroke="#4f46e5" /><Line type="monotone" dataKey="quantidade" name="Pedidos" stroke="#059669" /></LineChart></ResponsiveContainer></div></div>
+                                            <div className="min-w-0 rounded-3xl bg-white p-4 shadow-sm sm:p-5"><h3 className="mb-4 font-semibold">Pedidos por status</h3><div className="agerp-responsive-chart h-72"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={estatisticas.pedidos.distribuicaoStatus} dataKey="quantidade" nameKey="nome" fill="#4f46e5" outerRadius="75%" /><Tooltip /><Legend /></PieChart></ResponsiveContainer></div></div>
+                                            <div className="min-w-0 rounded-3xl bg-white p-4 shadow-sm sm:p-5"><h3 className="mb-4 font-semibold">Perfis de usuários</h3><div className="agerp-responsive-chart h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={estatisticas.usuarios.distribuicaoPerfis} margin={{ left: -12, right: 8 }}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="nome" tick={{ fontSize: 11 }} /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="quantidade" name="Usuários" fill="#7c3aed" /></BarChart></ResponsiveContainer></div></div>
                                             <div className="bg-white rounded-3xl shadow-sm p-5 overflow-hidden"><h3 className="font-semibold mb-4">Produtos mais vendidos</h3><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left py-3">Produto</th><th className="text-right">Quantidade</th><th className="text-right">Valor</th></tr></thead><tbody>{estatisticas.produtos.topVendidos.conteudo.map(item => <tr key={item.id} className="border-b last:border-0"><td className="py-3">{item.nome}</td><td className="text-right">{item.quantidade}</td><td className="text-right">{moeda(item.valor)}</td></tr>)}{!estatisticas.produtos.topVendidos.conteudo.length && <tr><td colSpan={3} className="py-10 text-center text-gray-500">Sem vendas no período.</td></tr>}</tbody></table></div>{estatisticas.produtos.topVendidos.totalPaginas > 1 && <div className="mt-4 flex items-center justify-between text-sm"><span>Página {estatisticas.produtos.topVendidos.pagina + 1} de {estatisticas.produtos.topVendidos.totalPaginas}</span><div className="flex gap-2"><button disabled={paginaProdutos === 0} onClick={() => setPaginaProdutos(atual => Math.max(0, atual - 1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Anterior</button><button disabled={paginaProdutos + 1 >= estatisticas.produtos.topVendidos.totalPaginas} onClick={() => setPaginaProdutos(atual => atual + 1)} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Próxima</button></div></div>}</div>
                                             <div className="bg-white rounded-3xl shadow-sm p-5 xl:col-span-2 overflow-hidden"><h3 className="font-semibold mb-4">Desempenho por usuário</h3><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left py-3">Usuário</th><th className="text-right">Pedidos</th><th className="text-right">Faturamento</th></tr></thead><tbody>{estatisticas.usuarios.desempenho.conteudo.map(item => <tr key={item.id} className="border-b last:border-0"><td className="py-3">{item.nome}</td><td className="text-right">{item.pedidos}</td><td className="text-right">{moeda(item.faturamento)}</td></tr>)}{!estatisticas.usuarios.desempenho.conteudo.length && <tr><td colSpan={3} className="py-10 text-center text-gray-500">Sem desempenho no período.</td></tr>}</tbody></table></div>{estatisticas.usuarios.desempenho.totalPaginas > 1 && <div className="mt-4 flex items-center justify-between text-sm"><span>Página {estatisticas.usuarios.desempenho.pagina + 1} de {estatisticas.usuarios.desempenho.totalPaginas}</span><div className="flex gap-2"><button disabled={paginaUsuariosEstatisticas === 0} onClick={() => setPaginaUsuariosEstatisticas(atual => Math.max(0, atual - 1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Anterior</button><button disabled={paginaUsuariosEstatisticas + 1 >= estatisticas.usuarios.desempenho.totalPaginas} onClick={() => setPaginaUsuariosEstatisticas(atual => atual + 1)} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Próxima</button></div></div>}</div>
-                                            <div className="bg-white rounded-3xl shadow-sm p-5"><h3 className="font-semibold mb-4">Evolução de pedidos por cliente</h3>{estatisticas.clientes.evolucao.length ? <div className="h-72"><ResponsiveContainer width="100%" height="100%"><LineChart data={evolucaoClientesAgrupada(estatisticas.clientes.evolucao)}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="periodo" /><YAxis allowDecimals={false} /><Tooltip /><Legend />{Array.from(new Map(estatisticas.clientes.evolucao.map(item => [item.id, item.nome])).entries()).map(([id, nome]) => <Line key={id} type="monotone" dataKey={`cliente_${id}`} name={nome} />)}</LineChart></ResponsiveContainer></div> : <div className="py-12 text-center text-sm text-gray-500">Sem evolução de clientes no período.</div>}</div>
-                                            <div className="bg-white rounded-3xl shadow-sm p-5 xl:col-span-2 overflow-hidden"><h3 className="font-semibold mb-4">Movimentações de estoque por usuário</h3><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left py-3">Usuário</th><th className="text-right">Movimentações</th><th className="text-right">Entradas</th><th className="text-right">Saídas</th></tr></thead><tbody>{estatisticas.usuarios.movimentacoes.conteudo.map(item => <tr key={item.id} className="border-b last:border-0"><td className="py-3">{item.nome}</td><td className="text-right">{item.movimentacoes}</td><td className="text-right">{item.quantidadeEntrada}</td><td className="text-right">{item.quantidadeSaida}</td></tr>)}{!estatisticas.usuarios.movimentacoes.conteudo.length && <tr><td colSpan={4} className="py-10 text-center text-gray-500">Sem movimentações no período.</td></tr>}</tbody></table></div>{estatisticas.usuarios.movimentacoes.totalPaginas > 1 && <div className="mt-4 flex items-center justify-between text-sm"><span>Página {estatisticas.usuarios.movimentacoes.pagina + 1} de {estatisticas.usuarios.movimentacoes.totalPaginas}</span><div className="flex gap-2"><button disabled={paginaMovimentacoes === 0} onClick={() => setPaginaMovimentacoes(atual => Math.max(0, atual - 1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Anterior</button><button disabled={paginaMovimentacoes + 1 >= estatisticas.usuarios.movimentacoes.totalPaginas} onClick={() => setPaginaMovimentacoes(atual => atual + 1)} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Próxima</button></div></div>}</div>
+                                            <section aria-labelledby="evolucao-clientes-titulo" className="min-w-0 rounded-3xl bg-white p-4 shadow-sm sm:p-5"><h3 id="evolucao-clientes-titulo" className="mb-4 font-semibold">Evolução de pedidos por cliente</h3><ClientOrdersChart evolucao={estatisticas.clientes.evolucao} /></section>
+                                            <section aria-labelledby="movimentacoes-usuarios-titulo" className="min-w-0 rounded-3xl bg-white p-4 shadow-sm xl:col-span-2 sm:p-5"><h3 id="movimentacoes-usuarios-titulo" className="mb-4 font-semibold">Movimentações de estoque por usuário</h3><div className="max-w-full overflow-x-auto" role="region" aria-label="Tabela de movimentações de estoque por usuário" tabIndex={0}><table className="w-full min-w-[640px] text-sm"><thead><tr className="border-b"><th scope="col" className="min-w-[180px] px-4 py-3 text-left">Usuário</th><th scope="col" className="whitespace-nowrap px-4 py-3 text-right">Movimentações</th><th scope="col" className="whitespace-nowrap px-4 py-3 text-right">Entradas</th><th scope="col" className="whitespace-nowrap px-4 py-3 text-right">Saídas</th></tr></thead><tbody>{estatisticas.usuarios.movimentacoes.conteudo.map(item => <tr key={item.id} className="border-b last:border-0"><td className="break-words px-4 py-3 [overflow-wrap:anywhere]">{item.nome}</td><td className="whitespace-nowrap px-4 py-3 text-right">{item.movimentacoes}</td><td className="whitespace-nowrap px-4 py-3 text-right">{item.quantidadeEntrada}</td><td className="whitespace-nowrap px-4 py-3 text-right">{item.quantidadeSaida}</td></tr>)}{!estatisticas.usuarios.movimentacoes.conteudo.length && <tr><td colSpan={4} className="py-10 text-center text-gray-500">Sem movimentações no período.</td></tr>}</tbody></table></div>{estatisticas.usuarios.movimentacoes.totalPaginas > 1 && <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm"><span>Página {estatisticas.usuarios.movimentacoes.pagina + 1} de {estatisticas.usuarios.movimentacoes.totalPaginas}</span><div className="flex gap-2"><button disabled={paginaMovimentacoes === 0} onClick={() => setPaginaMovimentacoes(atual => Math.max(0, atual - 1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Anterior</button><button disabled={paginaMovimentacoes + 1 >= estatisticas.usuarios.movimentacoes.totalPaginas} onClick={() => setPaginaMovimentacoes(atual => atual + 1)} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Próxima</button></div></div>}</section>
                                             <div className="bg-white rounded-3xl shadow-sm p-5 overflow-hidden"><h3 className="font-semibold mb-4">Clientes mais frequentes</h3><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left py-3">Cliente</th><th className="text-right">Pedidos</th><th className="text-right">Faturamento</th></tr></thead><tbody>{estatisticas.clientes.topFrequentes.conteudo.map(item => <tr key={item.id} className="border-b last:border-0"><td className="py-3">{item.nome}</td><td className="text-right">{item.pedidos}</td><td className="text-right">{moeda(item.faturamento)}</td></tr>)}{!estatisticas.clientes.topFrequentes.conteudo.length && <tr><td colSpan={3} className="py-10 text-center text-gray-500">Sem clientes no período.</td></tr>}</tbody></table></div>{estatisticas.clientes.topFrequentes.totalPaginas > 1 && <div className="mt-4 flex items-center justify-between text-sm"><span>Página {estatisticas.clientes.topFrequentes.pagina + 1} de {estatisticas.clientes.topFrequentes.totalPaginas}</span><div className="flex gap-2"><button disabled={paginaClientes === 0} onClick={() => setPaginaClientes(atual => Math.max(0, atual - 1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Anterior</button><button disabled={paginaClientes + 1 >= estatisticas.clientes.topFrequentes.totalPaginas} onClick={() => setPaginaClientes(atual => atual + 1)} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Próxima</button></div></div>}</div>
                                         </div>
                                     )}
@@ -587,21 +616,16 @@ const Admin = () => {
 
                     {abaAtiva === 'configuracoes' && <AdminConfiguracoes />}
 
-                    {/* Relatorios ainda nao implementados */}
-                    {abaAtiva === 'relatorios' && (
-                        <div className="text-center py-20 text-gray-500 text-2xl">
-                            Funcionalidade em desenvolvimento
-                        </div>
-                    )}
+                    {abaAtiva === 'relatorios' && <AdminRelatorios />}
                 </div>
             </div>
 
             {logDetalhado && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[140] p-4" role="dialog" aria-modal="true" aria-labelledby="detalhes-log-titulo" onMouseDown={event => { if (event.target === event.currentTarget) setLogDetalhado(null); }}>
-                    <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+                <div className="agerp-modal-overlay fixed inset-0 z-[140] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="detalhes-log-titulo" onMouseDown={event => { if (event.target === event.currentTarget) setLogDetalhado(null); }}>
+                    <div className="agerp-modal-panel w-full max-w-2xl rounded-3xl bg-white p-5 sm:p-8">
                         <div className="flex items-start justify-between gap-4">
                             <div><h2 id="detalhes-log-titulo" className="text-2xl font-semibold">Detalhes do evento</h2><p className="text-sm text-gray-500 mt-1">Registro de auditoria #{logDetalhado.id}</p></div>
-                            <button onClick={() => setLogDetalhado(null)} className="text-gray-500 hover:text-gray-900 text-2xl" aria-label="Fechar detalhes">×</button>
+                            <button onClick={() => setLogDetalhado(null)} className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-2xl text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="Fechar detalhes">×</button>
                         </div>
                         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 text-sm">
                             <div><dt className="text-gray-500">Data/Hora</dt><dd className="font-medium mt-1">{new Date(logDetalhado.dataHora).toLocaleString('pt-BR')}</dd></div>
@@ -621,8 +645,8 @@ const Admin = () => {
             )}
 
             {usuarioEditando && formEdicao && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[130] p-4" role="dialog" aria-modal="true" aria-labelledby="editar-usuario-titulo">
-                    <form onSubmit={salvarEdicao} className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+                <div className="agerp-modal-overlay fixed inset-0 z-[130] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="editar-usuario-titulo">
+                    <form onSubmit={salvarEdicao} className="agerp-modal-panel w-full max-w-xl rounded-3xl bg-white p-5 sm:p-8">
                         <h2 id="editar-usuario-titulo" className="text-2xl font-semibold">Editar usuário</h2>
                         <p className="text-sm text-gray-500 mt-1">Dados cadastrais e perfil de acesso.</p>
 
@@ -660,14 +684,14 @@ const Admin = () => {
             )}
 
             {acaoConfirmacao && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[120]" role="dialog" aria-modal="true" aria-labelledby="confirmar-status-titulo">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full mx-4">
+                <div className="agerp-modal-overlay fixed inset-0 z-[120] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="confirmar-status-titulo">
+                    <div className="agerp-modal-panel w-full max-w-md rounded-3xl bg-white p-5 sm:p-8">
                         <h3 id="confirmar-status-titulo" className="text-xl font-semibold">Confirmar ação</h3>
                         <p className="text-gray-600 mt-3">
                             Deseja realmente {acaoConfirmacao.acao} o usuário <strong>{acaoConfirmacao.usuario.nome}</strong>?
                             {acaoConfirmacao.acao === 'bloquear' && ' O acesso será revogado imediatamente.'}
                         </p>
-                        <div className="flex gap-3 mt-8">
+                        <div className="mt-8 flex flex-col gap-3 min-[360px]:flex-row">
                             <button disabled={processandoAcao} onClick={() => setAcaoConfirmacao(null)} className="flex-1 py-3.5 border border-gray-300 rounded-2xl disabled:opacity-50">Cancelar</button>
                             <button disabled={processandoAcao} onClick={executarAcaoStatus} className={`flex-1 py-3.5 text-white rounded-2xl disabled:opacity-50 ${acaoConfirmacao.acao === 'aprovar' ? 'bg-green-600' : 'bg-red-600'}`}>
                                 {processandoAcao ? 'Processando...' : 'Confirmar'}
@@ -678,14 +702,14 @@ const Admin = () => {
             )}
 
             {usuarioRedefinicao && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[120]" role="dialog" aria-modal="true" aria-labelledby="redefinir-senha-titulo">
-                    <div className="bg-white rounded-3xl p-8 max-w-lg w-full mx-4">
+                <div className="agerp-modal-overlay fixed inset-0 z-[120] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="redefinir-senha-titulo">
+                    <div className="agerp-modal-panel w-full max-w-lg rounded-3xl bg-white p-5 sm:p-8">
                         <h3 id="redefinir-senha-titulo" className="text-xl font-semibold">Redefinir senha</h3>
                         {!credencialTemporaria ? (
                             <>
                                 <p className="text-gray-600 mt-3">Uma credencial temporária de uso único será criada para <strong>{usuarioRedefinicao.nome}</strong>. As sessões anteriores serão invalidadas e o usuário deverá definir uma senha definitiva no próximo acesso.</p>
                                 <p className="mt-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-2xl p-4">O status de aprovação ou bloqueio da conta não será alterado.</p>
-                                <div className="flex gap-3 mt-8">
+                                <div className="mt-8 flex flex-col gap-3 min-[360px]:flex-row">
                                     <button disabled={processandoRedefinicao} onClick={fecharRedefinicao} className="flex-1 py-3.5 border border-gray-300 rounded-2xl disabled:opacity-50">Cancelar</button>
                                     <button disabled={processandoRedefinicao} onClick={executarRedefinicao} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl disabled:opacity-50">{processandoRedefinicao ? 'Gerando...' : 'Gerar credencial'}</button>
                                 </div>
@@ -706,7 +730,7 @@ const Admin = () => {
             )}
 
             {/* Toasts */}
-            <div className="fixed bottom-6 right-6 space-y-2 z-[110]">
+            <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[110] space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}

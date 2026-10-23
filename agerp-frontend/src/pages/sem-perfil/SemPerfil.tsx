@@ -4,13 +4,13 @@ const SemPerfil = () => {
     const { logout } = useAuth();
 
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-10 text-center">
+        <div className="flex min-h-screen min-h-[100dvh] items-center justify-center bg-gray-50 p-3 sm:p-4">
+            <div className="w-full max-w-md rounded-3xl bg-white p-5 text-center shadow-xl sm:p-10">
                 <div className="mx-auto w-20 h-20 bg-amber-100 rounded-2xl flex items-center justify-center text-4xl mb-6">
                     ⚠️
                 </div>
 
-                <h1 className="text-3xl font-bold text-gray-900 mb-4">Acesso Restrito</h1>
+                <h1 className="mb-4 text-2xl font-bold text-gray-900 sm:text-3xl">Acesso Restrito</h1>
 
                 <p className="text-gray-600 text-lg leading-relaxed mb-8">
                     Seu usuário ainda não possui um <strong>cargo/perfil</strong> definido no sistema.

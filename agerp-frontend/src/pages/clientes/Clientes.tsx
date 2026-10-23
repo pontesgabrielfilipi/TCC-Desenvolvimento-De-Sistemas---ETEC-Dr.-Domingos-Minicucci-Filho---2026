@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { clienteService } from '../../services/clienteService';
 import { EnderecosModal } from './EnderecosModal';
 import { getHttpErrorMessage } from '../../utils/httpError';
+import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
 
 interface Cliente {
     id: number;
@@ -20,6 +21,7 @@ interface Toast {
 }
 
 const Clientes = () => {
+    const isMobileViewport = useIsMobileViewport();
 
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [busca, setBusca] = useState('');
@@ -220,34 +222,41 @@ const Clientes = () => {
         }
     };
 
+    const campoBusca = (
+        <input
+            type="text"
+            placeholder="Buscar por nome ou CPF/CNPJ..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            aria-label="Buscar clientes"
+            className={isMobileViewport
+                ? 'mb-3 block w-full min-w-0 rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none'
+                : 'min-w-0 w-72 rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none'}
+        />
+    );
+
     return (
-        <div className="h-full min-w-0 bg-gray-50 flex overflow-hidden">
+        <div className="h-full min-w-0 bg-app-background flex overflow-hidden">
 
             {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col overflow-hidden">
 
                 {/* HEADER */}
-                <header className="bg-white border-b px-3 sm:px-6 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-4">
+                <header className="bg-white border-b px-3 sm:px-6 py-3 sm:py-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="hidden items-center gap-4 sm:flex">
                         <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">👥 Clientes</h1>
                     </div>
 
-                    <div className="flex w-full sm:w-auto min-w-0 flex-wrap items-center gap-2 sm:gap-4">
-                        <input
-                            type="text"
-                            placeholder="Buscar por nome ou CPF/CNPJ..."
-                            value={busca}
-                            onChange={(e) => setBusca(e.target.value)}
-                            aria-label="Buscar clientes" className="w-full min-w-0 sm:w-72 px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm"
-                        />
+                    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:gap-4">
+                        {!isMobileViewport && campoBusca}
                         <button
                             onClick={() => void carregarClientes(true)}
                             disabled={loading}
-                            className="px-4 py-3 border border-gray-300 rounded-2xl font-medium hover:bg-gray-50 disabled:opacity-50"
+                            className="min-h-11 flex-1 whitespace-nowrap rounded-2xl border border-gray-300 px-3 py-3 font-medium hover:bg-gray-50 disabled:opacity-50 sm:flex-none sm:px-4"
                         >{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
                         <button
                             onClick={() => abrirModal()}
-                            className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-medium flex items-center gap-2"
+                            className="flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-indigo-600 px-3 py-3 font-medium text-white transition-all duration-300 ease-in-out hover:scale-105 hover:bg-indigo-700 hover:shadow-lg sm:flex-none sm:px-6"
                         >
                             + Novo Cliente
                         </button>
@@ -255,11 +264,41 @@ const Clientes = () => {
                 </header>
 
                 {/* CONTEÚDO COM SCROLL */}
-                <div className="min-w-0 p-3 sm:p-6 md:p-8 flex-1 overflow-y-auto overflow-x-hidden">
+                <div data-testid="clientes-scroll" className="min-w-0 p-3 sm:p-6 md:p-8 flex-1 overflow-y-auto overflow-x-hidden">
+                    {isMobileViewport && campoBusca}
                     {loading ? (
                         <div className="text-center py-16 text-gray-500 font-medium">Carregando clientes...</div>
-                    ) : (
-                        <div className="bg-white rounded-3xl shadow-sm overflow-x-auto" role="region" aria-label="Tabela de clientes" tabIndex={0}>
+                    ) : clientesFiltrados.length === 0 ? (
+                        <div className="rounded-3xl bg-white p-8 text-center text-gray-500 shadow-sm">Nenhum cliente encontrado.</div>
+                    ) : (<>
+                        <div className="mb-3 flex items-center gap-2 md:hidden">
+                            <label htmlFor="ordenacao-clientes-mobile" className="shrink-0 text-sm font-medium text-gray-600">Ordenar:</label>
+                            <select id="ordenacao-clientes-mobile" value={String(sort.key)} onChange={(event) => setSort(atual => ({ ...atual, key: event.target.value as keyof Cliente }))} className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm">
+                                <option value="nomeRazao">Nome</option><option value="tipo">Tipo</option><option value="cpfCnpj">CPF/CNPJ</option><option value="email">E-mail</option><option value="telefone">Telefone</option>
+                            </select>
+                            <button type="button" onClick={() => setSort(atual => ({ ...atual, direction: atual.direction === 'asc' ? 'desc' : 'asc' }))} className="min-h-11 min-w-11 rounded-xl border border-gray-300 bg-white px-3" aria-label={`Ordem ${sort.direction === 'asc' ? 'crescente' : 'decrescente'}; alternar direção`}>{sort.direction === 'asc' ? '↑' : '↓'}</button>
+                        </div>
+                        <div className="grid gap-3 md:hidden" aria-label="Lista de clientes">
+                            {clientesFiltrados.map((cliente) => (
+                                <article key={cliente.id} className="agerp-mobile-card rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                                    <div className="flex min-w-0 items-start justify-between gap-3">
+                                        <h2 className="min-w-0 break-words font-semibold text-gray-900">{cliente.nomeRazao}</h2>
+                                        <span className={`shrink-0 rounded-full px-3 py-1 text-xs ${cliente.tipo === 'FISICA' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{cliente.tipo === 'FISICA' ? 'Física' : 'Jurídica'}</span>
+                                    </div>
+                                    <dl className="mt-4 grid min-w-0 gap-3 text-sm">
+                                        <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500">CPF / CNPJ</dt><dd className="mt-0.5 break-all font-mono text-gray-800">{cliente.cpfCnpj || '—'}</dd></div>
+                                        <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500">E-mail</dt><dd className="mt-0.5 break-all text-gray-800">{cliente.email || '—'}</dd></div>
+                                        <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Telefone</dt><dd className="mt-0.5 break-words text-gray-800">{cliente.telefone || '—'}</dd></div>
+                                    </dl>
+                                    <div className="mt-4 grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
+                                        <button onClick={() => abrirEnderecos(cliente)} className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">📍 Endereços</button>
+                                        <button onClick={() => abrirModal(cliente)} className="rounded-xl bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">Editar</button>
+                                        <button onClick={() => confirmarExclusao(cliente.id)} className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Excluir</button>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                        <div className="hidden rounded-3xl bg-white shadow-sm md:block md:overflow-x-auto" role="region" aria-label="Tabela de clientes" tabIndex={0}>
                         <table className="w-full min-w-[800px]">
                             <thead className="bg-gray-50 border-b">
                             <tr>
@@ -299,16 +338,18 @@ const Clientes = () => {
                             </tbody>
                         </table>
                     </div>
-                    )}
+                    </>)}
                 </div>
             </div>
 
             {/* Modal Novo / Editar Cliente */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-3xl w-full max-w-lg mx-4 p-8">
+                <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="cliente-modal-titulo">
+                    <div className="agerp-modal-panel w-full max-w-lg rounded-3xl bg-white p-4 sm:p-8">
                         <h2 className="text-2xl font-semibold mb-6">
+                            <span id="cliente-modal-titulo">
                             {editandoId ? 'Editar Cliente' : 'Novo Cliente'}
+                            </span>
                         </h2>
 
                         <div className="space-y-6">
@@ -350,7 +391,7 @@ const Clientes = () => {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
                                     <input
@@ -373,7 +414,7 @@ const Clientes = () => {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4 pt-4">
+                            <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
                                 <button onClick={fecharModal} className="flex-1 py-3.5 border border-gray-300 rounded-2xl font-medium">Cancelar</button>
                                 <button onClick={salvarCliente} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl font-medium hover:bg-indigo-700">Salvar</button>
                             </div>
@@ -384,11 +425,11 @@ const Clientes = () => {
 
             {/* Popover de Confirmação de Exclusão */}
             {deleteConfirmId && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110]">
-                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full mx-4">
-                        <h3 className="text-lg font-semibold">Confirmar exclusão</h3>
+                <div className="agerp-modal-overlay fixed inset-0 z-[110] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="excluir-cliente-titulo">
+                    <div className="agerp-modal-panel w-full max-w-sm rounded-3xl bg-white p-5 sm:p-8">
+                        <h3 id="excluir-cliente-titulo" className="text-lg font-semibold">Confirmar exclusão</h3>
                         <p className="text-gray-600 mt-2 mb-8">Esta ação não pode ser desfeita.</p>
-                        <div className="flex gap-3">
+                        <div className="flex flex-col gap-3 min-[360px]:flex-row">
                             <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-3.5 border border-gray-300 rounded-2xl">Cancelar</button>
                             <button onClick={executarExclusao} className="flex-1 py-3.5 bg-red-600 text-white rounded-2xl">Excluir</button>
                         </div>
@@ -405,7 +446,7 @@ const Clientes = () => {
             />
 
             {/* Toasts */}
-            <div className="fixed bottom-6 right-6 space-y-2 z-[120]">
+            <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[120] space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}

@@ -30,17 +30,18 @@ const AppRoutes = () => {
             <Route element={<PrivateRoute />}>
                 <Route path="/alterar-senha-obrigatoria" element={<AlterarSenhaObrigatoria />} />
                 <Route element={<AuthenticatedLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/clientes" element={<Clientes />} />
-                <Route path={"/produtos"} element={<Produtos />} />
-                <Route path={"/pedidos"} element={<Pedidos />} />
-                <Route element={<PrivateRoute allowedProfiles={['ADMIN']} />}>
+                <Route element={<PrivateRoute requiredPage="DASHBOARD" />}><Route path="/dashboard" element={<Dashboard />} /></Route>
+                <Route element={<PrivateRoute requiredPage="CLIENTES" />}><Route path="/clientes" element={<Clientes />} /></Route>
+                <Route element={<PrivateRoute requiredPage="PRODUTOS" />}><Route path="/produtos" element={<Produtos />} /></Route>
+                <Route element={<PrivateRoute requiredPage="PEDIDOS" />}><Route path="/pedidos" element={<Pedidos />} /></Route>
+                <Route element={<PrivateRoute allowedProfiles={['ADMIN']} requiredPage="ADMIN" />}>
                     <Route path="/admin" element={<Admin />} />
                 </Route>
                 </Route>
 
                 {/* Página para usuários sem perfil */}
                 <Route path="/sem-perfil" element={<SemPerfil />} />
+                <Route path="/sem-acesso" element={<div className="min-h-screen grid place-items-center bg-slate-50 p-4"><div className="max-w-md rounded-2xl bg-white p-8 text-center shadow"><h1 className="text-2xl font-semibold">Sem páginas autorizadas</h1><p className="my-4 text-slate-600">Peça ao administrador para habilitar as páginas do seu cargo.</p><a className="text-indigo-700 underline" href="/login">Voltar ao login</a></div></div>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

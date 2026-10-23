@@ -52,10 +52,10 @@ const Login = () => {
     };
 
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
+        <div className="flex min-h-screen min-h-[100dvh] bg-gray-50 lg:h-screen lg:overflow-hidden">
 
             {/* SIDEBAR DE BRANDING - Desktop only */}
-            <div className="hidden lg:flex w-96 bg-slate-900 text-white flex-col h-screen relative">
+            <div className="relative hidden h-full w-96 flex-col bg-slate-900 text-white lg:flex">
                 <div className="p-8 border-b border-slate-800">
                     <Link to="/" className="brand text-4xl font-bold tracking-tight text-white no-underline">
                         AGERP
@@ -96,19 +96,19 @@ const Login = () => {
             </div>
 
             {/* CONTEÚDO PRINCIPAL */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
 
                 {/* HEADER - SOMENTE TABLET E MOBILE */}
-                <header className="lg:hidden bg-slate-900 px-6 py-4 flex items-center justify-between">
+                <header className="flex items-center justify-between gap-3 bg-slate-900 px-3 py-4 sm:px-6 lg:hidden">
                     <div className="flex items-center gap-4">
-                        <Link to="/" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg brand text-3xl font-bold tracking-tight text-white no-underline">
+                        <Link to="/" className="brand text-2xl font-bold tracking-tight text-white no-underline transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg sm:text-3xl">
                             AGERP
                         </Link>
                     </div>
 
                     <Link
                         to="/cadastro"
-                        className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-6 py-2.5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium text-slate-900 hover:bg-gray-300"
+                        className="min-h-11 rounded-2xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-center text-sm font-medium text-slate-900 transition-all duration-300 ease-in-out hover:scale-105 hover:bg-gray-300 hover:shadow-lg sm:px-6"
                     >
                         Criar conta grátis
                     </Link>
@@ -117,14 +117,14 @@ const Login = () => {
                 {/* ÁREA DO FORMULÁRIO - com margin-top em mobile/tablet */}
                 <div className="min-w-0 flex-1 flex items-start lg:items-center justify-center p-3 sm:p-6 lg:p-10 overflow-y-auto overflow-x-hidden bgp">
                     <div className="w-full max-w-md my-4 sm:my-8">
-                        <div className="bg-white rounded-3xl shadow px-7 py-5 pb-2 md:p-10 border border-gray-100">
+                        <div className="rounded-3xl border border-gray-100 bg-white px-4 py-6 shadow sm:px-7 md:p-10">
 
                             {/* Cabeçalho do card */}
                             <div className="text-center mb-8">
                                 <div className="mx-auto w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mb-4">
                                     <span className="text-4xl">🔐</span>
                                 </div>
-                                <h2 className="text-3xl font-bold text-gray-900">Entrar na conta</h2>
+                                <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Entrar na conta</h2>
                                 <p className="mt-2 text-gray-600">Digite seus dados para continuar</p>
                             </div>
 
@@ -191,7 +191,8 @@ const Login = () => {
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                            className="absolute right-2 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+                                            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                                         >
                                             {showPassword ? '🙈' : '👁'}
                                         </button>

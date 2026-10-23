@@ -5,7 +5,11 @@ export default {
         "./src/**/*.{js,ts,jsx,tsx}",
     ],
     theme: {
-        extend: {},
+        extend: {
+            colors: {
+                'app-background': 'var(--agerp-app-background)',
+            },
+        },
     },
     plugins: [],
 }

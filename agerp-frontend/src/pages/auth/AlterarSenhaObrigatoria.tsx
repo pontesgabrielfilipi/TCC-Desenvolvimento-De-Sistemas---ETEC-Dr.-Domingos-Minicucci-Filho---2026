@@ -34,8 +34,8 @@ const AlterarSenhaObrigatoria = () => {
     };
 
     return (
-        <main className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-            <section className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8" aria-labelledby="titulo-troca-senha">
+        <main className="flex min-h-screen min-h-[100dvh] items-center justify-center bg-slate-900 p-3 sm:p-6">
+            <section className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl sm:p-8" aria-labelledby="titulo-troca-senha">
                 <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center text-3xl mb-5" aria-hidden="true">🔐</div>
                 <h1 id="titulo-troca-senha" className="text-2xl font-bold text-gray-900">Defina uma nova senha</h1>
                 <p className="mt-3 text-gray-600">Você entrou com uma credencial temporária. Crie uma senha definitiva antes de acessar o AGERP.</p>

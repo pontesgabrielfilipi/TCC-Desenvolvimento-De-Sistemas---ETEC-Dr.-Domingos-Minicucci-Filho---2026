@@ -240,38 +240,39 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="enderecos-modal-titulo">
+            <div className="agerp-modal-panel flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
                 
                 {/* Header Modal */}
-                <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                    <div className="flex items-center gap-3">
+                <div className="flex items-start justify-between gap-3 border-b border-gray-100 bg-slate-50 px-4 py-4 sm:px-6 sm:py-5">
+                    <div className="flex min-w-0 items-center gap-3">
                         <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-2xl flex items-center justify-center text-xl font-bold">
                             📍
                         </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-900 leading-tight">
+                        <div className="min-w-0">
+                            <h2 id="enderecos-modal-titulo" className="break-words text-lg font-bold leading-tight text-gray-900 sm:text-xl">
                                 Endereços de {cliente.nomeRazao}
                             </h2>
-                            <p className="text-xs text-gray-500">
+                            <p className="mt-1 break-all text-xs text-gray-500">
                                 Cliente ID #{cliente.id} {cliente.cpfCnpj ? `• ${cliente.cpfCnpj}` : ''}
                             </p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 w-9 h-9 rounded-full hover:bg-gray-200 transition flex items-center justify-center text-xl font-medium"
+                        className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-xl font-medium text-gray-400 transition hover:bg-gray-200 hover:text-gray-600"
+                        aria-label="Fechar endereços do cliente"
                     >
                         ✕
                     </button>
                 </div>
 
                 {/* Corpo com Scroll */}
-                <div className="p-6 overflow-y-auto flex-1">
+                <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
                     {!isFormOpen ? (
                         <>
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
+                            <div className="mb-4 flex flex-col items-stretch justify-between gap-3 min-[360px]:flex-row min-[360px]:items-center">
+                                <div className="min-w-0">
                                     <h3 className="font-semibold text-gray-800 text-base">Lista de Endereços</h3>
                                     <p className="text-xs text-gray-500">
                                         {enderecos.length === 0
@@ -281,7 +282,7 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                 </div>
                                 <button
                                     onClick={abrirNovoEndereco}
-                                    className="transition-all duration-200 hover:scale-105 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-sm"
+                                    className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-indigo-700"
                                 >
                                     <span>+</span> Novo Endereço
                                 </button>
@@ -314,8 +315,8 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                             className="p-4 border border-gray-200 rounded-2xl hover:border-indigo-300 hover:shadow-sm transition bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                                         >
                                             <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-semibold text-gray-900 text-sm">
+                                                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                                    <span className="break-words text-sm font-semibold text-gray-900">
                                                         {end.logradouro || 'Sem logradouro'}
                                                         {end.numero ? `, ${end.numero}` : ' (S/N)'}
                                                     </span>
@@ -335,16 +336,16 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                                 )}
                                             </div>
 
-                                            <div className="flex items-center gap-2 self-end sm:self-center">
+                                            <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:self-center">
                                                 <button
                                                     onClick={() => abrirEditarEndereco(end)}
-                                                    className="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition"
+                                                    className="min-h-11 rounded-lg px-3 py-1.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 hover:text-indigo-800"
                                                 >
                                                     Editar
                                                 </button>
                                                 <button
                                                     onClick={() => setDeleteConfirmId(end.id || null)}
-                                                    className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition"
+                                                    className="min-h-11 rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 hover:text-red-800"
                                                 >
                                                     Excluir
                                                 </button>
@@ -357,14 +358,14 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                     ) : (
                         /* Formulário de Criação/Edição */
                         <form onSubmit={salvarEndereco} className="space-y-4">
-                            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                            <div className="flex flex-col items-start justify-between gap-2 border-b border-gray-100 pb-3 min-[360px]:flex-row min-[360px]:items-center">
                                 <h3 className="font-semibold text-gray-800 text-base">
                                     {editandoEnderecoId ? '✏️ Editar Endereço' : '➕ Novo Endereço'}
                                 </h3>
                                 <button
                                     type="button"
                                     onClick={cancelarFormulario}
-                                    className="text-xs text-gray-500 hover:text-gray-700"
+                                    className="min-h-11 rounded-xl px-3 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                                 >
                                     Voltar à listagem
                                 </button>
@@ -375,7 +376,7 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                                     CEP
                                 </label>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col gap-2 min-[360px]:flex-row">
                                     <input
                                         type="text"
                                         name="cep"
@@ -383,13 +384,13 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                         onChange={handleChangeInput}
                                         placeholder="00000-000"
                                         maxLength={9}
-                                        className={`flex-1 rounded-xl border ${formErrors.cep ? 'border-red-400 focus:border-red-500' : 'border-gray-300 focus:border-indigo-500'} py-2.5 px-3.5 text-sm focus:outline-none`}
+                                        className={`min-w-0 flex-1 rounded-xl border ${formErrors.cep ? 'border-red-400 focus:border-red-500' : 'border-gray-300 focus:border-indigo-500'} py-2.5 px-3.5 text-sm focus:outline-none`}
                                     />
                                     <button
                                         type="button"
                                         onClick={handleBuscarCep}
                                         disabled={buscandoCep}
-                                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium transition flex items-center gap-1.5"
+                                        className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
                                     >
                                         {buscandoCep ? (
                                             <span className="animate-spin">🔄</span>
@@ -527,7 +528,7 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                             </div>
 
                             {/* Botões do Formulário */}
-                            <div className="flex gap-3 pt-4 border-t border-gray-100">
+                            <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 min-[360px]:flex-row">
                                 <button
                                     type="button"
                                     onClick={cancelarFormulario}
@@ -548,10 +549,10 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                 </div>
 
                 {/* Footer Modal */}
-                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                <div className="flex justify-end border-t border-gray-100 bg-gray-50 px-4 py-3 sm:px-6 sm:py-4">
                     <button
                         onClick={onClose}
-                        className="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-xl transition"
+                        className="min-h-11 w-full rounded-xl bg-gray-200 px-5 py-2.5 text-sm font-medium text-gray-800 transition hover:bg-gray-300 sm:w-auto"
                     >
                         Fechar
                     </button>
@@ -560,16 +561,16 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
 
             {/* Modal de Confirmação de Exclusão de Endereço */}
             {deleteConfirmId && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[130] p-4">
-                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                <div className="agerp-modal-overlay fixed inset-0 z-[130] flex items-center justify-center bg-black/80" role="dialog" aria-modal="true" aria-labelledby="excluir-endereco-titulo">
+                    <div className="agerp-modal-panel w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
                         <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">
                             ⚠️
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900 text-center">Excluir Endereço?</h3>
+                        <h3 id="excluir-endereco-titulo" className="text-center text-lg font-bold text-gray-900">Excluir Endereço?</h3>
                         <p className="text-gray-500 text-sm text-center mt-2 mb-6">
                             Esta ação removerá permanentemente o endereço selecionado deste cliente.
                         </p>
-                        <div className="flex gap-3">
+                        <div className="flex flex-col gap-3 min-[360px]:flex-row">
                             <button
                                 onClick={() => setDeleteConfirmId(null)}
                                 className="flex-1 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
