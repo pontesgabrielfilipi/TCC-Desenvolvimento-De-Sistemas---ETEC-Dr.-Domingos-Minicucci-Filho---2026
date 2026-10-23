@@ -35,6 +35,28 @@ A autorização é organizada por perfis de usuário:
 - OPERADOR
 - FINANCEIRO
 
+**Atualização (Flyway V7):** cada cargo possui permissões de páginas explícitas e
+um nível de autoridade. Os perfis anteriores foram preservados, e o administrador
+mantém a identidade reservada `ADMIN` (nível 100). `OPERADOR` também é um cargo
+reservado, porém suas permissões e seu nível (1–99) podem ser editados pelo ADMIN.
+Os dois cargos não podem ser excluídos nem renomeados.
+
+**Regra única de autorização:** abrir um módulo exige sempre sua permissão
+`PAGE_DASHBOARD`, `PAGE_CLIENTES`, `PAGE_PRODUTOS` ou `PAGE_PEDIDOS`. O nível,
+isoladamente, não autoriza abrir páginas e não herda permissões de níveis
+inferiores. Operações privilegiadas exigem **permissão de página E nível mínimo
+60**: exclusão lógica de produto e cancelamento de pedido (inclusive pela mudança
+de status). Cargos personalizados ficam entre 1–99; apenas o ADMIN de nível 100
+acessa `/api/admin/**`, gerencia usuários/cargos e exclui pedidos pelo endpoint
+administrativo de exclusão lógica. ADMIN possui todas as páginas.
+
+**Administração e sessão:** a concessão de cargos é restrita a ADMIN, com
+verificação de hierarquia no servidor; não é possível criar ou atribuir um cargo
+acima do próprio nível. Não é permitido bloquear/rebaixar o último ADMIN
+aprovado. Mudanças em permissões de um cargo existente são refletidas na próxima
+requisição autenticada, pois o filtro JWT recarrega o usuário e suas autoridades
+do banco; trocas de cargo de um usuário invalidam seu token por `credentialVersion`.
+
 ## 6. Docker Compose
 
 **Status:** adotada.
@@ -100,3 +122,7 @@ O módulo de Pedidos foi implementado seguindo estritamente a arquitetura existe
 - **Frontend**: `Pedidos.tsx` com Sidebar preservado, `pedidoService.ts` centralizado, tipos TypeScript, `formatCurrency` seguro e painel de previsão de entrega por IA.
 
 **Decisão crítica sobre estoque**: O estoque é debitado exclusivamente na transição de status `PENDENTE → CONFIRMADO`. Cancelamentos de pedidos `CONFIRMADO`, `EM_PREPARACAO` ou `PRONTO` estornam o estoque com `ENTRADA` auditada. Cancelamento de pedido ainda `PENDENTE` não gera movimentação (nunca houve débito). A operação é idempotente para a mesma transição de status.
+
+## 13. Estoque mínimo geral e individual
+
+**Status:** implementado (Flyway V8). A opção administrativa `Usar estoque mínimo geral` inicia ligada para manter o limite de 15 unidades utilizado anteriormente. Desligada, aplica-se `estoque.quantidade_minima` por produto; os mínimos individuais nunca são sobrescritos ao alternar. A fonte única é `EstoqueBaixoService`, usada por produtos, indicadores, gráficos, alertas e exportações. O critério é `atual < mínimo`, não `<=`; quantidades são inteiras, mínimo geral 1–100000 e individual >= 0. Registros históricos com mínimo individual `NULL` adotam 10 somente no cálculo; estoque atual `NULL` não gera alerta. O dashboard resume os dez primeiros itens no gráfico, mas a exportação consulta todos via `/api/dashboard/estoque-baixo`. Configuração e limite geral persistem no banco; mudanças invalidam caches após commit e notificam telas abertas na aplicação.

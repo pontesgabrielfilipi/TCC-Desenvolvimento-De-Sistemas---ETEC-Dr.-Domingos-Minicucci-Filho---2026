@@ -20,24 +20,25 @@ public class DashboardService {
     private final ProdutoRepository produtoRepository;
     private final PedidoRepository pedidoRepository;
     private final EstoqueRepository estoqueRepository;
-    private final ConfiguracaoSistemaService configuracaoSistemaService;
+    private final EstoqueBaixoService estoqueBaixoService;
 
     public DashboardService(ClienteRepository clienteRepository,
                             ProdutoRepository produtoRepository,
                             PedidoRepository pedidoRepository,
                             EstoqueRepository estoqueRepository,
-                            ConfiguracaoSistemaService configuracaoSistemaService) {
+                            EstoqueBaixoService estoqueBaixoService) {
         this.clienteRepository = clienteRepository;
         this.produtoRepository = produtoRepository;
         this.pedidoRepository = pedidoRepository;
         this.estoqueRepository = estoqueRepository;
-        this.configuracaoSistemaService = configuracaoSistemaService;
+        this.estoqueBaixoService = estoqueBaixoService;
     }
 
     @Cacheable("dashboardRelatorio")
     @Transactional(readOnly = true)
     public DashboardRelatorioCompletoDTO gerarRelatorioCompleto() {
         LocalDate hoje = LocalDate.now();
+        var estoqueBaixo = estoqueBaixoService.listar();
 
         return DashboardRelatorioCompletoDTO.builder()
                 // Estatísticas básicas
@@ -45,14 +46,15 @@ public class DashboardService {
                 .totalProdutos(produtoRepository.count())
                 .vendasMes(pedidoRepository.calcularTotalVendasDoMes(hoje.getMonthValue(), hoje.getYear()))
                 .pedidosPendentes(pedidoRepository.countByStatusIn(List.of("PENDENTE", "EM_ANDAMENTO")))
-                .produtosEstoqueBaixo(estoqueRepository.countByQuantidadeAtualLessThan(configuracaoSistemaService.limiteEstoqueBaixo()))
+                .produtosEstoqueBaixo(estoqueBaixo.size())
 
                 // Gráficos
                 .vendasMensais(pedidoRepository.vendasMensaisUltimos6Meses())
                 .topProdutos(pedidoRepository.top5ProdutosMaisVendidos())
                 .distribuicaoClientes(clienteRepository.distribuicaoTipoCliente())
                 .statusPedidos(pedidoRepository.statusPedidosAtual())
-                .estoqueBaixo(estoqueRepository.produtosComEstoqueBaixo(configuracaoSistemaService.limiteEstoqueBaixo()))
+                .estoqueBaixo(estoqueBaixo.stream().limit(10).map(item -> Map.<String, Object>of(
+                        "nome", item.nome(), "quantidade", item.quantidade(), "minimo", item.minimo())).toList())
 
                 .build();
     }
@@ -67,7 +69,7 @@ public class DashboardService {
                 "totalProdutos", produtoRepository.count(),
                 "vendasMes", pedidoRepository.calcularTotalVendasDoMes(hoje.getMonthValue(), hoje.getYear()),
                 "pedidosPendentes", pedidoRepository.countByStatusIn(List.of("PENDENTE", "EM_ANDAMENTO")),
-                "produtosEstoqueBaixo", estoqueRepository.countByQuantidadeAtualLessThan(configuracaoSistemaService.limiteEstoqueBaixo())
+                "produtosEstoqueBaixo", estoqueBaixoService.listar().size()
         );
     }
 }

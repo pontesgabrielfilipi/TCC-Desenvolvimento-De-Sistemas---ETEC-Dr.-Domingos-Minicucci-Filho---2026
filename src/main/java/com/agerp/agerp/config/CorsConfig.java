@@ -24,6 +24,7 @@ public class CorsConfig {
                 "http://localhost:5173",           // Frontend em desenvolvimento (npm run dev)
                 "http://127.0.0.1:3000",
                 "http://127.0.0.1:5173",
+                "https://noname.tailf69801.ts.net", // Frontend publicado pelo Tailscale Serve
                 "http://agerp-frontend:80",        // Nome do serviço no Docker (caso precise chamar internamente)
                 "http://localhost:8000",            // Python-IA (se ele fizer chamadas para o backend)
                 "https://*.app.github.dev/"

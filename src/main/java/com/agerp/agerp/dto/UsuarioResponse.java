@@ -2,6 +2,7 @@
 package com.agerp.agerp.dto;
 
 import java.time.Instant;
+import java.util.Set;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,6 +24,21 @@ public class UsuarioResponse {
     private Boolean trocaSenhaObrigatoria;
     private Integer idPerfil;
     private Instant dataCriacao;
+    private Set<String> paginas;
+    private Integer nivelAutoridade;
+
+    public UsuarioResponse(Integer id, String nome, String email, String perfilNome, Boolean ativo,
+                           String statusAcesso, Boolean trocaSenhaObrigatoria, Integer idPerfil, Instant dataCriacao) {
+        this.id = id;
+        this.nome = nome;
+        this.email = email;
+        this.perfilNome = perfilNome;
+        this.ativo = ativo;
+        this.statusAcesso = statusAcesso;
+        this.trocaSenhaObrigatoria = trocaSenhaObrigatoria;
+        this.idPerfil = idPerfil;
+        this.dataCriacao = dataCriacao;
+    }
 
     public UsuarioResponse(Integer id, String nome, String email, String perfilNome, Boolean ativo) {
         this(id, nome, email, perfilNome, ativo, null, false, null, null);

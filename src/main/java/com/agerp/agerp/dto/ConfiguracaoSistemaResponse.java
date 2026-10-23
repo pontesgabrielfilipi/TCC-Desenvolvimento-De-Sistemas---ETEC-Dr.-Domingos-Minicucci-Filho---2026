@@ -5,6 +5,7 @@ import java.time.Instant;
 public record ConfiguracaoSistemaResponse(
         String nomeEmpresa,
         Integer limiteEstoqueBaixo,
+        Boolean usarEstoqueMinimoGeral,
         Boolean exibirAlertasEstoque,
         Integer timeoutIaMs,
         Long versao,

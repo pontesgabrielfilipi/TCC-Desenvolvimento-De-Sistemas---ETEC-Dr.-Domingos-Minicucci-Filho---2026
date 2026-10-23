@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -25,5 +27,18 @@ public class Perfil {
     @Column(name = "descricao", columnDefinition = "TEXT")
     private String descricao;
 
-    // Removi o Set<Usuario> para ficar mais leve (pode adicionar depois se quiser)
+    @Column(name = "nivel_autoridade", nullable = false)
+    private Integer nivelAutoridade = 20;
+
+    @Column(name = "protegido", nullable = false)
+    private Boolean protegido = false;
+
+    @Version
+    @Column(name = "versao", nullable = false)
+    private Long versao;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "perfil_pagina", schema = "agerp", joinColumns = @JoinColumn(name = "id_perfil"))
+    @Column(name = "pagina", nullable = false)
+    private Set<String> paginas = new LinkedHashSet<>();
 }

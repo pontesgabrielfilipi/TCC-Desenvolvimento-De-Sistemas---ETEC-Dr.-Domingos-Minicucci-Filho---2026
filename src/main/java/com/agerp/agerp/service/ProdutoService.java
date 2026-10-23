@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,26 +24,26 @@ public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
     private final EstoqueRepository estoqueRepository;
+    private final EstoqueBaixoService estoqueBaixoService;
 
-    public ProdutoService(ProdutoRepository produtoRepository, EstoqueRepository estoqueRepository) {
+    public ProdutoService(ProdutoRepository produtoRepository, EstoqueRepository estoqueRepository,
+                          EstoqueBaixoService estoqueBaixoService) {
         this.produtoRepository = produtoRepository;
         this.estoqueRepository = estoqueRepository;
+        this.estoqueBaixoService = estoqueBaixoService;
     }
 
     // ====================== LISTAR ATIVOS ======================
     @Cacheable("produtosAtivos")
     @Transactional(readOnly = true)
     public List<ProdutoResponse> listarAtivos() {
-        return produtoRepository.findByAtivoTrue()
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return listarComEstoques(produtoRepository.findByAtivoTrue());
     }
 
     @CacheEvict(cacheNames = "produtosAtivos", allEntries = true, beforeInvocation = true)
     @Transactional(readOnly = true)
     public List<ProdutoResponse> recarregarAtivos() {
-        return produtoRepository.findByAtivoTrue().stream().map(this::toResponse).collect(Collectors.toList());
+        return listarComEstoques(produtoRepository.findByAtivoTrue());
     }
 
     // ====================== LISTAR TODOS (ativos + inativos)
@@ -50,10 +51,7 @@ public class ProdutoService {
     @Cacheable("produtosTodos")
     @Transactional(readOnly = true)
     public List<ProdutoResponse> listarTodos() {
-        return produtoRepository.findAll()
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return listarComEstoques(produtoRepository.findAll());
     }
 
     // ====================== BUSCAR POR ID ======================
@@ -206,9 +204,23 @@ public class ProdutoService {
     }
 
     // ====================== MAPPER ======================
-    private ProdutoResponse toResponse(Produto produto) {
-        Estoque estoque = estoqueRepository.findByIdProdutoId(produto.getId());
+    private List<ProdutoResponse> listarComEstoques(List<Produto> produtos) {
+        var regra = estoqueBaixoService.regraAtual();
+        if (produtos.isEmpty()) {
+            return List.of();
+        }
+        var ids = produtos.stream().map(Produto::getId).toList();
+        Map<Integer, Estoque> estoques = estoqueRepository.buscarPorProdutos(ids).stream()
+                .collect(Collectors.toMap(e -> e.getIdProduto().getId(), e -> e));
+        return produtos.stream().map(p -> toResponse(p, estoques.get(p.getId()), regra)).toList();
+    }
 
+    private ProdutoResponse toResponse(Produto produto) {
+        return toResponse(produto, estoqueRepository.findByIdProdutoId(produto.getId()),
+                estoqueBaixoService.regraAtual());
+    }
+
+    private ProdutoResponse toResponse(Produto produto, Estoque estoque, EstoqueBaixoService.Regra regra) {
         return new ProdutoResponse(
                 produto.getId(),
                 produto.getNome(),
@@ -218,8 +230,11 @@ public class ProdutoService {
                 produto.getPeso(),
                 produto.getVolume(),
                 produto.getAtivo(),
-                estoque != null ? estoque.getQuantidadeAtual() : 0,
-                estoque != null ? estoque.getQuantidadeMinima() : 10,
-                estoque != null ? estoque.getLocalizacao() : null);
+                estoque != null ? estoque.getQuantidadeAtual() : null,
+                estoque != null ? estoque.getQuantidadeMinima() : null,
+                estoque != null ? estoque.getLocalizacao() : null,
+                regra.minimoAplicado(estoque != null ? estoque.getQuantidadeMinima() : null),
+                estoque != null && regra.baixo(estoque.getQuantidadeAtual(), estoque.getQuantidadeMinima()),
+                regra.usarGeral());
     }
 }

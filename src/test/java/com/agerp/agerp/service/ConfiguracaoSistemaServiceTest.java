@@ -33,6 +33,7 @@ class ConfiguracaoSistemaServiceTest {
         c.setId(1);
         c.setNomeEmpresa("AGERP");
         c.setLimiteEstoqueBaixo(15);
+        c.setUsarEstoqueMinimoGeral(true);
         c.setExibirAlertasEstoque(true);
         c.setTimeoutIaMs(2000);
         c.setVersao(0L);
@@ -62,7 +63,7 @@ class ConfiguracaoSistemaServiceTest {
 
     @Test
     void naoPermiteEdicaoSemPerfilAdmin() {
-        var pedido = new ConfiguracaoSistemaRequest("Nova empresa", 10, false, 3000, 0L);
+        var pedido = new ConfiguracaoSistemaRequest("Nova empresa", 10, true, false, 3000, 0L);
         assertThrows(AccessDeniedException.class, () -> service.atualizar(pedido, usuario("OPERADOR"), "127.0.0.1"));
         verifyNoInteractions(repository, auditoria);
     }
@@ -70,7 +71,7 @@ class ConfiguracaoSistemaServiceTest {
     @Test
     void versaoDesatualizadaNaoAlteraNemAudita() {
         when(repository.findById(1)).thenReturn(Optional.of(configuracao()));
-        var pedido = new ConfiguracaoSistemaRequest("Nova empresa", 10, false, 3000, 1L);
+        var pedido = new ConfiguracaoSistemaRequest("Nova empresa", 10, true, false, 3000, 1L);
         assertThrows(OptimisticLockingFailureException.class,
                 () -> service.atualizar(pedido, usuario("ADMIN"), "127.0.0.1"));
         verify(repository, never()).saveAndFlush(any());
@@ -89,7 +90,7 @@ class ConfiguracaoSistemaServiceTest {
         Cache cache = mock(Cache.class);
         when(cacheManager.getCache("dashboardRelatorio")).thenReturn(cache);
         var admin = usuario("ADMIN");
-        var pedido = new ConfiguracaoSistemaRequest("Minha Empresa", 12, false, 4500, 0L);
+        var pedido = new ConfiguracaoSistemaRequest("Minha Empresa", 12, false, false, 4500, 0L);
 
         TransactionSynchronizationManager.initSynchronization();
         try {
@@ -97,6 +98,7 @@ class ConfiguracaoSistemaServiceTest {
             assertEquals(1L, resposta.versao());
             assertEquals("Minha Empresa", resposta.nomeEmpresa());
             assertEquals(12, service.limiteEstoqueBaixo());
+            assertFalse(service.regraEstoque().usarGeral());
             verify(auditoria).registrarLog(eq(admin), eq("ALTERACAO_CONFIGURACOES"),
                     eq("CONFIGURACAO"), eq("1"), eq("SUCESSO"),
                     argThat(detalhes -> detalhes.contains("nomeEmpresa") && detalhes.contains("timeoutIaMs")),
@@ -113,9 +115,10 @@ class ConfiguracaoSistemaServiceTest {
     void rejeitaDadosForaDoIntervalo() {
         try (var fabrica = Validation.buildDefaultValidatorFactory()) {
             var validator = fabrica.getValidator();
-            assertFalse(validator.validate(new ConfiguracaoSistemaRequest(" ", 0, null, 100, -1L)).isEmpty());
-            assertTrue(validator.validate(new ConfiguracaoSistemaRequest("Empresa", 1, true, 500, 0L)).isEmpty());
-            assertTrue(validator.validate(new ConfiguracaoSistemaRequest("Empresa", 100000, false, 15000, 0L)).isEmpty());
+            assertFalse(validator.validate(new ConfiguracaoSistemaRequest(" ", 0, null, null, 100, -1L)).isEmpty());
+            assertFalse(validator.validate(new ConfiguracaoSistemaRequest("Empresa", 1, null, true, 500, 0L)).isEmpty());
+            assertTrue(validator.validate(new ConfiguracaoSistemaRequest("Empresa", 1, true, true, 500, 0L)).isEmpty());
+            assertTrue(validator.validate(new ConfiguracaoSistemaRequest("Empresa", 100000, false, false, 15000, 0L)).isEmpty());
         }
     }
 }

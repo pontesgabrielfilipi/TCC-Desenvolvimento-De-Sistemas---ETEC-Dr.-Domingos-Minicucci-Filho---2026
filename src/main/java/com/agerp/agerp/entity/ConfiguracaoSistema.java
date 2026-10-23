@@ -24,6 +24,9 @@ public class ConfiguracaoSistema {
     @Column(name = "limite_estoque_baixo", nullable = false)
     private Integer limiteEstoqueBaixo;
 
+    @Column(name = "usar_estoque_minimo_geral", nullable = false)
+    private Boolean usarEstoqueMinimoGeral;
+
     @Column(name = "exibir_alertas_estoque", nullable = false)
     private Boolean exibirAlertasEstoque;
 

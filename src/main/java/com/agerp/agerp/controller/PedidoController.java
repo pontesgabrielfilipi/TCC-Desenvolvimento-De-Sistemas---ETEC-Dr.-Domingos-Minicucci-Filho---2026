@@ -84,7 +84,7 @@ public class PedidoController {
 
     // ====================== CRIAR ======================
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_GERENTE', 'ROLE_OPERADOR')")
+    @PreAuthorize("hasAuthority('PAGE_PEDIDOS')")
     @PostMapping
     public ResponseEntity<PedidoResponse> criar(@Valid @RequestBody PedidoCreateRequest request) {
         PedidoResponse response = pedidoService.criar(request);
@@ -93,7 +93,7 @@ public class PedidoController {
 
     // ====================== ATUALIZAR ======================
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_GERENTE', 'ROLE_OPERADOR')")
+    @PreAuthorize("hasAuthority('PAGE_PEDIDOS')")
     @PutMapping("/{id}")
     public ResponseEntity<PedidoResponse> atualizar(@PathVariable Integer id,
                                                     @Valid @RequestBody PedidoUpdateRequest request) {
@@ -103,7 +103,7 @@ public class PedidoController {
 
     // ====================== MUDAR STATUS ======================
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_GERENTE', 'ROLE_OPERADOR')")
+    @PreAuthorize("hasAuthority('PAGE_PEDIDOS') and @cargoAutorizacao.podeAlterarStatusPedido(authentication, #status)")
     @PatchMapping("/{id}/status")
     public ResponseEntity<PedidoResponse> mudarStatus(@PathVariable Integer id,
                                                       @RequestParam String status) {
@@ -113,7 +113,7 @@ public class PedidoController {
 
     // ====================== CANCELAR ======================
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_GERENTE')")
+    @PreAuthorize("hasAuthority('PAGE_PEDIDOS') and @cargoAutorizacao.nivelMinimo(authentication, 60)")
     @PostMapping("/{id}/cancelar")
     public ResponseEntity<PedidoResponse> cancelar(@PathVariable Integer id) {
         PedidoResponse response = pedidoService.cancelar(id);

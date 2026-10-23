@@ -40,14 +40,14 @@ public class ProdutoController {
         return ResponseEntity.ok(produtoService.buscarPorId(id));
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_GERENTE', 'ROLE_OPERADOR')")
+    @PreAuthorize("hasAuthority('PAGE_PRODUTOS')")
     @PostMapping
     public ResponseEntity<ProdutoResponse> criar(@Valid @RequestBody ProdutoCreateRequest request) {
         ProdutoResponse response = produtoService.criar(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_GERENTE', 'ROLE_OPERADOR')")
+    @PreAuthorize("hasAuthority('PAGE_PRODUTOS')")
     @PutMapping("/{id}")
     public ResponseEntity<ProdutoResponse> atualizar(@PathVariable Integer id,
                                                      @Valid @RequestBody ProdutoUpdateRequest request) {
@@ -55,7 +55,7 @@ public class ProdutoController {
         return ResponseEntity.ok(response);
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_GERENTE')")
+    @PreAuthorize("hasAuthority('PAGE_PRODUTOS') and @cargoAutorizacao.nivelMinimo(authentication, 60)")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletarSoft(@PathVariable Integer id) {
         produtoService.deletarSoft(id);

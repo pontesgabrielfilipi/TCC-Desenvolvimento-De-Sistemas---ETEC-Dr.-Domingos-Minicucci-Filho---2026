@@ -44,6 +44,11 @@ public class ConfiguracaoSistemaService {
         return configuracao().getLimiteEstoqueBaixo();
     }
 
+    public EstoqueBaixoService.Regra regraEstoque() {
+        var c = configuracao();
+        return new EstoqueBaixoService.Regra(c.getUsarEstoqueMinimoGeral(), c.getLimiteEstoqueBaixo());
+    }
+
     public int timeoutIaMs() {
         return configuracao().getTimeoutIaMs();
     }
@@ -65,12 +70,14 @@ public class ConfiguracaoSistemaService {
         List<String> campos = new ArrayList<>();
         if (!nome.equals(config.getNomeEmpresa())) campos.add("nomeEmpresa");
         if (!request.limiteEstoqueBaixo().equals(config.getLimiteEstoqueBaixo())) campos.add("limiteEstoqueBaixo");
+        if (!request.usarEstoqueMinimoGeral().equals(config.getUsarEstoqueMinimoGeral())) campos.add("usarEstoqueMinimoGeral");
         if (!request.exibirAlertasEstoque().equals(config.getExibirAlertasEstoque())) campos.add("exibirAlertasEstoque");
         if (!request.timeoutIaMs().equals(config.getTimeoutIaMs())) campos.add("timeoutIaMs");
         if (campos.isEmpty()) return resposta(config);
 
         config.setNomeEmpresa(nome);
         config.setLimiteEstoqueBaixo(request.limiteEstoqueBaixo());
+        config.setUsarEstoqueMinimoGeral(request.usarEstoqueMinimoGeral());
         config.setExibirAlertasEstoque(request.exibirAlertasEstoque());
         config.setTimeoutIaMs(request.timeoutIaMs());
         config.setAtualizadoEm(Instant.now());
@@ -83,7 +90,8 @@ public class ConfiguracaoSistemaService {
             @Override
             public void afterCommit() {
                 for (String nomeCache : List.of("dashboardEstatisticas", "dashboardRelatorio",
-                        "adminEstatisticas", "pedidosPrevisaoIa")) {
+                        "adminEstatisticas", "adminRelatorios", "produtosAtivos", "produtosTodos",
+                        "produtoPorId", "pedidosPrevisaoIa")) {
                     var cache = cacheManager.getCache(nomeCache);
                     if (cache != null) cache.clear();
                 }
@@ -99,6 +107,7 @@ public class ConfiguracaoSistemaService {
 
     private static ConfiguracaoSistemaResponse resposta(ConfiguracaoSistema c) {
         return new ConfiguracaoSistemaResponse(c.getNomeEmpresa(), c.getLimiteEstoqueBaixo(),
-                c.getExibirAlertasEstoque(), c.getTimeoutIaMs(), c.getVersao(), c.getAtualizadoEm());
+                c.getUsarEstoqueMinimoGeral(), c.getExibirAlertasEstoque(),
+                c.getTimeoutIaMs(), c.getVersao(), c.getAtualizadoEm());
     }
 }

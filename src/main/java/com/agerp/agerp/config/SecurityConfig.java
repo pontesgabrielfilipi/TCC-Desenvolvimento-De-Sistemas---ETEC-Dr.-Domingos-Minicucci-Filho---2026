@@ -60,6 +60,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/usuarios/**", "/api/usuarios").hasRole("ADMIN")
 
+                        // Validação no servidor para cada funcionalidade, incluindo URLs diretas.
+                        .requestMatchers("/api/dashboard", "/api/dashboard/**").hasAuthority("PAGE_DASHBOARD")
+                        .requestMatchers("/api/clientes", "/api/clientes/**").hasAuthority("PAGE_CLIENTES")
+                        .requestMatchers("/api/produtos", "/api/produtos/**").hasAuthority("PAGE_PRODUTOS")
+                        .requestMatchers("/api/pedidos", "/api/pedidos/**").hasAuthority("PAGE_PEDIDOS")
+
                         // Todo o resto da API exige autenticação
                         .requestMatchers("/api/**").authenticated()
 
@@ -98,6 +104,7 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://127.0.0.1:5173",
                 "http://127.0.0.1:3000",
+                "https://noname.tailf69801.ts.net",
                 "http://*.app.github.dev",
                 "https://*.app.github.dev"
         ));

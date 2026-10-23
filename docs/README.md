@@ -13,6 +13,7 @@ Esta pasta reúne a documentação técnica e acadêmica do projeto **AGERP - Si
 - [Frontend](./frontend.md)
 - [Banco de Dados](./banco-de-dados.md)
 - [Autenticação](./autenticacao.md)
+- [Relatórios administrativos e exportação XLSX](./relatorios.md)
 - [Docker](./docker.md)
 
 ### Gestão técnica

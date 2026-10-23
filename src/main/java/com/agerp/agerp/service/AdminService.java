@@ -29,18 +29,18 @@ public class AdminService {
     private final ClienteRepository clienteRepository;
     private final ProdutoRepository produtoRepository;
     private final EstoqueRepository estoqueRepository;
-    private final ConfiguracaoSistemaService configuracaoSistemaService;
+    private final EstoqueBaixoService estoqueBaixoService;
     private final AdminEstatisticaRepository estatisticaRepository;
 
     public AdminService(UsuarioRepository usuarioRepository, ClienteRepository clienteRepository,
             ProdutoRepository produtoRepository, EstoqueRepository estoqueRepository,
-            ConfiguracaoSistemaService configuracaoSistemaService,
+            EstoqueBaixoService estoqueBaixoService,
             AdminEstatisticaRepository estatisticaRepository) {
         this.usuarioRepository = usuarioRepository;
         this.clienteRepository = clienteRepository;
         this.produtoRepository = produtoRepository;
         this.estoqueRepository = estoqueRepository;
-        this.configuracaoSistemaService = configuracaoSistemaService;
+        this.estoqueBaixoService = estoqueBaixoService;
         this.estatisticaRepository = estatisticaRepository;
     }
 
@@ -193,7 +193,7 @@ public class AdminService {
                         inteiro(itemResumo[0]),
                         decimal(itemResumo[1]),
                         estoqueRepository.somarQuantidadeAtual(),
-                        estoqueRepository.countByQuantidadeAtualLessThan(configuracaoSistemaService.limiteEstoqueBaixo()),
+                        estoqueBaixoService.listar().size(),
                         pagina(produtosDesempenho, totalProdutosDesempenho, pagProdutos, tamanho)),
                 new AdminEstatisticasResponse.Pedidos(
                         inteiro(resumo[0]),

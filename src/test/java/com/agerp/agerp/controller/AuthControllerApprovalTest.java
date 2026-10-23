@@ -90,12 +90,40 @@ class AuthControllerApprovalTest {
         assertEquals(91, cookie.getMaxAge());
 
         MockHttpServletResponse logoutResponse = new MockHttpServletResponse();
-        controller.logout(logoutResponse);
+        controller.logout(new MockHttpServletRequest(), logoutResponse);
         var removido = logoutResponse.getCookie("jwtToken");
         assertNotNull(removido);
         assertTrue(removido.getSecure());
         assertEquals("Strict", removido.getAttribute("SameSite"));
         assertEquals(0, removido.getMaxAge());
+    }
+
+    @Test
+    void requisicaoHttpsDoProxyMarcaCookieComoSeguroSemQuebrarHttpLocal() {
+        AuthenticationManager manager = mock(AuthenticationManager.class);
+        JwtTokenProvider tokens = mock(JwtTokenProvider.class);
+        jwtProperties.setCookieSecure(false);
+        AuthController controller = new AuthController(manager, tokens, mock(LogSistemaService.class),
+                mock(UsuarioService.class), new ClientIpResolver(""), jwtProperties);
+        Usuario usuario = usuario(StatusAcesso.APROVADO);
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(new CustomUserDetails(usuario,
+                List.of(new SimpleGrantedAuthority("ROLE_OPERADOR"))));
+        when(manager.authenticate(any())).thenReturn(authentication);
+        when(tokens.generateToken(any())).thenReturn("token-assinado");
+        LoginRequest login = new LoginRequest();
+        login.setEmail(usuario.getEmail());
+        login.setSenha("senha-correta");
+
+        MockHttpServletRequest httpsRequest = new MockHttpServletRequest();
+        httpsRequest.setSecure(true);
+        MockHttpServletResponse httpsResponse = new MockHttpServletResponse();
+        controller.login(login, httpsRequest, httpsResponse);
+        assertTrue(httpsResponse.getCookie("jwtToken").getSecure());
+
+        MockHttpServletResponse httpResponse = new MockHttpServletResponse();
+        controller.login(login, new MockHttpServletRequest(), httpResponse);
+        assertEquals(false, httpResponse.getCookie("jwtToken").getSecure());
     }
 
     private static Usuario usuario(StatusAcesso status) {

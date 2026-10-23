@@ -132,6 +132,9 @@ public class UsuarioService {
         String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
         Perfil perfil = perfilRepository.findById(request.getIdPerfil())
                 .orElseThrow(() -> new IllegalArgumentException("Perfil não encontrado. ID: " + request.getIdPerfil()));
+        if (perfil.getNivelAutoridade() > administrador.getIdPerfil().getNivelAutoridade()) {
+            throw new org.springframework.security.access.AccessDeniedException("Não é permitido atribuir um cargo superior ao seu.");
+        }
         if (usuarioRepository.existsByEmailIgnoreCaseAndIdNot(email, id)) {
             throw new IllegalArgumentException("Este email já está em uso.");
         }

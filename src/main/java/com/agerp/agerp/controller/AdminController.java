@@ -5,6 +5,7 @@ import com.agerp.agerp.dto.UsuarioResponse;
 import com.agerp.agerp.dto.RedefinicaoSenhaResponse;
 import com.agerp.agerp.dto.UsuarioUpdateRequest;
 import com.agerp.agerp.dto.PerfilResponse;
+import com.agerp.agerp.dto.PerfilSaveRequest;
 import com.agerp.agerp.dto.AdminEstatisticasResponse;
 import com.agerp.agerp.dto.ConfiguracaoSistemaRequest;
 import com.agerp.agerp.dto.ConfiguracaoSistemaResponse;
@@ -15,6 +16,7 @@ import com.agerp.agerp.service.PerfilService;
 import jakarta.validation.Valid;
 import com.agerp.agerp.service.LogSistemaService;
 import com.agerp.agerp.service.UsuarioService;
+import com.agerp.agerp.service.RelatorioAdminService;
 import com.agerp.agerp.entity.StatusAcesso;
 import com.agerp.agerp.security.CustomUserDetails;
 import com.agerp.agerp.security.ClientIpResolver;
@@ -25,6 +27,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.cache.CacheManager;
@@ -33,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -47,11 +53,13 @@ public class AdminController {
     private final ConfiguracaoSistemaService configuracaoSistemaService;
     private final DiagnosticoSistemaService diagnosticoSistemaService;
     private final CacheManager cacheManager;
+    private final RelatorioAdminService relatorioAdminService;
 
     public AdminController(AdminService adminService, UsuarioService usuarioService,
             LogSistemaService logSistemaService, PerfilService perfilService,
             ClientIpResolver clientIpResolver, ConfiguracaoSistemaService configuracaoSistemaService,
-            DiagnosticoSistemaService diagnosticoSistemaService, CacheManager cacheManager) {
+            DiagnosticoSistemaService diagnosticoSistemaService, CacheManager cacheManager,
+            RelatorioAdminService relatorioAdminService) {
         this.adminService = adminService;
         this.usuarioService = usuarioService;
         this.logSistemaService = logSistemaService;
@@ -60,6 +68,7 @@ public class AdminController {
         this.configuracaoSistemaService = configuracaoSistemaService;
         this.diagnosticoSistemaService = diagnosticoSistemaService;
         this.cacheManager = cacheManager;
+        this.relatorioAdminService = relatorioAdminService;
     }
 
     @GetMapping("/usuarios")
@@ -76,6 +85,23 @@ public class AdminController {
     @GetMapping("/perfis")
     public ResponseEntity<List<PerfilResponse>> listarPerfis() {
         return ResponseEntity.ok(perfilService.listarTodos());
+    }
+
+    @PostMapping("/perfis")
+    public ResponseEntity<PerfilResponse> criarCargo(@Valid @RequestBody PerfilSaveRequest request) {
+        return ResponseEntity.status(201).body(perfilService.criarPersonalizado(request));
+    }
+
+    @PutMapping("/perfis/{id}")
+    public ResponseEntity<PerfilResponse> editarCargo(@PathVariable Integer id,
+            @Valid @RequestBody PerfilSaveRequest request) {
+        return ResponseEntity.ok(perfilService.editar(id, request));
+    }
+
+    @DeleteMapping("/perfis/{id}")
+    public ResponseEntity<Void> excluirCargo(@PathVariable Integer id) {
+        perfilService.excluir(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/usuarios/{id}")
@@ -189,7 +215,31 @@ public class AdminController {
     }
 
     @GetMapping("/relatorios")
-    public ResponseEntity<String> relatorios() {
-        return ResponseEntity.ok(adminService.relatorios());
+    public ResponseEntity<?> relatorios() {
+        return ResponseEntity.ok(relatorioAdminService.catalogo().stream()
+                .map(r -> Map.of("id", r.id(), "categoria", r.categoria(), "titulo", r.titulo(),
+                        "descricao", r.descricao(), "filtros", r.filtros()))
+                .toList());
+    }
+
+    @GetMapping("/relatorios/{id}/xlsx")
+    public ResponseEntity<StreamingResponseBody> exportarRelatorio(
+            @PathVariable String id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
+            @RequestParam(required = false) Integer clienteId,
+            @RequestParam(required = false) Integer produtoId,
+            @RequestParam(required = false) Integer usuarioId,
+            @RequestParam(required = false) String status) {
+        // Validacao antecipada: 400/404 antes de abrir o stream HTTP.
+        var relatorio = relatorioAdminService.obter(id);
+        var filtros = new RelatorioAdminService.Filtros(inicio, fim, clienteId, produtoId, usuarioId, status);
+        String nome = "agerp_" + relatorio.id() + "_" + LocalDate.now() + ".xlsx";
+        StreamingResponseBody body = output -> relatorioAdminService.exportar(relatorio, filtros, output);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nome + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "no-store, private")
+                .body(body);
     }
 }

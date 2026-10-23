@@ -36,4 +36,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
     List<Object[]> contarPorPerfil();
 
     long countByStatusAcessoAndIdPerfilNome(StatusAcesso statusAcesso, String perfilNome);
+    long countByIdPerfilId(Integer idPerfil);
 }

@@ -92,7 +92,7 @@ public class AuthController {
             String jwtToken = jwtTokenProvider.generateToken(authentication);
 
             // Cookie JWT
-            response.addCookie(jwtCookie(jwtToken, jwtMaxAgeSeconds()));
+            response.addCookie(jwtCookie(jwtToken, jwtMaxAgeSeconds(), request));
 
             // ====================== REGISTRO DE LOG COM IP REAL ======================
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -149,7 +149,15 @@ public class AuthController {
         );
         responseDTO.setAtivo(usuario.isAtivo());
         responseDTO.setStatusAcesso(usuario.getStatusAcesso().name());
-        responseDTO.setTrocaSenhaObrigatoria(Boolean.TRUE.equals(usuario.getTrocaSenhaObrigatoria()));
+          responseDTO.setTrocaSenhaObrigatoria(Boolean.TRUE.equals(usuario.getTrocaSenhaObrigatoria()));
+          if (usuario.getIdPerfil() != null) {
+              var perfil = usuario.getIdPerfil();
+              responseDTO.setIdPerfil(perfil.getId());
+              responseDTO.setNivelAutoridade(perfil.getNivelAutoridade());
+              responseDTO.setPaginas("ADMIN".equalsIgnoreCase(perfil.getNome())
+                      ? java.util.Set.of("ADMIN", "DASHBOARD", "CLIENTES", "PRODUTOS", "PEDIDOS")
+                      : java.util.Set.copyOf(perfil.getPaginas()));
+          }
 
         return ResponseEntity.ok(responseDTO);
     }
@@ -160,21 +168,21 @@ public class AuthController {
             HttpServletResponse response) {
         usuarioService.alterarSenhaObrigatoria(user.getUsuario().getId(), body.getSenha(),
                 body.getConfirmacaoSenha(), clientIpResolver.resolve(request));
-        response.addCookie(jwtCookie(null, 0));
+        response.addCookie(jwtCookie(null, 0, request));
         return ResponseEntity.ok(Map.of("message", "Senha alterada com sucesso. Faça login novamente."));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response) {
-        response.addCookie(jwtCookie(null, 0));
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+        response.addCookie(jwtCookie(null, 0, request));
 
         return ResponseEntity.ok(Map.of("message", "Logout realizado com sucesso"));
     }
 
-    private Cookie jwtCookie(String value, int maxAgeSeconds) {
+    private Cookie jwtCookie(String value, int maxAgeSeconds, HttpServletRequest request) {
         Cookie cookie = new Cookie("jwtToken", value);
         cookie.setHttpOnly(true);
-        cookie.setSecure(jwtProperties.isCookieSecure());
+        cookie.setSecure(jwtProperties.isCookieSecure() || request.isSecure());
         cookie.setPath("/");
         cookie.setMaxAge(maxAgeSeconds);
         cookie.setAttribute("SameSite", "Strict");
