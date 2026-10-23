@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # ================================
 # Etapa 1: Build com Maven + JDK
 # ================================
@@ -15,7 +17,8 @@ COPY src ./src
 #RUN mvn -q clean package -DskipTests
 
 # Build da aplicação (sem -q para ver o erro completo)
-RUN mvn clean package -DskipTests --no-transfer-progress
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn clean package -DskipTests --no-transfer-progress
 
 
 # ================================
