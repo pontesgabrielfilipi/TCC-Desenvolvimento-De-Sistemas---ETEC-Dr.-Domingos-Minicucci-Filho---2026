@@ -1,9 +1,4 @@
-import axios from 'axios';
-
-const api = axios.create({
-    baseURL: 'http://localhost:8080',
-    withCredentials: true,
-});
+import api from '../api/axiosInstance';
 
 interface Cliente {
     id?: number;
@@ -15,8 +10,8 @@ interface Cliente {
 }
 
 export const clienteService = {
-    async listar() {
-        return await api.get('/api/clientes');
+    async listar(refresh = false) {
+        return await api.get('/api/clientes', { params: refresh ? { refresh: true, _ts: Date.now() } : undefined });
     },
 
     async buscarPorId(id: number) {

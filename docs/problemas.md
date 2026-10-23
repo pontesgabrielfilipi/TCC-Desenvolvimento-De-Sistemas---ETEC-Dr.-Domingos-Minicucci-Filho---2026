@@ -93,3 +93,15 @@ O `pom.xml` atual possui algumas dependências possivelmente redundantes ou que 
 O `docker-compose.yml` possui a dependência do backend em relação ao `python-ia` comentada.
 
 **Ação:** definir e documentar o contrato da API Python e habilitar a dependência quando a integração estiver pronta e estável.
+
+## 8. Possível N+1 em ProdutoService
+
+**Sintoma:** `ProdutoService` lista produtos e, durante o mapeamento para DTO, chama `estoqueRepository.findByIdProdutoId(produto.getId())` para cada produto.
+
+**Área:** performance / JPA.
+
+**Impacto:** listagens de produtos podem executar uma consulta adicional de estoque por produto retornado.
+
+**Estado:** identificado durante a organização de cache. Não foi alterado nesta tarefa para evitar misturar otimização de query com a configuração de cache.
+
+**Ação futura:** avaliar consulta com join/projeção, `EntityGraph` ou busca em lote de estoques antes do mapeamento.

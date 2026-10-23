@@ -21,6 +21,7 @@ public class ProdutoCreateRequest {
     private BigDecimal preco;
 
     @NotNull
+    @PositiveOrZero
     private BigDecimal custo;
 
     @PositiveOrZero
@@ -29,6 +30,8 @@ public class ProdutoCreateRequest {
     @PositiveOrZero
     private BigDecimal volume;
 
-    private Integer quantidadeInicial = 0; // para criar estoque inicial
+    @PositiveOrZero
+    private Integer quantidadeInicial = 0; // unidades inteiras
+    @PositiveOrZero
     private Integer quantidadeMinima = 10;
 }

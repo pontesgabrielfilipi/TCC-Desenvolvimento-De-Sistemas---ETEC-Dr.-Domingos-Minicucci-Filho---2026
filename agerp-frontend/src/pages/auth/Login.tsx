@@ -1,26 +1,50 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import './LoginCSS.css';
 
 const Login = () => {
     const { login } = useAuth();
+    const location = useLocation();
 
     const [email, setEmail] = useState('');
     const [senha, setSenha] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [erro, setErro] = useState('');
     const [loading, setLoading] = useState(false);
+    const [acessoNegado, setAcessoNegado] = useState<'PENDENTE' | 'BLOQUEADO' | 'REJEITADO' | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setErro('');
+        setAcessoNegado(null);
         setLoading(true);
 
         try {
             await login(email, senha);
             // AuthContext já redireciona para /dashboard em caso de sucesso
-        } catch {
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const data = error.response?.data as { code?: string; codigo?: string; status?: string; statusAcesso?: string; message?: string } | undefined;
+                const status = data?.statusAcesso || data?.status || data?.code || data?.codigo;
+                if (status === 'PENDENTE' || status === 'USUARIO_PENDENTE') {
+                    setAcessoNegado('PENDENTE');
+                    return;
+                }
+                if (status === 'BLOQUEADO' || status === 'USUARIO_BLOQUEADO') {
+                    setAcessoNegado('BLOQUEADO');
+                    return;
+                }
+                if (status === 'REJEITADO' || status === 'USUARIO_REJEITADO') {
+                    setAcessoNegado('REJEITADO');
+                    return;
+                }
+                if (status === 'TEMPORARY_CREDENTIAL_INVALID' || status === 'CREDENCIAL_TEMPORARIA_EXPIRADA' || status === 'CREDENCIAL_TEMPORARIA_UTILIZADA') {
+                    setErro(data?.message || 'A credencial temporária expirou ou já foi utilizada. Solicite uma nova redefinição ao administrador.');
+                    return;
+                }
+            }
             setErro('Email ou senha inválidos. Tente novamente.');
         } finally {
             setLoading(false);
@@ -28,10 +52,10 @@ const Login = () => {
     };
 
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
+        <div className="flex min-h-screen min-h-[100dvh] bg-gray-50 lg:h-screen lg:overflow-hidden">
 
             {/* SIDEBAR DE BRANDING - Desktop only */}
-            <div className="hidden lg:flex w-96 bg-slate-900 text-white flex-col h-screen relative">
+            <div className="relative hidden h-full w-96 flex-col bg-slate-900 text-white lg:flex">
                 <div className="p-8 border-b border-slate-800">
                     <Link to="/" className="brand text-4xl font-bold tracking-tight text-white no-underline">
                         AGERP
@@ -72,38 +96,65 @@ const Login = () => {
             </div>
 
             {/* CONTEÚDO PRINCIPAL */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
 
                 {/* HEADER - SOMENTE TABLET E MOBILE */}
-                <header className="lg:hidden bg-slate-900 px-6 py-4 flex items-center justify-between">
+                <header className="flex items-center justify-between gap-3 bg-slate-900 px-3 py-4 sm:px-6 lg:hidden">
                     <div className="flex items-center gap-4">
-                        <Link to="/" className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg brand text-3xl font-bold tracking-tight text-white no-underline">
+                        <Link to="/" className="brand text-2xl font-bold tracking-tight text-white no-underline transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg sm:text-3xl">
                             AGERP
                         </Link>
                     </div>
 
                     <Link
                         to="/cadastro"
-                        className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-6 py-2.5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300"
+                        className="min-h-11 rounded-2xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-center text-sm font-medium text-slate-900 transition-all duration-300 ease-in-out hover:scale-105 hover:bg-gray-300 hover:shadow-lg sm:px-6"
                     >
                         Criar conta grátis
                     </Link>
                 </header>
 
                 {/* ÁREA DO FORMULÁRIO - com margin-top em mobile/tablet */}
-                <div className="flex-1 flex items-start justify-center align-middle lg:pt-96 md:pt-96 pt-4 p-6 md:p-10 overflow-auto bgp">
-                    <div className="w-full max-w-md mt-6 md:mt-8 lg:mt-0">
-                        <div className="md:pt-96 py-0">{""}</div>
-                        <div className="bg-white rounded-3xl shadow px-7 py-5 pb-2 md:p-10 border border-gray-100">
+                <div className="min-w-0 flex-1 flex items-start lg:items-center justify-center p-3 sm:p-6 lg:p-10 overflow-y-auto overflow-x-hidden bgp">
+                    <div className="w-full max-w-md my-4 sm:my-8">
+                        <div className="rounded-3xl border border-gray-100 bg-white px-4 py-6 shadow sm:px-7 md:p-10">
 
                             {/* Cabeçalho do card */}
                             <div className="text-center mb-8">
                                 <div className="mx-auto w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mb-4">
                                     <span className="text-4xl">🔐</span>
                                 </div>
-                                <h2 className="text-3xl font-bold text-gray-900">Entrar na conta</h2>
+                                <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Entrar na conta</h2>
                                 <p className="mt-2 text-gray-600">Digite seus dados para continuar</p>
                             </div>
+
+                            {location.state?.cadastroPendente && !acessoNegado && (
+                                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-center text-sm font-medium">
+                                    Cadastro realizado. Aguarde a aprovação do administrador para acessar o sistema.
+                                </div>
+                            )}
+
+                            {new URLSearchParams(location.search).get('senhaAlterada') === '1' && (
+                                <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-2xl text-center text-sm font-medium" role="status">
+                                    Senha definitiva criada. Entre novamente com sua nova senha.
+                                </div>
+                            )}
+
+                            {acessoNegado && (
+                                <div className={`mb-6 p-5 rounded-2xl border ${acessoNegado === 'PENDENTE' ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-red-50 border-red-200 text-red-800'}`} role="alert">
+                                    <h3 className="font-semibold text-lg">
+                                        {acessoNegado === 'PENDENTE' ? 'Acesso aguardando aprovação' : acessoNegado === 'BLOQUEADO' ? 'Conta bloqueada' : 'Cadastro rejeitado'}
+                                    </h3>
+                                    <p className="mt-2 text-sm">
+                                        {acessoNegado === 'PENDENTE'
+                                            ? 'Seu cadastro foi recebido, mas o acesso ao AGERP depende da autorização de um administrador.'
+                                            : acessoNegado === 'BLOQUEADO'
+                                                ? 'O acesso desta conta foi bloqueado por um administrador.'
+                                                : 'Este cadastro não foi aprovado para acessar o AGERP.'}
+                                    </p>
+                                    <p className="mt-2 text-sm">Solicite a análise ao administrador responsável da sua organização pelos canais internos disponibilizados por ela.</p>
+                                </div>
+                            )}
 
                             {erro && (
                                 <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-center text-sm font-medium">
@@ -140,7 +191,8 @@ const Login = () => {
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                            className="absolute right-2 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+                                            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                                         >
                                             {showPassword ? '🙈' : '👁'}
                                         </button>

@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode, type FC } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import { navigationItems } from '../components/navigation/navigationItems';
 
 interface User {
     id: number;
@@ -9,6 +10,10 @@ interface User {
     email: string;
     perfilNome: string | null;
     ativo: boolean;
+    statusAcesso?: 'PENDENTE' | 'APROVADO' | 'BLOQUEADO' | 'REJEITADO';
+    trocaSenhaObrigatoria?: boolean;
+    paginas?: string[];
+    nivelAutoridade?: number;
 }
 
 interface AuthContextType {
@@ -17,7 +22,7 @@ interface AuthContextType {
     isLoading: boolean;
     login: (email: string, senha: string) => Promise<void>;
     logout: () => Promise<void>;
-    checkAuth: () => Promise<void>;
+    checkAuth: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,23 +32,29 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
-    const isAuthenticated = !!user && user.ativo === true;
+    const isAuthenticated = !!user && user.ativo === true &&
+        (!user.statusAcesso || user.statusAcesso === 'APROVADO');
 
-    const checkAuth = async (): Promise<void> => {
+    const checkAuth = async (): Promise<User | null> => {
         try {
             const response = await authService.getCurrentUser();
             setUser(response.data);
+            return response.data;
         } catch {
             setUser(null);
+            return null;
         } finally {
             setIsLoading(false);
         }
     };
 
     const login = async (email: string, senha: string): Promise<void> => {
-        await authService.login(email, senha);
-        await checkAuth();
-        navigate('/dashboard', { replace: true });
+        const response = await authService.login(email, senha);
+        const usuarioAtual = await checkAuth();
+        const exigeTroca = response.data?.trocaSenhaObrigatoria === true || usuarioAtual?.trocaSenhaObrigatoria === true;
+        const primeiraRota = navigationItems.find(item => usuarioAtual?.paginas?.includes(item.page)
+            && (!item.profiles || item.profiles.includes(usuarioAtual?.perfilNome ?? '')))?.path ?? '/sem-acesso';
+        navigate(exigeTroca ? '/alterar-senha-obrigatoria' : primeiraRota, { replace: true });
     };
 
     const logout = async (): Promise<void> => {
@@ -59,6 +70,15 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
     useEffect(() => {
         checkAuth();
+        const recarregar = () => { if (document.visibilityState === 'visible') void checkAuth(); };
+        window.addEventListener('focus', recarregar);
+        document.addEventListener('visibilitychange', recarregar);
+        const intervalo = window.setInterval(recarregar, 60000);
+        return () => {
+            window.removeEventListener('focus', recarregar);
+            document.removeEventListener('visibilitychange', recarregar);
+            window.clearInterval(intervalo);
+        };
     }, []);
 
     return (

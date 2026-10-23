@@ -12,6 +12,22 @@
 - `id_perfil`
 - `nome`
 - `descricao`
+- `nivel_autoridade` (`INTEGER`, padrão 20)
+- `protegido` (`BOOLEAN`, marca ADMIN e OPERADOR)
+- `versao` (`BIGINT`, controle otimista de edição)
+
+### PERFIL_PAGINA (V7)
+- `id_perfil` (FK de `agerp.perfil`, exclusão em cascata)
+- `pagina` (`DASHBOARD`, `CLIENTES`, `PRODUTOS`, `PEDIDOS`, `ADMIN`)
+- Chave primária composta (`id_perfil`, `pagina`)
+
+A migração Flyway `V7__cargos_permissoes_paginas.sql` mantém intactos os IDs
+de perfil e as referências existentes em `usuario.id_perfil`. Ajusta os níveis
+dos perfis históricos (ADMIN 100, GERENTE 60, FINANCEIRO 30, OPERADOR 10,
+outros 20), cria perfis padrão ausentes sem duplicá-los e habilita as quatro
+páginas operacionais para os cargos existentes. Reserva `ADMIN` apenas para
+administradores. Alterações futuras das páginas são persistidas na nova tabela,
+sem necessidade de recriar usuários.
 
 ### USUARIO
 - `id_usuario`
@@ -144,6 +160,8 @@ ENTREGA 1 ─── 1 PREVISAO_ENTREGA
 ```
 
 ## Regras importantes
+
+**Configuração de mínimo de estoque (Flyway V8):** `agerp.configuracao_sistema.usar_estoque_minimo_geral BOOLEAN NOT NULL DEFAULT TRUE` preserva o comportamento anterior do limite geral (`limite_estoque_baixo`, padrão 15). Quando `TRUE`, a regra compara todos os saldos ao limite geral; quando `FALSE`, usa `agerp.estoque.quantidade_minima` por produto. Os limites individuais são preservados durante a alternância. Para registros antigos com mínimo individual `NULL`, somente o cálculo utiliza fallback 10, sem atualizar o valor persistido. Comparação estrita `<`, em unidades inteiras. O mínimo individual 0 é permitido (não dispara alerta); quantidade atual `NULL` não participa das contagens.
 
 - Usuários pertencem a um perfil.
 - Clientes podem possuir múltiplos endereços.

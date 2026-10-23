@@ -4,7 +4,6 @@ import com.agerp.agerp.dto.ClienteCreateRequest;
 import com.agerp.agerp.dto.ClienteResponse;
 import com.agerp.agerp.service.ClienteService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +12,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/clientes")
-@RequiredArgsConstructor
 public class ClienteController {
 
     private final ClienteService clienteService;
+
+    public ClienteController(ClienteService clienteService) {
+        this.clienteService = clienteService;
+    }
 
     @PostMapping
     public ResponseEntity<ClienteResponse> criar(@Valid @RequestBody ClienteCreateRequest request) {
@@ -24,8 +26,9 @@ public class ClienteController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ClienteResponse>> listarTodos() {
-        return ResponseEntity.ok(clienteService.listarTodos());
+    public ResponseEntity<List<ClienteResponse>> listarTodos(
+            @RequestParam(defaultValue = "false") boolean refresh) {
+        return ResponseEntity.ok(refresh ? clienteService.recarregarTodos() : clienteService.listarTodos());
     }
 
     @GetMapping("/{id}")

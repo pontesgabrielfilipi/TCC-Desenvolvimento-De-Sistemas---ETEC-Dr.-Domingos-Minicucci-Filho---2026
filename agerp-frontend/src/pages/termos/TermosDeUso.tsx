@@ -3,10 +3,10 @@ import './TermosCSS.css';
 
 const TermosDeUso = () => {
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
+        <div className="flex min-h-screen min-h-[100dvh] bg-gray-50 lg:h-screen lg:overflow-hidden">
 
             {/* SIDEBAR DE BRANDING - Desktop only (mesmo padrão do Login) */}
-            <div className="hidden lg:flex w-96 bg-slate-900 text-white flex-col h-screen relative">
+            <div className="relative hidden h-full w-96 flex-col bg-slate-900 text-white lg:flex">
                 <div className="p-8 border-b border-slate-800 flex justify-between ">
                     <div>
                         <Link to="/" className="brand text-4xl font-bold tracking-tight text-white no-underline">
@@ -47,14 +47,14 @@ const TermosDeUso = () => {
             </div>
 
             {/* CONTEÚDO PRINCIPAL (mesma estrutura do Login) */}
-            <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
 
                 {/* HEADER - SOMENTE TABLET E MOBILE */}
-                <header className="lg:hidden bg-slate-900 px-6 py-4 flex items-center justify-between">
+                <header className="flex items-center justify-between gap-3 bg-slate-900 px-3 py-4 sm:px-6 lg:hidden">
                     <div className="flex items-center gap-4">
                         <Link
                             to="/"
-                            className="brand text-3xl font-bold tracking-tight text-white no-underline transition-all duration-300 ease-in-out hover:scale-105"
+                            className="brand text-2xl font-bold tracking-tight text-white no-underline transition-all duration-300 ease-in-out hover:scale-105 sm:text-3xl"
                         >
                             AGERP
                         </Link>
@@ -62,20 +62,20 @@ const TermosDeUso = () => {
 
                     <Link
                         to="/login"
-                        className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-6 py-2.5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-100"
+                        className="min-h-11 rounded-2xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm font-medium transition-all duration-300 ease-in-out hover:scale-105 hover:bg-gray-100 hover:shadow-lg sm:px-6"
                     >
                         Voltar
                     </Link>
                 </header>
 
                 {/* ÁREA DOS TERMOS - Scrollable + Card centralizado */}
-                <div className="flex-1 overflow-auto p-6 md:p-10 bgp">
-                    <div className="max-w-4xl mx-auto">
-                        <div className="bg-white rounded-3xl shadow p-8 md:p-12 border border-gray-100">
+                <div className="min-w-0 flex-1 overflow-auto p-3 sm:p-6 md:p-10 bgp">
+                    <div className="mx-auto min-w-0 max-w-4xl">
+                        <div className="min-w-0 break-words rounded-3xl border border-gray-100 bg-white p-5 shadow sm:p-8 md:p-12">
 
                             {/* Cabeçalho da página */}
                             <div className="mb-10">
-                                <h1 className="text-4xl font-bold text-gray-900">Termos de Uso</h1>
+                                <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Termos de Uso</h1>
                                 <p className="text-sm text-gray-500 mt-3">
                                     Última atualização: 24 de março de 2026
                                 </p>

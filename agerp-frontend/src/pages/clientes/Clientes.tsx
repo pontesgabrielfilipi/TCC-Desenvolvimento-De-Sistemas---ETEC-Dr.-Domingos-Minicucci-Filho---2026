@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { clienteService } from '../../services/clienteService';
+import { EnderecosModal } from './EnderecosModal';
+import { getHttpErrorMessage } from '../../utils/httpError';
+import { useIsMobileViewport } from '../../hooks/useIsMobileViewport';
 
 interface Cliente {
     id: number;
@@ -10,6 +11,7 @@ interface Cliente {
     cpfCnpj: string;
     email: string;
     telefone: string;
+    dataCadastro?: string;
 }
 
 interface Toast {
@@ -19,16 +21,20 @@ interface Toast {
 }
 
 const Clientes = () => {
-    const { user, logout } = useAuth();
+    const isMobileViewport = useIsMobileViewport();
 
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [busca, setBusca] = useState('');
     const [loading, setLoading] = useState(true);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [sort, setSort] = useState<{ key: keyof Cliente; direction: 'asc' | 'desc' }>({ key: 'nomeRazao', direction: 'asc' });
 
-    // Modal
+    // Modal Cliente
     const [modalOpen, setModalOpen] = useState(false);
     const [editandoId, setEditandoId] = useState<number | null>(null);
+
+    // Modal Endereços
+    const [enderecosModalOpen, setEnderecosModalOpen] = useState(false);
+    const [clienteSelecionadoEnderecos, setClienteSelecionadoEnderecos] = useState<Cliente | null>(null);
 
     const [formData, setFormData] = useState({
         tipo: 'FISICA' as 'FISICA' | 'JURIDICA',
@@ -41,36 +47,53 @@ const Clientes = () => {
     // Popover de exclusão
     const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
+
     // Toasts
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const showToast = (type: 'success' | 'error', message: string) => {
+    const showToast = useCallback((type: 'success' | 'error', message: string) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, type, message }]);
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
-    };
+    }, []);
 
-    const carregarClientes = async () => {
+    const carregarClientes = useCallback(async (refresh = false) => {
         try {
             setLoading(true);
-            const response = await clienteService.listar();
+            const response = await clienteService.listar(refresh);
             setClientes(response.data);
+            if (refresh) showToast('success', 'Clientes atualizados com sucesso.');
         } catch (error) {
             console.error('Erro ao carregar clientes:', error);
             showToast('error', 'Erro ao carregar lista de clientes');
         } finally {
             setLoading(false);
         }
-    };
+    }, [showToast]);
 
     useEffect(() => {
         carregarClientes();
-    }, []);
+    }, [carregarClientes]);
 
-    const clientesFiltrados = clientes.filter((c) =>
-        c.nomeRazao.toLowerCase().includes(busca.toLowerCase()) ||
-        c.cpfCnpj.includes(busca)
-    );
+    const clientesFiltrados = useMemo(() => {
+        const termo = busca.trim().toLocaleLowerCase('pt-BR');
+        const filtrados = clientes.filter(c => !termo || [c.id, c.nomeRazao, c.tipo, c.cpfCnpj, c.email, c.telefone]
+            .some(valor => String(valor ?? '').toLocaleLowerCase('pt-BR').includes(termo)));
+        return [...filtrados].sort((a, b) => {
+            const av = a[sort.key] ?? '';
+            const bv = b[sort.key] ?? '';
+            const resultado = typeof av === 'number' && typeof bv === 'number'
+                ? av - bv
+                : String(av).localeCompare(String(bv), 'pt-BR', { numeric: true, sensitivity: 'base' });
+            return sort.direction === 'asc' ? resultado : -resultado;
+        });
+    }, [busca, clientes, sort]);
+
+    const ordenar = (key: keyof Cliente) => setSort(atual => ({
+        key,
+        direction: atual.key === key && atual.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    const indicador = (key: keyof Cliente) => sort.key === key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : '';
 
     // Máscaras
     const formatarTelefone = (value: string) =>
@@ -117,6 +140,16 @@ const Clientes = () => {
             setFormData({ tipo: 'FISICA', nomeRazao: '', cpfCnpj: '', email: '', telefone: '' });
         }
         setModalOpen(true);
+    };
+
+    const abrirEnderecos = (cliente: Cliente) => {
+        setClienteSelecionadoEnderecos(cliente);
+        setEnderecosModalOpen(true);
+    };
+
+    const fecharEnderecos = () => {
+        setEnderecosModalOpen(false);
+        setClienteSelecionadoEnderecos(null);
     };
 
     const fecharModal = () => {
@@ -168,7 +201,7 @@ const Clientes = () => {
                 showToast('success', 'Cliente cadastrado com sucesso!');
             }
             fecharModal();
-            carregarClientes();
+            await carregarClientes(true);
         } catch (error) {
             showToast('error', `Erro ao salvar cliente ${error}`);
         }
@@ -182,107 +215,48 @@ const Clientes = () => {
             await clienteService.excluir(deleteConfirmId);
             showToast('success', 'Cliente excluído com sucesso!');
             carregarClientes();
-        } catch {
-            showToast('error', 'Erro ao excluir cliente');
+        } catch (error) {
+            showToast('error', getHttpErrorMessage(error, 'Erro ao excluir cliente'));
         } finally {
             setDeleteConfirmId(null);
         }
     };
 
+    const campoBusca = (
+        <input
+            type="text"
+            placeholder="Buscar por nome ou CPF/CNPJ..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            aria-label="Buscar clientes"
+            className={isMobileViewport
+                ? 'mb-3 block w-full min-w-0 rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none'
+                : 'min-w-0 w-72 rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none'}
+        />
+    );
+
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
-
-            {/* SIDEBAR DESKTOP */}
-            <div className="hidden lg:flex w-64 bg-slate-900 text-white flex-col h-screen">
-                <div className="p-6 border-b border-slate-800">
-                    <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                    <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 pt-2 mb-0">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.nome?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight mb-1">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-slate-400">Online</p>
-                        </div>
-                    </div>
-                    <button onClick={logout} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-1 w-full py-2 text-red-400 hover:bg-slate-800 rounded-xl">
-                        Sair da conta
-                    </button>
-                </div>
-            </div>
-
-            {/* SIDEBAR MOBILE */}
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col transform transition-transform duration-300 lg:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                    <div>
-                        <h1 className="brand text-3xl font-bold tracking-tight">AGERP</h1>
-                        <p className="text-xs text-slate-400 mt-1">Gestão Empresarial</p>
-                    </div>
-                    <button onClick={() => setIsSidebarOpen(false)} className="text-3xl text-white">✕</button>
-                </div>
-
-                <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                    <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📊 Dashboard</Link>
-                    <Link to="/clientes" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-medium no-underline">👥 Clientes</Link>
-                    <Link to="/produtos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📦 Produtos</Link>
-                    <Link to="/pedidos" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition text-slate-300 no-underline">📋 Pedidos</Link>
-                </nav>
-
-                <div className="p-4 border-t border-slate-800 mt-auto">
-                    <div className="flex items-center gap-3 px-3 py-2">
-                        <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {user?.email?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-medium break-words leading-tight">
-                                {user?.nome || user?.email}
-                            </p>
-                            <p className="text-xs text-slate-400">Online</p>
-                        </div>
-                    </div>
-                    <button onClick={logout} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg mt-6 w-full py-3 text-red-400 hover:bg-slate-800 rounded-xl">Sair da conta</button>
-                </div>
-            </div>
-
-            {/* Overlay mobile */}
-            {isSidebarOpen && (
-                <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-            )}
+        <div className="h-full min-w-0 bg-app-background flex overflow-hidden">
 
             {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col overflow-hidden">
 
                 {/* HEADER */}
-                <header className="bg-white border-b px-6 py-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-3xl text-gray-700">☰</button>
-                        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">👥 Clientes</h1>
+                <header className="bg-white border-b px-3 sm:px-6 py-3 sm:py-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="hidden items-center gap-4 sm:flex">
+                        <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">👥 Clientes</h1>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <input
-                            type="text"
-                            placeholder="Buscar por nome ou CPF/CNPJ..."
-                            value={busca}
-                            onChange={(e) => setBusca(e.target.value)}
-                            className="w-80 px-5 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm"
-                        />
+                    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:gap-4">
+                        {!isMobileViewport && campoBusca}
+                        <button
+                            onClick={() => void carregarClientes(true)}
+                            disabled={loading}
+                            className="min-h-11 flex-1 whitespace-nowrap rounded-2xl border border-gray-300 px-3 py-3 font-medium hover:bg-gray-50 disabled:opacity-50 sm:flex-none sm:px-4"
+                        >{loading ? 'Atualizando...' : '↻ Atualizar'}</button>
                         <button
                             onClick={() => abrirModal()}
-                            className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-medium flex items-center gap-2"
+                            className="flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-indigo-600 px-3 py-3 font-medium text-white transition-all duration-300 ease-in-out hover:scale-105 hover:bg-indigo-700 hover:shadow-lg sm:flex-none sm:px-6"
                         >
                             + Novo Cliente
                         </button>
@@ -290,16 +264,49 @@ const Clientes = () => {
                 </header>
 
                 {/* CONTEÚDO COM SCROLL */}
-                <div className="p-6 md:p-8 flex-1 overflow-auto">
-                    <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-                        <table className="w-full">
+                <div data-testid="clientes-scroll" className="min-w-0 p-3 sm:p-6 md:p-8 flex-1 overflow-y-auto overflow-x-hidden">
+                    {isMobileViewport && campoBusca}
+                    {loading ? (
+                        <div className="text-center py-16 text-gray-500 font-medium">Carregando clientes...</div>
+                    ) : clientesFiltrados.length === 0 ? (
+                        <div className="rounded-3xl bg-white p-8 text-center text-gray-500 shadow-sm">Nenhum cliente encontrado.</div>
+                    ) : (<>
+                        <div className="mb-3 flex items-center gap-2 md:hidden">
+                            <label htmlFor="ordenacao-clientes-mobile" className="shrink-0 text-sm font-medium text-gray-600">Ordenar:</label>
+                            <select id="ordenacao-clientes-mobile" value={String(sort.key)} onChange={(event) => setSort(atual => ({ ...atual, key: event.target.value as keyof Cliente }))} className="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm">
+                                <option value="nomeRazao">Nome</option><option value="tipo">Tipo</option><option value="cpfCnpj">CPF/CNPJ</option><option value="email">E-mail</option><option value="telefone">Telefone</option>
+                            </select>
+                            <button type="button" onClick={() => setSort(atual => ({ ...atual, direction: atual.direction === 'asc' ? 'desc' : 'asc' }))} className="min-h-11 min-w-11 rounded-xl border border-gray-300 bg-white px-3" aria-label={`Ordem ${sort.direction === 'asc' ? 'crescente' : 'decrescente'}; alternar direção`}>{sort.direction === 'asc' ? '↑' : '↓'}</button>
+                        </div>
+                        <div className="grid gap-3 md:hidden" aria-label="Lista de clientes">
+                            {clientesFiltrados.map((cliente) => (
+                                <article key={cliente.id} className="agerp-mobile-card rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                                    <div className="flex min-w-0 items-start justify-between gap-3">
+                                        <h2 className="min-w-0 break-words font-semibold text-gray-900">{cliente.nomeRazao}</h2>
+                                        <span className={`shrink-0 rounded-full px-3 py-1 text-xs ${cliente.tipo === 'FISICA' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{cliente.tipo === 'FISICA' ? 'Física' : 'Jurídica'}</span>
+                                    </div>
+                                    <dl className="mt-4 grid min-w-0 gap-3 text-sm">
+                                        <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500">CPF / CNPJ</dt><dd className="mt-0.5 break-all font-mono text-gray-800">{cliente.cpfCnpj || '—'}</dd></div>
+                                        <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500">E-mail</dt><dd className="mt-0.5 break-all text-gray-800">{cliente.email || '—'}</dd></div>
+                                        <div><dt className="text-xs font-medium uppercase tracking-wide text-gray-500">Telefone</dt><dd className="mt-0.5 break-words text-gray-800">{cliente.telefone || '—'}</dd></div>
+                                    </dl>
+                                    <div className="mt-4 grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
+                                        <button onClick={() => abrirEnderecos(cliente)} className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">📍 Endereços</button>
+                                        <button onClick={() => abrirModal(cliente)} className="rounded-xl bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">Editar</button>
+                                        <button onClick={() => confirmarExclusao(cliente.id)} className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Excluir</button>
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                        <div className="hidden rounded-3xl bg-white shadow-sm md:block md:overflow-x-auto" role="region" aria-label="Tabela de clientes" tabIndex={0}>
+                        <table className="w-full min-w-[800px]">
                             <thead className="bg-gray-50 border-b">
                             <tr>
-                                <th className="px-6 py-4 text-left">Nome / Razão Social</th>
-                                <th className="px-6 py-4 text-left">Tipo</th>
-                                <th className="px-6 py-4 text-left">CPF / CNPJ</th>
-                                <th className="px-6 py-4 text-left">E-mail</th>
-                                <th className="px-6 py-4 text-left">Telefone</th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('nomeRazao')}>Nome / Razão Social{indicador('nomeRazao')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('tipo')}>Tipo{indicador('tipo')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('cpfCnpj')}>CPF / CNPJ{indicador('cpfCnpj')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('email')}>E-mail{indicador('email')}</button></th>
+                                <th className="px-6 py-4 text-left"><button onClick={() => ordenar('telefone')}>Telefone{indicador('telefone')}</button></th>
                                 <th className="px-6 py-4 text-center">Ações</th>
                             </tr>
                             </thead>
@@ -315,24 +322,34 @@ const Clientes = () => {
                                     <td className="px-6 py-4 font-mono text-sm">{cliente.cpfCnpj}</td>
                                     <td className="px-6 py-4">{cliente.email}</td>
                                     <td className="px-6 py-4">{cliente.telefone}</td>
-                                    <td className="px-6 py-4 text-center space-x-4">
-                                        <button onClick={() => abrirModal(cliente)} className="text-indigo-600 hover:text-indigo-700">Editar</button>
-                                        <button onClick={() => confirmarExclusao(cliente.id)} className="text-red-600 hover:text-red-700">Excluir</button>
+                                    <td className="px-6 py-4 text-center space-x-3 whitespace-nowrap">
+                                        <button
+                                            onClick={() => abrirEnderecos(cliente)}
+                                            className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition inline-flex items-center gap-1"
+                                            title="Gerenciar endereços do cliente"
+                                        >
+                                            📍 Endereços
+                                        </button>
+                                        <button onClick={() => abrirModal(cliente)} className="text-indigo-600 hover:text-indigo-700 font-medium text-sm">Editar</button>
+                                        <button onClick={() => confirmarExclusao(cliente.id)} className="text-red-600 hover:text-red-700 font-medium text-sm">Excluir</button>
                                     </td>
                                 </tr>
                             ))}
                             </tbody>
                         </table>
                     </div>
+                    </>)}
                 </div>
             </div>
 
             {/* Modal Novo / Editar Cliente */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-3xl w-full max-w-lg mx-4 p-8">
+                <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="cliente-modal-titulo">
+                    <div className="agerp-modal-panel w-full max-w-lg rounded-3xl bg-white p-4 sm:p-8">
                         <h2 className="text-2xl font-semibold mb-6">
+                            <span id="cliente-modal-titulo">
                             {editandoId ? 'Editar Cliente' : 'Novo Cliente'}
+                            </span>
                         </h2>
 
                         <div className="space-y-6">
@@ -374,7 +391,7 @@ const Clientes = () => {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
                                     <input
@@ -397,7 +414,7 @@ const Clientes = () => {
                                 </div>
                             </div>
 
-                            <div className="flex gap-4 pt-4">
+                            <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
                                 <button onClick={fecharModal} className="flex-1 py-3.5 border border-gray-300 rounded-2xl font-medium">Cancelar</button>
                                 <button onClick={salvarCliente} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl font-medium hover:bg-indigo-700">Salvar</button>
                             </div>
@@ -408,11 +425,11 @@ const Clientes = () => {
 
             {/* Popover de Confirmação de Exclusão */}
             {deleteConfirmId && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110]">
-                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full mx-4">
-                        <h3 className="text-lg font-semibold">Confirmar exclusão</h3>
+                <div className="agerp-modal-overlay fixed inset-0 z-[110] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="excluir-cliente-titulo">
+                    <div className="agerp-modal-panel w-full max-w-sm rounded-3xl bg-white p-5 sm:p-8">
+                        <h3 id="excluir-cliente-titulo" className="text-lg font-semibold">Confirmar exclusão</h3>
                         <p className="text-gray-600 mt-2 mb-8">Esta ação não pode ser desfeita.</p>
-                        <div className="flex gap-3">
+                        <div className="flex flex-col gap-3 min-[360px]:flex-row">
                             <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-3.5 border border-gray-300 rounded-2xl">Cancelar</button>
                             <button onClick={executarExclusao} className="flex-1 py-3.5 bg-red-600 text-white rounded-2xl">Excluir</button>
                         </div>
@@ -420,8 +437,16 @@ const Clientes = () => {
                 </div>
             )}
 
+            {/* Modal de Gerenciamento de Endereços */}
+            <EnderecosModal
+                isOpen={enderecosModalOpen}
+                cliente={clienteSelecionadoEnderecos}
+                onClose={fecharEnderecos}
+                showToast={showToast}
+            />
+
             {/* Toasts */}
-            <div className="fixed bottom-6 right-6 space-y-2 z-[120]">
+            <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[120] space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}

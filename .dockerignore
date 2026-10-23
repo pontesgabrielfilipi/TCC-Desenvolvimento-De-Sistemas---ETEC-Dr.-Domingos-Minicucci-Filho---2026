@@ -1,7 +1,7 @@
-target/
-.git/
-.gitignore
-.idea/
-.vscode/
-.DS_Store
-*.iml
+# O backend copia somente estes caminhos. Ignorar o restante evita enviar ao
+# BuildKit o frontend, datasets da IA, documentacao e artefatos locais.
+*
+!Dockerfile
+!pom.xml
+!src/
+!src/**

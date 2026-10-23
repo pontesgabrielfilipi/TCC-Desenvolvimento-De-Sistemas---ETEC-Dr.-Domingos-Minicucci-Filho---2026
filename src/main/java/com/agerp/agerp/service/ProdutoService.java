@@ -7,40 +7,55 @@ import com.agerp.agerp.entity.Estoque;
 import com.agerp.agerp.entity.Produto;
 import com.agerp.agerp.repository.EstoqueRepository;
 import com.agerp.agerp.repository.ProdutoRepository;
-import lombok.RequiredArgsConstructor;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
     private final EstoqueRepository estoqueRepository;
+    private final EstoqueBaixoService estoqueBaixoService;
 
-    // ====================== LISTAR ATIVOS ======================
-    @Transactional(readOnly = true)
-    public List<ProdutoResponse> listarAtivos() {
-        return produtoRepository.findByAtivoTrue()
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+    public ProdutoService(ProdutoRepository produtoRepository, EstoqueRepository estoqueRepository,
+                          EstoqueBaixoService estoqueBaixoService) {
+        this.produtoRepository = produtoRepository;
+        this.estoqueRepository = estoqueRepository;
+        this.estoqueBaixoService = estoqueBaixoService;
     }
 
-    // ====================== LISTAR TODOS (ativos + inativos) ======================
+    // ====================== LISTAR ATIVOS ======================
+    @Cacheable("produtosAtivos")
+    @Transactional(readOnly = true)
+    public List<ProdutoResponse> listarAtivos() {
+        return listarComEstoques(produtoRepository.findByAtivoTrue());
+    }
+
+    @CacheEvict(cacheNames = "produtosAtivos", allEntries = true, beforeInvocation = true)
+    @Transactional(readOnly = true)
+    public List<ProdutoResponse> recarregarAtivos() {
+        return listarComEstoques(produtoRepository.findByAtivoTrue());
+    }
+
+    // ====================== LISTAR TODOS (ativos + inativos)
+    // ======================
+    @Cacheable("produtosTodos")
     @Transactional(readOnly = true)
     public List<ProdutoResponse> listarTodos() {
-        return produtoRepository.findAll()
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return listarComEstoques(produtoRepository.findAll());
     }
 
     // ====================== BUSCAR POR ID ======================
+    @Cacheable(value = "produtoPorId", key = "#id")
     @Transactional(readOnly = true)
     public ProdutoResponse buscarPorId(Integer id) {
         Produto produto = produtoRepository.findById(id)
@@ -49,6 +64,13 @@ public class ProdutoService {
     }
 
     // ====================== CRIAR ======================
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
+            @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
+    })
     @Transactional
     public ProdutoResponse criar(ProdutoCreateRequest request) {
         if (produtoRepository.existsByNomeIgnoreCase(request.getNome())) {
@@ -56,8 +78,10 @@ public class ProdutoService {
         }
 
         // Defesas contra null
-        if (request.getPeso() == null) request.setPeso(BigDecimal.ZERO);
-        if (request.getVolume() == null) request.setVolume(BigDecimal.ZERO);
+        if (request.getPeso() == null)
+            request.setPeso(BigDecimal.ZERO);
+        if (request.getVolume() == null)
+            request.setVolume(BigDecimal.ZERO);
 
         Produto produto = new Produto();
         produto.setNome(request.getNome());
@@ -82,6 +106,14 @@ public class ProdutoService {
     }
 
     // ====================== ATUALIZAR ======================
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
+            @CacheEvict(cacheNames = "produtoPorId", key = "#id"),
+            @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
+    })
     @Transactional
     public ProdutoResponse atualizar(Integer id, ProdutoUpdateRequest request) {
         Produto produto = produtoRepository.findById(id)
@@ -94,19 +126,54 @@ public class ProdutoService {
             throw new IllegalArgumentException("Já existe outro produto com este nome.");
         }
 
-        if (request.getNome() != null) produto.setNome(request.getNome());
-        if (request.getDescricao() != null) produto.setDescricao(request.getDescricao());
-        if (request.getPreco() != null) produto.setPreco(request.getPreco());
-        if (request.getCusto() != null) produto.setCusto(request.getCusto());
-        if (request.getPeso() != null) produto.setPeso(request.getPeso());
-        if (request.getVolume() != null) produto.setVolume(request.getVolume());
-        if (request.getAtivo() != null) produto.setAtivo(request.getAtivo());
+        if (request.getNome() != null)
+            produto.setNome(request.getNome());
+        if (request.getDescricao() != null)
+            produto.setDescricao(request.getDescricao());
+        if (request.getPreco() != null)
+            produto.setPreco(request.getPreco());
+        if (request.getCusto() != null)
+            produto.setCusto(request.getCusto());
+        if (request.getPeso() != null)
+            produto.setPeso(request.getPeso());
+        if (request.getVolume() != null)
+            produto.setVolume(request.getVolume());
+        if (request.getAtivo() != null)
+            produto.setAtivo(request.getAtivo());
 
         produto = produtoRepository.save(produto);
+
+        // Atualizar estoque associado se fornecido
+        Estoque estoque = estoqueRepository.findByIdProdutoId(produto.getId());
+        if (estoque != null) {
+            if (request.getQuantidadeAtual() != null) {
+                estoque.setQuantidadeAtual(request.getQuantidadeAtual());
+            }
+            if (request.getQuantidadeMinima() != null) {
+                estoque.setQuantidadeMinima(request.getQuantidadeMinima());
+            }
+            estoqueRepository.save(estoque);
+        } else if (request.getQuantidadeAtual() != null || request.getQuantidadeMinima() != null) {
+            estoque = new Estoque();
+            estoque.setIdProduto(produto);
+            estoque.setQuantidadeAtual(request.getQuantidadeAtual() != null ? request.getQuantidadeAtual() : 0);
+            estoque.setQuantidadeMinima(request.getQuantidadeMinima() != null ? request.getQuantidadeMinima() : 10);
+            estoque.setLocalizacao("Depósito Principal");
+            estoqueRepository.save(estoque);
+        }
+
         return toResponse(produto);
     }
 
     // ====================== SOFT DELETE ======================
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
+            @CacheEvict(cacheNames = "produtoPorId", key = "#id"),
+            @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
+    })
     @Transactional
     public void deletarSoft(Integer id) {
         Produto produto = produtoRepository.findById(id)
@@ -117,6 +184,14 @@ public class ProdutoService {
     }
 
     // ====================== HARD DELETE ======================
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
+            @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
+            @CacheEvict(cacheNames = "produtoPorId", key = "#id"),
+            @CacheEvict(cacheNames = "dashboardEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "adminEstatisticas", allEntries = true),
+            @CacheEvict(cacheNames = "dashboardRelatorio", allEntries = true)
+    })
     @Transactional
     public void deletarPermanente(Integer id) {
         Produto produto = produtoRepository.findById(id)
@@ -129,9 +204,23 @@ public class ProdutoService {
     }
 
     // ====================== MAPPER ======================
-    private ProdutoResponse toResponse(Produto produto) {
-        Estoque estoque = estoqueRepository.findByIdProdutoId(produto.getId());
+    private List<ProdutoResponse> listarComEstoques(List<Produto> produtos) {
+        var regra = estoqueBaixoService.regraAtual();
+        if (produtos.isEmpty()) {
+            return List.of();
+        }
+        var ids = produtos.stream().map(Produto::getId).toList();
+        Map<Integer, Estoque> estoques = estoqueRepository.buscarPorProdutos(ids).stream()
+                .collect(Collectors.toMap(e -> e.getIdProduto().getId(), e -> e));
+        return produtos.stream().map(p -> toResponse(p, estoques.get(p.getId()), regra)).toList();
+    }
 
+    private ProdutoResponse toResponse(Produto produto) {
+        return toResponse(produto, estoqueRepository.findByIdProdutoId(produto.getId()),
+                estoqueBaixoService.regraAtual());
+    }
+
+    private ProdutoResponse toResponse(Produto produto, Estoque estoque, EstoqueBaixoService.Regra regra) {
         return new ProdutoResponse(
                 produto.getId(),
                 produto.getNome(),
@@ -141,9 +230,11 @@ public class ProdutoService {
                 produto.getPeso(),
                 produto.getVolume(),
                 produto.getAtivo(),
-                estoque != null ? estoque.getQuantidadeAtual() : 0,
-                estoque != null ? estoque.getQuantidadeMinima() : 10,
-                estoque != null ? estoque.getLocalizacao() : null
-        );
+                estoque != null ? estoque.getQuantidadeAtual() : null,
+                estoque != null ? estoque.getQuantidadeMinima() : null,
+                estoque != null ? estoque.getLocalizacao() : null,
+                regra.minimoAplicado(estoque != null ? estoque.getQuantidadeMinima() : null),
+                estoque != null && regra.baixo(estoque.getQuantidadeAtual(), estoque.getQuantidadeMinima()),
+                regra.usarGeral());
     }
 }

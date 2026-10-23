@@ -7,8 +7,8 @@
 - [ ] Validar autorização RBAC para ADMIN, GERENTE, OPERADOR e FINANCEIRO.
 - [ ] Finalizar CRUD de Clientes no frontend.
 - [ ] Validar dashboard e seus indicadores.
-- [ ] Finalizar integração do backend com o microsserviço Python.
-- [ ] Validar previsão de entrega ponta a ponta.
+- [x] Finalizar integração do backend com o microsserviço Python. *(IaPrevisaoService integrado ao módulo de Pedidos)*
+- [x] Validar previsão de entrega ponta a ponta. *(endpoint /api/pedidos/{id}/previsao-entrega implementado)*
 - [ ] Executar testes de integração com Docker Compose.
 
 ## 🟡 Desenvolvimento
@@ -18,13 +18,13 @@
 - [ ] Cadastro e gerenciamento de produtos.
 - [ ] Controle de estoque.
 - [ ] Movimentações de estoque.
-- [ ] Fluxo de pedidos.
+- [x] Fluxo de pedidos. *(módulo de Pedidos implementado completamente: backend + frontend + testes)*
 - [ ] Pagamentos.
 - [ ] Entregas.
-- [ ] Previsões de entrega.
+- [x] Previsões de entrega. *(integrado ao módulo de Pedidos via IaPrevisaoService)*
 - [ ] Logs do sistema.
 - [ ] Gráficos do dashboard.
-- [ ] Testes automatizados.
+- [x] Testes automatizados. *(PedidoServiceTest: 19 testes unitários com Mockito, BUILD SUCCESS)*
 
 ## 🟢 Base já estabelecida
 
@@ -37,6 +37,7 @@
 - [x] Estrutura RBAC.
 - [x] Estrutura do microsserviço Python.
 - [x] Documentação inicial do projeto.
+- [x] Módulo de Pedidos (backend + frontend + IA + testes + docs).
 
 ## 🚀 Produção / futuro
 
@@ -47,3 +48,5 @@
 - [ ] Deploy em ambiente cloud.
 - [ ] Domínio próprio.
 - [ ] Monitoramento e observabilidade.
+- [ ] Testes de integração com Testcontainers para o módulo de Pedidos.
+- [ ] Code splitting do bundle frontend (atualmente ~1MB; considerar lazy-loading de páginas).

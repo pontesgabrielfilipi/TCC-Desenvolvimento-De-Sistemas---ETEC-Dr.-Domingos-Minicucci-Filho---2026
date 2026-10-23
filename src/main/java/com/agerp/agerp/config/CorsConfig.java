@@ -3,7 +3,6 @@ package com.agerp.agerp.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
@@ -20,13 +19,15 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         // === ORIGENS PERMITIDAS (só frontend e Python) ===
-        config.setAllowedOrigins(Arrays.asList(
+        config.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:3000",           // Frontend no Docker (nginx porta 80 → mapeada para 3000)
                 "http://localhost:5173",           // Frontend em desenvolvimento (npm run dev)
                 "http://127.0.0.1:3000",
                 "http://127.0.0.1:5173",
+                "https://noname.tailf69801.ts.net", // Frontend publicado pelo Tailscale Serve
                 "http://agerp-frontend:80",        // Nome do serviço no Docker (caso precise chamar internamente)
-                "http://localhost:8000"            // Python-IA (se ele fizer chamadas para o backend)
+                "http://localhost:8000",            // Python-IA (se ele fizer chamadas para o backend)
+                "https://*.app.github.dev/"
         ));
 
         // Métodos HTTP permitidos

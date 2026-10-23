@@ -1,10 +1,12 @@
+# syntax=docker/dockerfile:1
+
 # =============================================
-# AGERP - Frontend Docker (React 18 + Vite)
+# AGERP - Frontend Docker (React 19 + Vite)
 # Multi-stage build: leve, rápido e pronto para produção
 # =============================================
 
 # === STAGE 1: Build ===
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -12,10 +14,15 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instala dependências (incluindo devDependencies)
-RUN npm ci --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
 
 # Copia todo o código fonte
 COPY . .
+
+# Variaveis VITE_* sao incorporadas ao bundle durante o build, nao no runtime.
+ARG VITE_API_URL=/
+ENV VITE_API_URL=${VITE_API_URL}
 
 # Build de produção do Vite
 RUN npm run build

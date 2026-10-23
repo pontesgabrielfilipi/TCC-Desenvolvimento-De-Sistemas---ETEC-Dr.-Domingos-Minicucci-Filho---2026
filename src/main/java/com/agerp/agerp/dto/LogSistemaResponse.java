@@ -16,5 +16,11 @@ public class LogSistemaResponse {
     private String entidade;
     private Instant dataHora;
     private String ip;
-    private String nomeUsuario;   // só o nome, para não carregar a entidade completa
+    private Integer idUsuario;
+    private String nomeUsuario;
+    private String emailUsuario;
+    private String perfilUsuario;
+    private String recursoId;
+    private String resultado;
+    private String detalhes;
 }

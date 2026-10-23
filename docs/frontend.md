@@ -87,4 +87,41 @@ O frontend consome a API Spring Boot. Como a autenticação utiliza cookie HttpO
 
 ## Estado atual
 
-O README do projeto registra autenticação, gestão de usuários/perfis e dashboard como funcionalidades implementadas, enquanto o CRUD de clientes no React e alguns gráficos aparecem como etapas de desenvolvimento.
+Funcionalidades implementadas no frontend React:
+
+| Página | Caminho | Status |
+| --- | --- | --- |
+| Home | `/` | ✅ Implementada |
+| Login | `/login` | ✅ Implementada |
+| Cadastro | `/cadastro` | ✅ Implementada |
+| Dashboard | `/dashboard` | ✅ Implementada |
+| Clientes | `/clientes` | ✅ Implementada |
+| Produtos | `/produtos` | ✅ Implementada |
+| **Pedidos** | **/pedidos** | ✅ **Implementada** |
+| Admin | `/admin` | ✅ Implementada |
+| Sem Perfil | `/sem-perfil` | ✅ Implementada |
+
+## Módulo de Pedidos
+
+O módulo de Pedidos é implementado em `pages/pedidos/Pedidos.tsx` e segue o padrão visual e arquitetural das demais páginas administrativas.
+
+### Componentes e padrões utilizados:
+- **Sidebar**: Preservado e reutilizado do padrão existente (sem alteração estrutural).
+- **Formatação monetária segura**: Todas as exibições de valores usam `utils/formatters.ts` → `formatCurrency()`, prevenindo `Cannot read properties of null (reading 'toFixed')`.
+- **Service centralizado**: `services/pedidoService.ts` centraliza todas as chamadas à API.
+- **Toasts**: Sistema de notificações reutilizado dos padrões de `Clientes.tsx` e `Produtos.tsx`.
+- **Modal de criação**: Permite adicionar múltiplos itens com subtotais calculados interativamente.
+- **Modal de detalhes**: Exibe todos os itens, valores e integra o painel de IA para previsão de entrega.
+- **Modal de cancelamento**: Confirmação com aviso de estorno de estoque quando aplicável.
+
+### Tipos TypeScript:
+Definidos e exportados em `services/pedidoService.ts`:
+- `PedidoResponse`
+- `ItemPedidoResponse`
+- `PedidoCreateRequest`
+- `PedidoUpdateRequest`
+- `ItemPedidoRequest`
+- `PrevisaoEntregaResponse`
+
+### Integração com IA:
+O botão "Consultar Previsão de Entrega (IA)" no modal de detalhes chama `GET /api/pedidos/{id}/previsao-entrega`, que internamente aciona o `IaPrevisaoService` Java e o microsserviço Python. A resposta exibe prazo central, intervalo mín/máx, nível de confiança, rota e versão do modelo.

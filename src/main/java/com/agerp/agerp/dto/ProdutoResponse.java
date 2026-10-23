@@ -24,4 +24,7 @@ public class ProdutoResponse {
     private Integer quantidadeAtual;
     private Integer quantidadeMinima;
     private String localizacao;
+    private Integer minimoAplicado;
+    private Boolean estoqueBaixo;
+    private Boolean usarEstoqueMinimoGeral;
 }

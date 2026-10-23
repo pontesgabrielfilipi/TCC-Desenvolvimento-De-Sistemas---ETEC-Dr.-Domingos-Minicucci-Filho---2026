@@ -15,7 +15,9 @@ public class CustomUserDetails extends User {
     public CustomUserDetails(Usuario usuario, Collection<? extends GrantedAuthority> authorities) {
         super(
                 usuario.getEmail(),                    // username
-                usuario.getSenhaHash(),                // password
+                Boolean.TRUE.equals(usuario.getTrocaSenhaObrigatoria())
+                        && usuario.getCredencialTemporariaHash() != null
+                        ? usuario.getCredencialTemporariaHash() : usuario.getSenhaHash(),
                 authorities
         );
         this.usuario = usuario;

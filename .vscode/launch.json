@@ -1,0 +1,73 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "AGERP Backend - Dev",
+            "request": "launch",
+            "mainClass": "com.agerp.agerp.AgerpApplication",
+            "projectName": "AGERP",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": [
+                "-Dspring.profiles.active=dev",
+                "-Dspring.output.ansi.enabled=always"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "type": "java",
+            "name": "AGERP Backend - Test",
+            "request": "launch",
+            "mainClass": "com.agerp.agerp.AgerpApplication",
+            "projectName": "AGERP",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": [
+                "-Dspring.profiles.active=test"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "AGERP Backend - Prod",
+            "request": "launch",
+            "mainClass": "com.agerp.agerp.AgerpApplication",
+            "projectName": "AGERP",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": [
+                "-Dspring.profiles.active=prod"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "AGERP Frontend",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/agerp-frontend",
+            "envFile": "${workspaceFolder}/.env",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "dev"
+            ],
+            "console": "integratedTerminal"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "🚀 AGERP Full Stack (Dev)",
+            "configurations": [
+                "AGERP Backend - Dev",
+                "AGERP Frontend"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "group": "0-fullstack",
+                "order": 1
+            }
+        }
+    ]
+}

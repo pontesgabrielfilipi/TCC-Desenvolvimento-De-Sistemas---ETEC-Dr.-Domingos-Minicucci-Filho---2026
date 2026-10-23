@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Repository
 public interface EstoqueRepository extends JpaRepository<Estoque, Integer> {
@@ -17,21 +18,19 @@ public interface EstoqueRepository extends JpaRepository<Estoque, Integer> {
     /** Busca estoque pelo ID do produto (usado no toResponse do ProdutoService) */
     Estoque findByIdProdutoId(Integer produtoId);
 
-    /** Conta produtos com estoque baixo */
-    long countByQuantidadeAtualLessThan(Integer quantidade);
+    /** Carrega os saldos da lista em lote, evitando uma consulta por produto. */
+    @Query("SELECT e FROM Estoque e WHERE e.idProduto.id IN :produtoIds")
+    List<Estoque> buscarPorProdutos(@Param("produtoIds") List<Integer> produtoIds);
 
-    /** Lista os 10 produtos com estoque mais baixo (usado no Dashboard) */
-    @Query(value = """
-            SELECT 
-                p.nome as nome,
-                e.quantidade_atual as quantidade
-            FROM agerp.estoque e
-            JOIN agerp.produto p ON e.id_produto = p.id_produto
-            WHERE e.quantidade_atual < :limite
-            ORDER BY e.quantidade_atual ASC
-            LIMIT 10
-            """, nativeQuery = true)
-    List<Map<String, Object>> produtosComEstoqueBaixo(@Param("limite") int limite);
+    /** Busca estoque pelo ID do produto (com Optional, para PedidoService) */
+    Optional<Estoque> findByIdProduto_Id(Integer produtoId);
+
+    /** Estoques e nomes dos produtos numa consulta, sem carregar relacoes lazy uma a uma. */
+    @Query("SELECT e FROM Estoque e JOIN FETCH e.idProduto")
+    List<Estoque> listarComProduto();
+
+    @Query("SELECT COALESCE(SUM(e.quantidadeAtual), 0) FROM Estoque e")
+    long somarQuantidadeAtual();
 
     /** Hard Delete: Remove o estoque ao excluir permanentemente um produto */
     @Modifying

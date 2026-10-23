@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { usuarioService } from '../../services/usuarioService';
+import { getHttpErrorMessage } from '../../utils/httpError';
+import { validatePassword } from '../../utils/passwordValidation';
 
 const Cadastro = () => {
     const navigate = useNavigate();
@@ -81,12 +84,9 @@ const Cadastro = () => {
     };
 
     const validarFormulario = () => {
-        if (formData.senha !== formData.confirmarSenha) {
-            showToast('error', 'As senhas não coincidem');
-            return false;
-        }
-        if (formData.senha.length < 6) {
-            showToast('error', 'A senha deve ter no mínimo 6 caracteres');
+        const erroSenha = validatePassword(formData.senha, formData.confirmarSenha);
+        if (erroSenha) {
+            showToast('error', erroSenha);
             return false;
         }
         if (formData.tipo === 'FISICA' && !validarCPF(formData.cpfCnpj)) {
@@ -103,37 +103,27 @@ const Cadastro = () => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8080/api/usuarios', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    nome: formData.nome,
-                    email: formData.email,
-                    senha: formData.senha,
-                    idPerfil: 2,
-                    ativo: true
-                }),
+            await usuarioService.criar({
+                nome: formData.nome,
+                email: formData.email,
+                senha: formData.senha,
+                idPerfil: 2,
             });
 
-            if (response.ok) {
-                showToast('success', 'Conta criada com sucesso!');
-                setTimeout(() => navigate('/login'), 1800);
-            } else {
-                const data = await response.json();
-                showToast('error', data.message || 'Erro ao criar conta');
-            }
-        } catch {
-            showToast('error', 'Erro de conexão com o servidor');
+            showToast('success', 'Cadastro realizado. Aguarde a aprovação do administrador para acessar o sistema.');
+            setTimeout(() => navigate('/login', { state: { cadastroPendente: true } }), 3000);
+        } catch (error) {
+            showToast('error', getHttpErrorMessage(error, 'Erro ao criar conta'));
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="h-screen bg-gray-50 flex overflow-hidden">
+        <div className="flex min-h-screen min-h-[100dvh] bg-gray-50 lg:h-screen lg:overflow-hidden">
 
             {/* SIDEBAR DE BRANDING - Desktop only */}
-            <div className="hidden lg:flex w-96 bg-slate-900 text-white flex-col h-screen relative">
+            <div className="relative hidden h-full w-96 flex-col bg-slate-900 text-white lg:flex">
                 <div className="p-8 border-b border-slate-800">
                     <Link to="/" className="brand text-4xl font-bold tracking-tight text-white no-underline">
                         AGERP
@@ -174,14 +164,14 @@ const Cadastro = () => {
             </div>
 
             {/* CONTEÚDO PRINCIPAL */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
 
                 {/* HEADER - SOMENTE TABLET E MOBILE */}
-                <header className="lg:hidden bg-slate-900 px-6 py-4 flex items-center justify-between">
+                <header className="flex items-center justify-between gap-3 bg-slate-900 px-3 py-4 sm:px-6 lg:hidden">
                     <div className="flex items-center gap-4">
                         <Link
                             to="/"
-                            className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg brand text-3xl font-bold tracking-tight text-white no-underline"
+                            className="brand text-2xl font-bold tracking-tight text-white no-underline transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg sm:text-3xl"
                         >
                             AGERP
                         </Link>
@@ -189,32 +179,32 @@ const Cadastro = () => {
 
                     <Link
                         to="/login"
-                        className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg px-6 py-2.5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium hover:bg-gray-300"
+                        className="min-h-11 rounded-2xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-center text-sm font-medium text-slate-900 transition-all duration-300 ease-in-out hover:scale-105 hover:bg-gray-300 hover:shadow-lg sm:px-6"
                     >
                         Já tem conta? Entrar
                     </Link>
                 </header>
 
                 {/* ÁREA DO FORMULÁRIO */}
-                <div className="flex-1 flex items-start justify-center lg:pt-96 md:pt-96 pt-4 p-6 md:p-10 overflow-auto bgp">
+                <div className="min-w-0 flex-1 flex items-start justify-center p-3 py-6 sm:p-6 lg:p-10 overflow-y-auto overflow-x-hidden bgp">
                     <div className="w-full max-w-md">
-                        <div className="md:pt-96 py-0">{""}</div>
-                        <div className="bg-white rounded-3xl shadow px-7 py-5 pb-2 md:p-10 border border-gray-100">
+                        <div className="bg-white rounded-3xl shadow px-4 py-6 sm:px-7 md:p-10 border border-gray-100">
 
                             {/* Cabeçalho do card */}
                             <div className="text-center mb-8">
                                 <div className="mx-auto w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mb-4">
                                     <span className="text-4xl">✍️</span>
                                 </div>
-                                <h2 className="text-3xl font-bold text-gray-900">Crie sua conta grátis</h2>
+                                <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">Crie sua conta grátis</h2>
                                 <p className="mt-2 text-gray-600">Comece a gerenciar seu negócio em minutos</p>
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 {/* Tipo de Pessoa */}
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Pessoa</label>
+                                    <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Pessoa</label>
                                     <select
+                                        id="tipo"
                                         name="tipo"
                                         value={formData.tipo}
                                         onChange={handleChange}
@@ -256,7 +246,7 @@ const Cadastro = () => {
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1.5">E-mail profissional</label>
                                         <input
@@ -294,7 +284,7 @@ const Cadastro = () => {
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1.5">Senha</label>
                                         <input
@@ -366,11 +356,11 @@ const Cadastro = () => {
             </div>
 
             {/* TOASTS */}
-            <div className="fixed bottom-6 right-6 space-y-2 z-[120]">
+            <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[120] space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map((toast) => (
                     <div
                         key={toast.id}
-                        className={`px-6 py-4 rounded-2xl shadow-xl text-white flex items-center gap-3 min-w-[280px] ${
+                        className={`flex min-w-0 items-center gap-3 rounded-2xl px-6 py-4 text-white shadow-xl ${
                             toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
                         }`}
                     >
