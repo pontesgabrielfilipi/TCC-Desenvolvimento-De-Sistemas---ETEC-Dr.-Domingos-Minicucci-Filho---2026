@@ -1,6 +1,10 @@
 package com.agerp.agerp;
 
 import com.agerp.agerp.service.RelatorioAdminService;
+import com.agerp.agerp.security.CustomUserDetails;
+import com.agerp.agerp.security.CustomUserDetailsService;
+import com.agerp.agerp.security.jwt.JwtTokenProvider;
+import jakarta.servlet.http.Cookie;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,15 +15,22 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -30,6 +41,102 @@ class RelatoriosIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired RelatorioAdminService service;
     @Autowired MockMvc mvc;
+    @Autowired CustomUserDetailsService usuarios;
+    @Autowired JwtTokenProvider tokens;
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void downloadHttpAssincronoEntregaPlanilhaCompletaParaAdmin() throws Exception {
+        try (var livro = baixarPlanilha("clientes_tipo", cookieDe("operador@local.test"), Map.of())) {
+            assertNotNull(livro.getSheet("Dados 1"));
+            assertNotNull(livro.getSheet("Totais"));
+            assertTrue(livro.getSheet("Dados 1").getPhysicalNumberOfRows() > 1);
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void todosOsRelatoriosDoCatalogoExportamComESemFiltrosPeloHttp() throws Exception {
+        Cookie cookie = cookieDe("operador@local.test");
+        int exportacoes = 0;
+        for (var relatorio : service.catalogo()) {
+            try (var livro = baixarPlanilha(relatorio.id(), cookie, Map.of())) {
+                assertEquals(relatorio.colunas().size(), livro.getSheet("Dados 1").getRow(0).getLastCellNum(), relatorio.id());
+            }
+            exportacoes++;
+            Map<String, String> filtros = new LinkedHashMap<>();
+            for (String filtro : relatorio.filtros()) {
+                filtros.put(filtro, switch (filtro) {
+                    case "inicio" -> "2026-01-01";
+                    case "fim" -> "2026-02-28";
+                    case "clienteId", "produtoId", "usuarioId" -> "1";
+                    case "status" -> "ENTREGUE";
+                    default -> throw new IllegalStateException("Filtro não testado: " + filtro);
+                });
+            }
+            if (!filtros.isEmpty()) {
+                try (var livro = baixarPlanilha(relatorio.id(), cookie, filtros)) {
+                    assertNotNull(livro.getSheet("Informações"), relatorio.id());
+                }
+                exportacoes++;
+            }
+        }
+        assertTrue(exportacoes >= service.catalogo().size());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void planilhaSemResultadosPossuiMensagemEContagemZero() throws Exception {
+        try (var livro = baixarPlanilha("clientes_cadastro", cookieDe("operador@local.test"),
+                Map.of("inicio", "2040-01-01", "fim", "2040-01-31"))) {
+            assertEquals(0, livro.getSheet("Informações").getRow(12).getCell(1).getNumericCellValue());
+            assertTrue(livro.getSheet("Dados 1").getRow(1).getCell(0).getStringCellValue()
+                    .contains("Nenhum registro"));
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void usuarioSemAdminNaoIniciaExportacaoNemComJwtValido() throws Exception {
+        jdbc.update("INSERT INTO agerp.perfil (id_perfil,nome,nivel_autoridade,protegido) VALUES (2,'OPERADOR',10,false)");
+        jdbc.update("INSERT INTO agerp.usuario (id_usuario,nome,email,senha_hash,ativo,id_perfil,status_acesso) "
+                + "VALUES (2,'Sem Admin','semadmin@local.test','hash',true,2,'APROVADO')");
+        Cookie cookie = cookieDe("semadmin@local.test");
+        mvc.perform(get("/api/admin/relatorios").cookie(cookie))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/relatorios/vendas_periodo/xlsx").cookie(cookie))
+                .andExpect(status().isForbidden());
+    }
+
+    private Cookie cookieDe(String email) {
+        CustomUserDetails detalhes = (CustomUserDetails) usuarios.loadUserByUsername(email);
+        var autenticacao = new UsernamePasswordAuthenticationToken(detalhes, null, detalhes.getAuthorities());
+        return new Cookie("jwtToken", tokens.generateToken(autenticacao));
+    }
+
+    private org.apache.poi.ss.usermodel.Workbook baixarPlanilha(String id, Cookie cookie, Map<String, String> filtros)
+            throws Exception {
+        MockHttpServletRequestBuilder requisicao = get("/api/admin/relatorios/" + id + "/xlsx").cookie(cookie);
+        filtros.forEach(requisicao::param);
+        MvcResult pendente = mvc.perform(requisicao)
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        MvcResult resposta = mvc.perform(asyncDispatch(pendente))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString(".xlsx")))
+                .andReturn();
+        byte[] bytes = resposta.getResponse().getContentAsByteArray();
+        assertTrue(bytes.length > 100, "Download truncado ou vazio: " + id);
+        assertEquals('P', bytes[0]);
+        assertEquals('K', bytes[1]);
+        var livro = WorkbookFactory.create(new ByteArrayInputStream(bytes));
+        assertNotNull(livro.getSheet("Informações"), id);
+        assertNotNull(livro.getSheet("Dados 1"), id);
+        assertNotNull(livro.getSheet("Totais"), id);
+        return livro;
+    }
 
     @BeforeEach
     void dadosDeTeste() {
@@ -114,6 +221,9 @@ class RelatoriosIntegrationTest {
         mvc.perform(get("/api/admin/relatorios/vendas_periodo/xlsx")
                         .with(user("admin").roles("ADMIN"))
                         .param("inicio", "2026-02-01").param("fim", "2026-01-01"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/admin/relatorios/relatorio_inexistente/xlsx")
+                        .with(user("admin").roles("ADMIN")))
                 .andExpect(status().isBadRequest());
     }
 }

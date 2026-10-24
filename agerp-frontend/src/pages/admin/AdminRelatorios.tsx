@@ -4,7 +4,7 @@ import { produtoService } from '../../services/produtoService';
 import { usuarioService } from '../../services/usuarioService';
 import { relatoriosService } from '../../services/relatoriosService';
 import type { FiltroRelatorio, FiltrosRelatorio, RelatorioDisponivel } from '../../services/relatoriosService';
-import { getHttpErrorMessage } from '../../utils/httpError';
+import { getHttpErrorMessage, getBlobHttpErrorMessage } from '../../utils/httpError';
 
 type Opcao = { id: number; nome: string };
 
@@ -26,6 +26,25 @@ function baixarArquivo(blob: Blob, nome: string) {
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+async function validarArquivoXlsx(blob: Blob): Promise<void> {
+    if (blob.size < 22) throw new Error('O servidor retornou um arquivo XLSX vazio ou incompleto.');
+    const inicio = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+    if (inicio[0] !== 0x50 || inicio[1] !== 0x4b || inicio[2] !== 0x03 || inicio[3] !== 0x04) {
+        throw new Error('O servidor não retornou uma planilha XLSX válida.');
+    }
+    // O registro final ZIP (EOCD) deve estar no fim do arquivo, incluindo um eventual comentario.
+    const trecho = new Uint8Array(await blob.slice(-65557).arrayBuffer());
+    let zipCompleto = false;
+    for (let i = trecho.length - 22; i >= 0; i--) {
+        if (trecho[i] === 0x50 && trecho[i + 1] === 0x4b && trecho[i + 2] === 0x05
+                && trecho[i + 3] === 0x06 && i + 22 + trecho[i + 20] + 256 * trecho[i + 21] === trecho.length) {
+            zipCompleto = true;
+            break;
+        }
+    }
+    if (!zipCompleto) throw new Error('O download foi interrompido antes da conclusão do XLSX. Tente novamente.');
 }
 
 export default function AdminRelatorios() {
@@ -119,12 +138,12 @@ export default function AdminRelatorios() {
         setBaixando(relatorio.id);
         try {
             const blob = await relatoriosService.exportar(relatorio.id, filtrarParametros(filtros, relatorio.filtros));
-            if (!blob.size) throw new Error('O servidor retornou um arquivo vazio.');
+            await validarArquivoXlsx(blob);
             // O nome é derivado do catálogo autorizado pelo servidor (sem entradas livres).
             baixarArquivo(blob, `agerp_${relatorio.id}_${new Date().toISOString().slice(0, 10)}.xlsx`);
             setSucesso('Arquivo XLSX gerado. Caso não existam registros, o arquivo indicará zero resultados.');
         } catch (error) {
-            setErroExportacao(getHttpErrorMessage(error, 'Falha ao gerar XLSX. Verifique a conexão e tente novamente.'));
+            setErroExportacao(await getBlobHttpErrorMessage(error, 'Falha ao gerar XLSX. Verifique a conexão e tente novamente.'));
         } finally {
             setBaixando(null);
         }
