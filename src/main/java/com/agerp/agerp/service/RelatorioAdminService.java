@@ -5,6 +5,8 @@ import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -19,6 +21,7 @@ import java.util.*;
 /** Consultas SQL somente de leitura, com filtros vinculados e exportacao incremental XLSX. */
 @Service
 public class RelatorioAdminService {
+    private static final Logger log = LoggerFactory.getLogger(RelatorioAdminService.class);
     public record Filtros(LocalDate inicio, LocalDate fim, Integer clienteId,
                           Integer produtoId, Integer usuarioId, String status) {
         public Filtros {
@@ -230,16 +233,19 @@ public class RelatorioAdminService {
     public record Consulta(String sql, List<Object> parametros) {}
 
     public Consulta consulta(Relatorio relatorio, Filtros filtros) {
-        var regra = estoqueBaixo.regraAtual();
-        String minimo = regra.usarGeral() ? Integer.toString(regra.limiteGeral())
-                : "COALESCE(e.quantidade_minima,"+EstoqueBaixoService.MINIMO_INDIVIDUAL_PADRAO+")";
+        String minimo = null;
+        if (usaRegraEstoque(relatorio)) {
+            var regra = estoqueBaixo.regraAtual();
+            minimo = regra.usarGeral() ? Integer.toString(regra.limiteGeral())
+                    : "COALESCE(e.quantidade_minima," + EstoqueBaixoService.MINIMO_INDIVIDUAL_PADRAO + ")";
+        }
         Escopo escopo = relatorio.escopo();
         StringBuilder sql = new StringBuilder("SELECT ").append(relatorio.select()).append(relatorio.from());
         List<Object> params = new ArrayList<>();
         adicionarCondicoes(sql, params, escopo, filtros);
         sql.append(relatorio.finalSql());
         // Campos de configuracao sao tipados (inteiro) e nunca chegam diretamente do request.
-        String finalSql = sql.toString().replace("{MINIMO}", minimo);
+        String finalSql = minimo == null ? sql.toString() : sql.toString().replace("{MINIMO}", minimo);
         if (finalSql.contains("{ITEM_FILTERS}")) {
             // A subconsulta deve receber os mesmos filtros de pedidos, na mesma ordem dos parametros.
             StringBuilder itens = new StringBuilder();
@@ -256,6 +262,11 @@ public class RelatorioAdminService {
                     .replace(VALOR_ITENS, "COALESCE(i.quantidade,0)*COALESCE(i.preco_unitario,0)");
         }
         return new Consulta(finalSql, List.copyOf(params));
+    }
+
+    private static boolean usaRegraEstoque(Relatorio relatorio) {
+        return relatorio.select().contains("{MINIMO}") || relatorio.from().contains("{MINIMO}")
+                || relatorio.finalSql().contains("{MINIMO}");
     }
 
     private static void adicionarCondicoes(StringBuilder sql, List<Object> valores, Escopo e, Filtros f) {
@@ -278,11 +289,12 @@ public class RelatorioAdminService {
             Sheet resumo = wb.createSheet("Informações");
             String[] etiquetas = {"Relatório", "Categoria", "Gerado em", "Data inicial", "Data final",
                     "Cliente ID", "Produto ID", "Usuário ID", "Status", "Regra de faturamento", "Regra do estoque"};
-            var regra = estoqueBaixo.regraAtual();
+            var regra = usaRegraEstoque(relatorio) ? estoqueBaixo.regraAtual() : null;
             Object[] conteudo = {relatorio.titulo(), relatorio.categoria(), LocalDateTime.now(),
                     filtros.inicio(), filtros.fim(), filtros.clienteId(), filtros.produtoId(),
                     filtros.usuarioId(), filtros.status(), "Soma de pedidos não CANCELADO; ticket médio entre pedidos não cancelados.",
-                    regra.usarGeral() ? "Mínimo geral: " + regra.limiteGeral()
+                    regra == null ? "Não se aplica a este relatório."
+                            : regra.usarGeral() ? "Mínimo geral: " + regra.limiteGeral()
                             : "Mínimo individual (sem valor: 10); estoque baixo quando atual < mínimo."};
             for (int x = 0; x < etiquetas.length; x++) {
                 Row row = resumo.createRow(x);
@@ -334,6 +346,9 @@ public class RelatorioAdminService {
             }
             total.setColumnWidth(0, 10000); total.setColumnWidth(1, 5500); total.createFreezePane(0,1);
             wb.write(destino);
+        } catch (IOException | RuntimeException erro) {
+            log.error("Erro ao gerar XLSX do relatorio {} com filtros {}", relatorio.id(), filtros, erro);
+            throw erro;
         } finally {
             wb.dispose();
             wb.close();
