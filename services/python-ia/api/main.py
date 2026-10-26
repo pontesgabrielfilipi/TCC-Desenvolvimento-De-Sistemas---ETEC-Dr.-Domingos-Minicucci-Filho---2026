@@ -2,6 +2,7 @@ import joblib
 import math
 import os    
 import unicodedata
+import ipaddress
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, status
@@ -15,11 +16,40 @@ from fastapi.responses import JSONResponse
 app = FastAPI(title="Delivery Time Prediction API", version='6.0')
 
 load_dotenv()
+
+
+def bounded_integer(name: str, default: str, minimum: int, maximum: int) -> int:
+    value = os.getenv(name, default)
+    try:
+        result = int(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} deve ser inteiro entre {minimum} e {maximum}") from exc
+    if not minimum <= result <= maximum:
+        raise ValueError(f"{name} deve estar entre {minimum} e {maximum}")
+    return result
+
+
+def strict_boolean(name: str, default: str) -> bool:
+    value = os.getenv(name, default).strip().lower()
+    if value not in {"true", "false"}:
+        raise ValueError(f"{name} deve ser true ou false")
+    return value == "true"
+
+
 HOST = os.getenv("APP_HOST", "0.0.0.0")
-PORT = int(os.getenv("APP_PORT", "8000"))
-WORKERS = int(os.getenv("APP_WORKERS", "1"))
-RELOAD = os.getenv("APP_RELOAD", "false").lower() == "true"
-MODEL_DIR = Path(os.getenv("MODEL_DIR", Path(__file__).resolve().parents[1] / "model"))
+try:
+    ipaddress.ip_address(HOST)
+except ValueError as exc:
+    raise ValueError("APP_HOST deve ser um endereco IP valido") from exc
+
+PORT = bounded_integer("APP_PORT", "8000", 1, 65535)
+WORKERS = bounded_integer("APP_WORKERS", "1", 1, 8)
+RELOAD = strict_boolean("APP_RELOAD", "false")
+if RELOAD and WORKERS > 1:
+    raise ValueError("APP_RELOAD=true requer APP_WORKERS=1")
+MODEL_DIR = Path(os.getenv("MODEL_DIR", str(Path(__file__).resolve().parents[1] / "model")))
+if not MODEL_DIR.is_absolute():
+    raise ValueError("MODEL_DIR deve ser um caminho absoluto")
 
 model = None
 encoders = None

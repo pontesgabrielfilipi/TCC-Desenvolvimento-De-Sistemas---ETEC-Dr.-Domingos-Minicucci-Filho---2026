@@ -28,6 +28,7 @@ class UsuarioServiceApprovalTest {
         PasswordEncoder encoder = mock(PasswordEncoder.class);
         logs = mock(LogSistemaService.class);
         service = new UsuarioService(usuarios, perfis, encoder, logs);
+        when(perfis.findAdminForUpdate()).thenReturn(Optional.of(perfil("ADMIN")));
         when(encoder.encode(anyString())).thenReturn("hash");
         when(usuarios.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -50,13 +51,13 @@ class UsuarioServiceApprovalTest {
     void administradorAprovaPendenteEAudita() {
         Usuario admin = usuario(1, "ADMIN", StatusAcesso.APROVADO);
         Usuario alvo = usuario(2, "OPERADOR", StatusAcesso.PENDENTE);
-        when(usuarios.findById(2)).thenReturn(Optional.of(alvo));
+        when(usuarios.findByIdForUpdate(2)).thenReturn(Optional.of(alvo));
 
         var response = service.alterarStatus(2, StatusAcesso.APROVADO, admin, "127.0.0.1");
 
         assertEquals("APROVADO", response.getStatusAcesso());
         assertTrue(response.getAtivo());
-        verify(logs).registrarLog(admin, "APROVACAO_USUARIO_2", "USUARIO", "127.0.0.1");
+        verify(logs).registrarEvento(eq(admin), eq("APROVACAO_USUARIO_2"), eq("USUARIO"), eq("2"), eq("SUCESSO"), isNull(), eq("127.0.0.1"), argThat(changes -> changes.containsKey("status") && changes.containsKey("ativo")));
     }
 
     @Test
@@ -71,7 +72,7 @@ class UsuarioServiceApprovalTest {
     void impedeBloqueioDoUltimoAdministrador() {
         Usuario adminExecutor = usuario(1, "ADMIN", StatusAcesso.APROVADO);
         Usuario ultimoAdmin = usuario(2, "ADMIN", StatusAcesso.APROVADO);
-        when(usuarios.findById(2)).thenReturn(Optional.of(ultimoAdmin));
+        when(usuarios.findByIdForUpdate(2)).thenReturn(Optional.of(ultimoAdmin));
         when(usuarios.countByStatusAcessoAndIdPerfilNome(StatusAcesso.APROVADO, "ADMIN")).thenReturn(1L);
 
         assertThrows(IllegalArgumentException.class,
@@ -83,7 +84,7 @@ class UsuarioServiceApprovalTest {
     void rejeitaTransicaoInvalida() {
         Usuario admin = usuario(1, "ADMIN", StatusAcesso.APROVADO);
         Usuario aprovado = usuario(2, "OPERADOR", StatusAcesso.APROVADO);
-        when(usuarios.findById(2)).thenReturn(Optional.of(aprovado));
+        when(usuarios.findByIdForUpdate(2)).thenReturn(Optional.of(aprovado));
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.alterarStatus(2, StatusAcesso.REJEITADO, admin, null));

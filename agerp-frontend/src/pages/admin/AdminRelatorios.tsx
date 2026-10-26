@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { clienteService } from '../../services/clienteService';
 import { produtoService } from '../../services/produtoService';
 import { usuarioService } from '../../services/usuarioService';
@@ -62,6 +62,9 @@ export default function AdminRelatorios() {
     const [produtos, setProdutos] = useState<Opcao[]>([]);
     const [usuarios, setUsuarios] = useState<Opcao[]>([]);
     const [erroOpcoes, setErroOpcoes] = useState('');
+    const exportacaoAtiva = useRef<AbortController | null>(null);
+
+    useEffect(() => () => { exportacaoAtiva.current?.abort(); }, []);
 
     useEffect(() => {
         let ativo = true;
@@ -136,17 +139,34 @@ export default function AdminRelatorios() {
         setErroExportacao('');
         setSucesso('');
         setBaixando(relatorio.id);
+        const controle = new AbortController();
+        exportacaoAtiva.current = controle;
         try {
-            const blob = await relatoriosService.exportar(relatorio.id, filtrarParametros(filtros, relatorio.filtros));
-            await validarArquivoXlsx(blob);
+            const { arquivo, exportId } = await relatoriosService.exportar(relatorio.id, filtrarParametros(filtros, relatorio.filtros), controle.signal);
+            if (controle.signal.aborted) return;
+            await validarArquivoXlsx(arquivo);
+            if (controle.signal.aborted) return;
             // O nome é derivado do catálogo autorizado pelo servidor (sem entradas livres).
-            baixarArquivo(blob, `agerp_${relatorio.id}_${new Date().toISOString().slice(0, 10)}.xlsx`);
-            setSucesso('Arquivo XLSX gerado. Caso não existam registros, o arquivo indicará zero resultados.');
+            baixarArquivo(arquivo, `agerp_${relatorio.id}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            setSucesso(`Arquivo XLSX recebido pelo navegador e download solicitado. O salvamento depende do navegador.${exportId ? ` Exportação: ${exportId}` : ''}`);
         } catch (error) {
-            setErroExportacao(await getBlobHttpErrorMessage(error, 'Falha ao gerar XLSX. Verifique a conexão e tente novamente.'));
+            if (!controle.signal.aborted) {
+                setErroExportacao(await getBlobHttpErrorMessage(error, 'Falha ao gerar XLSX. Verifique a conexão e tente novamente.'));
+            }
         } finally {
-            setBaixando(null);
+            if (exportacaoAtiva.current === controle) {
+                exportacaoAtiva.current = null;
+                setBaixando(null);
+            }
         }
+    }
+
+    function cancelarExportacao() {
+        exportacaoAtiva.current?.abort();
+        exportacaoAtiva.current = null;
+        setBaixando(null);
+        setSucesso('');
+        setErroExportacao('Download cancelado neste navegador. A geração já iniciada no servidor pode concluir antes de detectar a desconexão.');
     }
 
     function atualizarFiltro(campo: keyof FiltrosRelatorio, valor: string) {
@@ -214,6 +234,10 @@ export default function AdminRelatorios() {
                                 className="mt-5 w-full rounded-xl bg-indigo-700 px-5 py-3 font-semibold text-white hover:bg-indigo-800 disabled:cursor-wait disabled:opacity-60">
                                 {baixando ? 'Gerando planilha XLSX...' : 'Exportar XLSX'}
                             </button>
+                            {baixando && <button type="button" onClick={cancelarExportacao}
+                                className="mt-2 w-full rounded-xl border border-red-300 bg-white px-5 py-2.5 font-semibold text-red-700 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700">
+                                Cancelar download
+                            </button>}
                             <p className="mt-3 text-xs leading-relaxed text-slate-500">Arquivos muito grandes podem demorar; mantenha a página aberta até o download. O arquivo inclui uma aba com os filtros e, quando aplicável, uma aba de totais.</p>
                         </>}
                     </div>

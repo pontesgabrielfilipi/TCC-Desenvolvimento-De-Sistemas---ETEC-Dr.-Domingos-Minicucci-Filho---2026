@@ -3,11 +3,22 @@ import { expect, test } from '@playwright/test';
 test('login usa /api na mesma origem e conserva cookie HttpOnly', async ({ page }) => {
   let loginOrigin = '';
   let cookieRecebidoNoMe = false;
+  let csrfObtido = false;
   await page.route('**/api/**', async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (!path.startsWith('/api/')) return route.continue();
-    if (path === '/api/auth/login') {
+    if (path === '/api/auth/csrf') {
+      csrfObtido = true;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'set-cookie': 'XSRF-TOKEN=token-csrf-de-teste; SameSite=Strict; Path=/' },
+        body: JSON.stringify({ token: 'token-csrf-de-teste' }),
+      });
+    } else if (path === '/api/auth/login') {
+      expect(csrfObtido).toBe(true);
+      expect(request.headers()['x-xsrf-token']).toBe('token-csrf-de-teste');
       loginOrigin = new URL(request.url()).origin;
       expect(request.method()).toBe('POST');
       expect(request.postDataJSON()).toEqual({ email: 'teste@agerp.local', senha: 'teste-seguro' });
@@ -48,6 +59,7 @@ test('login usa /api na mesma origem e conserva cookie HttpOnly', async ({ page 
   await expect(page).toHaveURL(/\/dashboard$/);
   expect(loginOrigin).toBe(new URL(page.url()).origin);
   expect(cookieRecebidoNoMe).toBe(true);
+  expect(csrfObtido).toBe(true);
   const cookie = (await page.context().cookies()).find(item => item.name === 'jwtToken');
   expect(cookie?.httpOnly).toBe(true);
   expect(cookie?.sameSite).toBe('Strict');
@@ -58,7 +70,12 @@ test('credenciais invalidas permanecem na origem da pagina', async ({ page }) =>
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
     if (!url.pathname.startsWith('/api/')) return route.continue();
-    if (url.pathname === '/api/auth/login') {
+    if (url.pathname === '/api/auth/csrf') {
+      await route.fulfill({ status: 200, contentType: 'application/json',
+        headers: { 'set-cookie': 'XSRF-TOKEN=token-csrf-de-teste; SameSite=Strict; Path=/' },
+        body: JSON.stringify({ token: 'token-csrf-de-teste' }) });
+    } else if (url.pathname === '/api/auth/login') {
+      expect(route.request().headers()['x-xsrf-token']).toBe('token-csrf-de-teste');
       loginOrigin = url.origin;
       await route.fulfill({ status: 401, contentType: 'application/json', body: '{"message":"Email ou senha inválidos"}' });
     } else {

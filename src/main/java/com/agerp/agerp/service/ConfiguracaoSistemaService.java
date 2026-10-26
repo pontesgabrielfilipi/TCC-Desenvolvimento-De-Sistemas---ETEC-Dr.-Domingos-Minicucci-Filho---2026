@@ -75,6 +75,12 @@ public class ConfiguracaoSistemaService {
         if (!request.timeoutIaMs().equals(config.getTimeoutIaMs())) campos.add("timeoutIaMs");
         if (campos.isEmpty()) return resposta(config);
 
+        var diferencas = AuditoriaNegocioService.mudancas(
+                "limiteEstoqueBaixo", config.getLimiteEstoqueBaixo(), request.limiteEstoqueBaixo(),
+                "usarEstoqueMinimoGeral", config.getUsarEstoqueMinimoGeral(), request.usarEstoqueMinimoGeral(),
+                "exibirAlertasEstoque", config.getExibirAlertasEstoque(), request.exibirAlertasEstoque(),
+                "timeoutIaMs", config.getTimeoutIaMs(), request.timeoutIaMs());
+
         config.setNomeEmpresa(nome);
         config.setLimiteEstoqueBaixo(request.limiteEstoqueBaixo());
         config.setUsarEstoqueMinimoGeral(request.usarEstoqueMinimoGeral());
@@ -82,8 +88,8 @@ public class ConfiguracaoSistemaService {
         config.setTimeoutIaMs(request.timeoutIaMs());
         config.setAtualizadoEm(Instant.now());
         repository.saveAndFlush(config);
-        logSistemaService.registrarLog(administrador, "ALTERACAO_CONFIGURACOES", "CONFIGURACAO",
-                "1", "SUCESSO", "Campos alterados: " + String.join(", ", campos), ip);
+        logSistemaService.registrarEvento(administrador, "ALTERACAO_CONFIGURACOES", "CONFIGURACAO",
+                "1", "SUCESSO", null, ip, diferencas);
 
         // Evict only after commit: no other request may repopulate caches with uncommitted settings.
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

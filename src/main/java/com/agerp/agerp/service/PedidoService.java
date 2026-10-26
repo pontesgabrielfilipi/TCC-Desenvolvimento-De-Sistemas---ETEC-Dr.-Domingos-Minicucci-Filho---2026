@@ -29,6 +29,7 @@ public class PedidoService {
     private final MovimentacaoEstoqueRepository movimentacaoEstoqueRepository;
     private final UsuarioRepository usuarioRepository;
     private final EnderecoRepository enderecoRepository;
+    private final AuditoriaNegocioService auditoriaNegocioService;
 
     public PedidoService(PedidoRepository pedidoRepository,
                          ItemPedidoRepository itemPedidoRepository,
@@ -37,7 +38,8 @@ public class PedidoService {
                          EstoqueRepository estoqueRepository,
                          MovimentacaoEstoqueRepository movimentacaoEstoqueRepository,
                          UsuarioRepository usuarioRepository,
-                         EnderecoRepository enderecoRepository) {
+                         EnderecoRepository enderecoRepository,
+                         AuditoriaNegocioService auditoriaNegocioService) {
         super();
         this.pedidoRepository = pedidoRepository;
         this.itemPedidoRepository = itemPedidoRepository;
@@ -47,6 +49,7 @@ public class PedidoService {
         this.movimentacaoEstoqueRepository = movimentacaoEstoqueRepository;
         this.usuarioRepository = usuarioRepository;
         this.enderecoRepository = enderecoRepository;
+        this.auditoriaNegocioService = auditoriaNegocioService;
     }
 
     // ====================== TRANSIÇÕES DE STATUS VÁLIDAS ======================
@@ -233,6 +236,12 @@ public class PedidoService {
             pedido.getItens().add(item);
         }
 
+        auditoriaNegocioService.registrar("CRIACAO_PEDIDO", "PEDIDO", pedido.getId(),
+                AuditoriaNegocioService.mudancas("status", null, pedido.getStatus(),
+                        "valor", null, pedido.getValorTotal(), "clienteId", null, cliente.getId()));
+        for (ItemPedido item : pedido.getItens()) {
+            auditarItem(pedido, item.getIdProduto().getId(), null, item.getQuantidade());
+        }
         return toResponse(pedido);
     }
 
@@ -250,13 +259,19 @@ public class PedidoService {
     })
     @Transactional
     public PedidoResponse atualizar(Integer id, PedidoUpdateRequest request) {
-        Pedido pedido = pedidoRepository.findById(id)
+        Pedido pedido = pedidoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado com ID: " + id));
 
-        // Apenas pedidos PENDENTES podem ser editados
+        // Validate the state before accessing potentially optional associations.
         if (!"PENDENTE".equals(pedido.getStatus())) {
             throw new IllegalArgumentException("Apenas pedidos PENDENTES podem ser editados. Status atual: " + pedido.getStatus());
         }
+
+        Integer clienteAnterior = pedido.getIdCliente().getId();
+        Integer enderecoAnterior = pedido.getIdEndereco() == null ? null : pedido.getIdEndereco().getId();
+        BigDecimal valorAnterior = pedido.getValorTotal();
+        Map<Integer, Integer> quantidadesAnteriores = pedido.getItens().stream()
+                .collect(Collectors.toMap(item -> item.getIdProduto().getId(), ItemPedido::getQuantidade));
 
         // Validar cliente
         Cliente cliente = clienteRepository.findById(request.getIdCliente())
@@ -336,6 +351,19 @@ public class PedidoService {
         }
 
         pedido = pedidoRepository.save(pedido);
+        auditoriaNegocioService.registrar("EDICAO_PEDIDO", "PEDIDO", pedido.getId(),
+                AuditoriaNegocioService.mudancas("valor", valorAnterior, pedido.getValorTotal(),
+                        "clienteId", clienteAnterior, cliente.getId(),
+                        "enderecoId", enderecoAnterior, enderecoEntrega == null ? null : enderecoEntrega.getId()));
+        Map<Integer, Integer> quantidadesNovas = pedido.getItens().stream()
+                .collect(Collectors.toMap(item -> item.getIdProduto().getId(), ItemPedido::getQuantidade));
+        Set<Integer> ids = new TreeSet<>(quantidadesAnteriores.keySet());
+        ids.addAll(quantidadesNovas.keySet());
+        for (Integer produtoId : ids) {
+            if (!Objects.equals(quantidadesAnteriores.get(produtoId), quantidadesNovas.get(produtoId))) {
+                auditarItem(pedido, produtoId, quantidadesAnteriores.get(produtoId), quantidadesNovas.get(produtoId));
+            }
+        }
         return toResponse(pedido);
     }
 
@@ -357,7 +385,7 @@ public class PedidoService {
     @Transactional
     public PedidoResponse mudarStatus(Integer id, String novoStatus) {
         novoStatus = normalizarStatus(novoStatus);
-        Pedido pedido = pedidoRepository.findById(id)
+        Pedido pedido = pedidoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado com ID: " + id));
 
         String statusAtual = pedido.getStatus();
@@ -397,16 +425,17 @@ public class PedidoService {
         // Atualizar status
         pedido.setStatus(novoStatus);
         pedido = pedidoRepository.save(pedido);
-
+        auditoriaNegocioService.registrar("ALTERACAO_STATUS_PEDIDO", "PEDIDO", pedido.getId(),
+                AuditoriaNegocioService.mudancas("status", statusAtual, novoStatus));
         return toResponse(pedido);
     }
 
     private void executarBaixaEstoque(Pedido pedido) {
         Usuario usuario = obterUsuarioAtual();
 
-        for (ItemPedido item : pedido.getItens()) {
+        for (ItemPedido item : itensOrdenados(pedido)) {
             Produto produto = item.getIdProduto();
-            Estoque estoque = estoqueRepository.findByIdProduto_Id(produto.getId())
+            Estoque estoque = estoqueRepository.findByProdutoIdForUpdate(produto.getId())
                     .orElseThrow(() -> new IllegalArgumentException("Estoque não encontrado para produto ID: " + produto.getId()));
 
             int qtdAtual = estoque.getQuantidadeAtual() != null ? estoque.getQuantidadeAtual() : 0;
@@ -427,15 +456,16 @@ public class PedidoService {
             mov.setDataMovimentacao(Instant.now());
             mov.setIdUsuario(usuario);
             movimentacaoEstoqueRepository.save(mov);
+            auditarEstoque("BAIXA_ESTOQUE_PEDIDO", pedido, produto, qtdAtual, estoque.getQuantidadeAtual(), item.getQuantidade());
         }
     }
 
     private void executarEstornoEstoque(Pedido pedido) {
         Usuario usuario = obterUsuarioAtual();
 
-        for (ItemPedido item : pedido.getItens()) {
+        for (ItemPedido item : itensOrdenados(pedido)) {
             Produto produto = item.getIdProduto();
-            Estoque estoque = estoqueRepository.findByIdProduto_Id(produto.getId())
+            Estoque estoque = estoqueRepository.findByProdutoIdForUpdate(produto.getId())
                     .orElseThrow(() -> new IllegalArgumentException("Estoque não encontrado para produto ID: " + produto.getId()));
 
             int qtdAtual = estoque.getQuantidadeAtual() != null ? estoque.getQuantidadeAtual() : 0;
@@ -449,7 +479,26 @@ public class PedidoService {
             mov.setDataMovimentacao(Instant.now());
             mov.setIdUsuario(usuario);
             movimentacaoEstoqueRepository.save(mov);
+            auditarEstoque("ESTORNO_ESTOQUE_PEDIDO", pedido, produto, qtdAtual, estoque.getQuantidadeAtual(), item.getQuantidade());
         }
+    }
+
+    private List<ItemPedido> itensOrdenados(Pedido pedido) {
+        return pedido.getItens().stream()
+                .sorted(Comparator.comparing(item -> item.getIdProduto().getId()))
+                .toList();
+    }
+
+    private void auditarItem(Pedido pedido, Integer produtoId, Integer anterior, Integer novo) {
+        auditoriaNegocioService.registrar("ALTERACAO_ITEM_PEDIDO", "ITEM_PEDIDO", pedido.getId(),
+                AuditoriaNegocioService.mudancas("produtoId", null, produtoId,
+                        "quantidade", anterior, novo));
+    }
+
+    private void auditarEstoque(String acao, Pedido pedido, Produto produto, int antes, int depois, int quantidade) {
+        auditoriaNegocioService.registrar(acao, "ESTOQUE", produto.getId(),
+                AuditoriaNegocioService.mudancas("pedidoId", null, pedido.getId(),
+                        "quantidadeAtual", antes, depois, "quantidade", null, quantidade));
     }
 
     // ====================== CANCELAR ======================

@@ -34,7 +34,7 @@ FROM nginx:alpine AS production
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copia configuração customizada do Nginx (SPA routing)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 
 # Expor porta padrão do Nginx
 EXPOSE 80

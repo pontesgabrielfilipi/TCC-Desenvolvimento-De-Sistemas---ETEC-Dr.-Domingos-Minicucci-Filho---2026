@@ -1,0 +1,35 @@
+# Harness independente. NUNCA acrescentar container_name nem volumes do Compose principal.
+services:
+  postgres-probe:
+    image: postgres:16
+    restart: "no"
+    environment:
+      POSTGRES_USER: probe
+      POSTGRES_PASSWORD: ${ISOLATION_DB_PASSWORD:?}
+      POSTGRES_DB: probe
+    ports:
+      - "127.0.0.1:${ISOLATION_PORT:?}:5432"
+    volumes:
+      - probe-data:/var/lib/postgresql/data
+    labels:
+      org.agerp.isolation.run: ${ISOLATION_RUN_ID:?}
+      org.agerp.isolation.role: smoke
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U probe -d probe"]
+      interval: 2s
+      timeout: 3s
+      retries: 25
+    networks:
+      - probe-network
+
+volumes:
+  probe-data:
+    labels:
+      org.agerp.isolation.run: ${ISOLATION_RUN_ID:?}
+      org.agerp.isolation.role: smoke
+
+networks:
+  probe-network:
+    labels:
+      org.agerp.isolation.run: ${ISOLATION_RUN_ID:?}
+      org.agerp.isolation.role: smoke

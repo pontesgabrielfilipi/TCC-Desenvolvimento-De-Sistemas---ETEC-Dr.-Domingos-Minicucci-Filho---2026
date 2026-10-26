@@ -62,6 +62,29 @@ const Admin = () => {
     const [totalLogs, setTotalLogs] = useState(0);
     const [sortLogs, setSortLogs] = useState<{ key: 'dataHora' | 'acao' | 'entidade'; direction: 'asc' | 'desc' }>({ key: 'dataHora', direction: 'desc' });
     const [logDetalhado, setLogDetalhado] = useState<LogSistema | null>(null);
+    const [filtrosAvancados, setFiltrosAvancados] = useState({ email: '', acao: '', resultado: '', entidade: '', recursoId: '', sessionRef: '', requestId: '', ip: '' });
+    const [filtrosAplicados, setFiltrosAplicados] = useState(filtrosAvancados);
+    const fecharLogRef = useRef<HTMLButtonElement>(null);
+    const focoAnteriorLogRef = useRef<HTMLElement | null>(null);
+
+    useEffect(() => {
+        if (!logDetalhado) return;
+        focoAnteriorLogRef.current = document.activeElement as HTMLElement;
+        fecharLogRef.current?.focus();
+        const aoTeclar = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setLogDetalhado(null);
+            if (event.key === 'Tab') {
+                const container = fecharLogRef.current?.closest('[role="dialog"]');
+                const botoes = Array.from(container?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
+                if (!botoes.length) return;
+                const primeiro = botoes[0]; const ultimo = botoes[botoes.length - 1];
+                if (event.shiftKey && document.activeElement === primeiro) { event.preventDefault(); ultimo.focus(); }
+                else if (!event.shiftKey && document.activeElement === ultimo) { event.preventDefault(); primeiro.focus(); }
+            }
+        };
+        document.addEventListener('keydown', aoTeclar);
+        return () => { document.removeEventListener('keydown', aoTeclar); focoAnteriorLogRef.current?.focus(); };
+    }, [logDetalhado]);
     const [estatisticas, setEstatisticas] = useState<AdminEstatisticas | null>(null);
     const [estatisticasCarregando, setEstatisticasCarregando] = useState(false);
     const [estatisticasErro, setEstatisticasErro] = useState('');
@@ -128,6 +151,7 @@ const Admin = () => {
                 dataFim: dataFimLog || undefined,
                 sortBy: sortLogs.key,
                 direction: sortLogs.direction,
+                ...Object.fromEntries(Object.entries(filtrosAplicados).filter(([, value]) => value.trim())),
             });
             const pagina = res.data;
             setLogs(pagina.content ?? []);
@@ -141,7 +165,7 @@ const Admin = () => {
         } finally {
             setLogsCarregando(false);
         }
-    }, [buscaLogsAplicada, camposFiltroLog, dataFimLog, dataInicioLog, paginaLogs, showToast, sortLogs]);
+    }, [buscaLogsAplicada, camposFiltroLog, dataFimLog, dataInicioLog, paginaLogs, showToast, sortLogs, filtrosAplicados]);
 
     const ordenarLogs = (key: typeof sortLogs.key) => {
         setPaginaLogs(0);
@@ -331,6 +355,7 @@ const Admin = () => {
         }
         setPaginaLogs(0);
         setBuscaLogsAplicada(buscaLogs);
+        setFiltrosAplicados({ ...filtrosAvancados });
     };
 
     const limparFiltrosLogs = () => {
@@ -338,6 +363,8 @@ const Admin = () => {
         setBuscaLogsAplicada('');
         setDataInicioLog('');
         setDataFimLog('');
+        setFiltrosAvancados({ email: '', acao: '', resultado: '', entidade: '', recursoId: '', sessionRef: '', requestId: '', ip: '' });
+        setFiltrosAplicados({ email: '', acao: '', resultado: '', entidade: '', recursoId: '', sessionRef: '', requestId: '', ip: '' });
         setCamposFiltroLog({ email: true, perfil: true, acao: true, entidade: true, ip: false });
         setPaginaLogs(0);
     };
@@ -390,11 +417,12 @@ const Admin = () => {
 
                 <div className="min-w-0 p-3 sm:p-6 xl:p-8 flex-1 overflow-y-auto overflow-x-hidden">
                     {/* Tabs */}
-                    <div className="flex border-b mb-6 overflow-x-auto max-w-full" role="tablist" aria-label="Seções administrativas">
+                    <div className="flex border-b mb-6 overflow-x-auto max-w-full" role="group" aria-label="Seções administrativas">
                         {abas.map(aba => (
                             <button
                                 key={aba.id}
                                 onClick={() => setAbaAtiva(aba.id)}
+                                aria-pressed={abaAtiva === aba.id}
                                 className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 font-medium transition sm:px-8 sm:py-4 ${
                                     abaAtiva === aba.id
                                         ? 'border-indigo-600 text-indigo-600'
@@ -495,13 +523,17 @@ const Admin = () => {
                         <div>
                             <div className="mb-6">
                                 <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Auditoria do Sistema</h2><button onClick={() => void carregarLogs(true)} disabled={logsCarregando} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium disabled:opacity-50">{logsCarregando ? 'Atualizando...' : '↻ Atualizar'}</button></div>
-                                <p className="text-sm text-gray-500 mt-1">{totalLogs} evento{totalLogs === 1 ? '' : 's'} encontrado{totalLogs === 1 ? '' : 's'}</p>
+                                <p className="text-sm text-gray-700 mt-1">{totalLogs} evento{totalLogs === 1 ? '' : 's'} encontrado{totalLogs === 1 ? '' : 's'}</p>
                             </div>
                             <form onSubmit={pesquisarLogs} className="mb-5 rounded-3xl bg-white p-4 shadow-sm sm:p-5" aria-label="Filtros de auditoria">
+                                <p className="mb-3 text-xs text-gray-600">Filtros combinados por E; busca textual em qualquer campo selecionado. Horários exibidos em America/Sao_Paulo (UTC−03:00).</p>
                                 <div className="flex flex-col lg:flex-row gap-3">
                                     <label className="flex-1"><span className="sr-only">Termo de pesquisa</span><input value={buscaLogs} onChange={event => setBuscaLogs(event.target.value)} placeholder="Pesquisar nos campos selecionados" className="w-full rounded-xl border border-gray-300 px-4 py-3" /></label>
                                     <label className="text-sm text-gray-700"><span className="block mb-1">Data inicial</span><input type="date" value={dataInicioLog} max={dataFimLog || undefined} onChange={event => { setDataInicioLog(event.target.value); setPaginaLogs(0); }} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 py-2" /></label>
                                     <label className="text-sm text-gray-700"><span className="block mb-1">Data final</span><input type="date" value={dataFimLog} min={dataInicioLog || undefined} onChange={event => { setDataFimLog(event.target.value); setPaginaLogs(0); }} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 py-2" /></label>
+                                </div>
+                                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                    {([['email', 'E-mail do ator'], ['acao', 'Ação exata'], ['resultado', 'Resultado'], ['entidade', 'Entidade'], ['recursoId', 'ID do recurso'], ['sessionRef', 'Sessão (referência)'], ['requestId', 'Request UUID'], ['ip', 'IP exato']] as const).map(([campo, rotulo]) => <label key={campo} className="min-w-0 text-sm text-gray-700"><span className="mb-1 block">{rotulo}</span><input className="min-h-11 w-full min-w-0 rounded-xl border border-gray-300 px-3 py-2" value={filtrosAvancados[campo]} onChange={event => setFiltrosAvancados(atual => ({ ...atual, [campo]: event.target.value }))} /></label>)}
                                 </div>
                                 <fieldset className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
                                     <legend className="sr-only">Campos pesquisados</legend>
@@ -520,8 +552,8 @@ const Admin = () => {
                                 </div>
                                 <div className="grid gap-3 p-3 md:hidden" aria-label="Eventos de auditoria">
                                     {logsCarregando ? <p className="py-10 text-center text-gray-500">Carregando eventos de auditoria...</p> : logsErro ? <div className="py-8 text-center"><p className="text-red-700">{logsErro}</p><button onClick={() => void carregarLogs()} className="mt-3 min-h-11 rounded-xl px-4 font-medium text-indigo-700">Tentar novamente</button></div> : logs.length === 0 ? <p className="py-10 text-center text-gray-500">Nenhum evento encontrado para os filtros informados.</p> : logs.map(log => <article key={log.id} className="agerp-mobile-card rounded-2xl border border-gray-100 p-4">
-                                        <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-semibold text-gray-900">{log.acao}</h3><p className="mt-1 text-xs text-gray-500">{new Date(log.dataHora).toLocaleString('pt-BR')}</p></div><button onClick={() => setLogDetalhado(log)} className="min-h-11 shrink-0 rounded-xl bg-indigo-50 px-3 text-sm font-medium text-indigo-700">Ver detalhes</button></div>
-                                        <dl className="mt-3 grid gap-2 text-sm"><div><dt className="text-xs uppercase text-gray-500">Usuário</dt><dd className="break-words">{valorLog(log, 'nomeUsuario', 'usuarioNome')}</dd></div><div><dt className="text-xs uppercase text-gray-500">E-mail</dt><dd className="break-all">{valorLog(log, 'emailUsuario', 'usuarioEmail')}</dd></div><div className="grid grid-cols-2 gap-2"><div><dt className="text-xs uppercase text-gray-500">Cargo/Perfil</dt><dd className="break-words">{valorLog(log, 'perfilUsuario', 'usuarioPerfil')}</dd></div><div><dt className="text-xs uppercase text-gray-500">Entidade</dt><dd className="break-words">{log.entidade}</dd></div></div><div><dt className="text-xs uppercase text-gray-500">IP</dt><dd className="break-all font-mono">{log.ip || '—'}</dd></div></dl>
+                                        <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h3 className="break-words font-semibold text-gray-900">{log.acao}</h3><p className="mt-1 text-xs text-gray-500">{new Date(log.dataHora).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (SP)</p></div><button onClick={() => setLogDetalhado(log)} className="min-h-11 shrink-0 rounded-xl bg-indigo-50 px-3 text-sm font-medium text-indigo-700">Ver detalhes</button></div>
+                                        <dl className="mt-3 grid grid-cols-2 gap-2 text-sm"><div className="col-span-2"><dt className="text-xs uppercase text-gray-500">Usuário</dt><dd className="break-words">{valorLog(log, 'nomeUsuario', 'usuarioNome')}</dd></div><div className="col-span-2"><dt className="text-xs uppercase text-gray-500">E-mail</dt><dd className="break-all">{valorLog(log, 'emailUsuario', 'usuarioEmail')}</dd></div><div className="min-w-0"><dt className="text-xs uppercase text-gray-500">Cargo/Perfil</dt><dd className="break-words">{valorLog(log, 'perfilUsuario', 'usuarioPerfil')}</dd></div><div className="min-w-0"><dt className="text-xs uppercase text-gray-500">Entidade</dt><dd className="break-words">{log.entidade}</dd></div><div className="col-span-2"><dt className="text-xs uppercase text-gray-500">IP</dt><dd className="break-all font-mono">{log.ip || '—'}</dd></div></dl>
                                     </article>)}
                                 </div>
                                 <div className="hidden overflow-x-auto md:block" role="region" aria-label="Tabela de auditoria" tabIndex={0}>
@@ -547,7 +579,7 @@ const Admin = () => {
                                         <tr><td colSpan={8} className="px-6 py-16 text-center text-gray-500">Nenhum evento encontrado para os filtros informados.</td></tr>
                                     ) : logs.map((log) => (
                                         <tr key={log.id} className="hover:bg-gray-50 align-top">
-                                            <td className="px-6 py-4 whitespace-nowrap">{new Date(log.dataHora).toLocaleString('pt-BR')}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap">{new Date(log.dataHora).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (SP)</td>
                                             <td className="px-6 py-4">{log.acao}</td>
                                             <td className="px-6 py-4">{valorLog(log, 'nomeUsuario', 'usuarioNome')}</td>
                                             <td className="px-6 py-4">{valorLog(log, 'emailUsuario', 'usuarioEmail')}</td>
@@ -622,10 +654,10 @@ const Admin = () => {
 
             {logDetalhado && (
                 <div className="agerp-modal-overlay fixed inset-0 z-[140] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="detalhes-log-titulo" onMouseDown={event => { if (event.target === event.currentTarget) setLogDetalhado(null); }}>
-                    <div className="agerp-modal-panel w-full max-w-2xl rounded-3xl bg-white p-5 sm:p-8">
+                    <div className="agerp-modal-panel max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 sm:p-8">
                         <div className="flex items-start justify-between gap-4">
                             <div><h2 id="detalhes-log-titulo" className="text-2xl font-semibold">Detalhes do evento</h2><p className="text-sm text-gray-500 mt-1">Registro de auditoria #{logDetalhado.id}</p></div>
-                            <button onClick={() => setLogDetalhado(null)} className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-2xl text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="Fechar detalhes">×</button>
+                            <button ref={fecharLogRef} onClick={() => setLogDetalhado(null)} className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-2xl text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="Fechar detalhes">×</button>
                         </div>
                         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 text-sm">
                             <div><dt className="text-gray-500">Data/Hora</dt><dd className="font-medium mt-1">{new Date(logDetalhado.dataHora).toLocaleString('pt-BR')}</dd></div>
@@ -639,6 +671,21 @@ const Admin = () => {
                             <div className="sm:col-span-2"><dt className="text-gray-500">IP</dt><dd className="font-mono mt-1">{logDetalhado.ip || '—'}</dd></div>
                             {logDetalhado.detalhes && <div className="sm:col-span-2"><dt className="text-gray-500">Informações adicionais</dt><dd className="mt-2 whitespace-pre-wrap break-words rounded-2xl bg-gray-50 border border-gray-200 p-4">{logDetalhado.detalhes}</dd></div>}
                         </dl>
+                        <div className="mt-4 space-y-2 rounded-xl bg-slate-50 p-3 text-sm break-all">
+                            <p>Origem: {logDetalhado.origemConfianca ?? 'DESCONHECIDA'} — IP e User-Agent não identificam uma pessoa ou dispositivo físico.</p>
+                            <p>Identidade histórica: {logDetalhado.identidadeHistoricaConfirmada ? 'Snapshot registrado' : 'Desconhecida ou incompleta (legado)'}</p>
+                            <p>Sessão: {logDetalhado.sessionRef ?? 'Desconhecida'} | Dispositivo lógico: {logDetalhado.deviceRef ?? 'Desconhecido'}</p>
+                            <p>Request: {logDetalhado.requestId ?? 'Desconhecido'} | Correlação: {logDetalhado.correlationId ?? 'Desconhecida'}</p>
+                            <p>HTTP: {logDetalhado.httpMethod ?? '?'} {logDetalhado.httpRoute ?? '?'} — {logDetalhado.httpStatus ?? '?'}</p>
+                            <p>IP peer: {logDetalhado.peerIp ?? 'Desconhecido'} | User-Agent: {logDetalhado.userAgent ?? 'Desconhecido'}</p>
+                            <p>Diferenças (somente campos permitidos; dados omitidos/mascarados não são recuperáveis):</p>
+                            <pre className="overflow-x-auto whitespace-pre-wrap break-words">{logDetalhado.changesJson ? JSON.stringify(logDetalhado.changesJson, null, 2) : 'Não registradas / histórico desconhecido'}</pre>
+                            <div className="flex flex-wrap gap-2">
+                                {logDetalhado.entidade && logDetalhado.recursoId && <button className="rounded border px-3 py-2" onClick={() => { setFiltrosAvancados(atual => ({ ...atual, entidade: logDetalhado.entidade, recursoId: String(logDetalhado.recursoId) })); setFiltrosAplicados(atual => ({ ...atual, entidade: logDetalhado.entidade, recursoId: String(logDetalhado.recursoId) })); setPaginaLogs(0); setLogDetalhado(null); }}>Histórico do recurso</button>}
+                                {logDetalhado.sessionRef && <button className="rounded border px-3 py-2" onClick={() => { setFiltrosAvancados(atual => ({ ...atual, sessionRef: logDetalhado.sessionRef! })); setFiltrosAplicados(atual => ({ ...atual, sessionRef: logDetalhado.sessionRef! })); setPaginaLogs(0); setLogDetalhado(null); }}>Linha do tempo da sessão</button>}
+                                {logDetalhado.requestId && <button className="rounded border px-3 py-2" onClick={() => { setFiltrosAvancados(atual => ({ ...atual, requestId: logDetalhado.requestId! })); setFiltrosAplicados(atual => ({ ...atual, requestId: logDetalhado.requestId! })); setPaginaLogs(0); setLogDetalhado(null); }}>Linha do tempo da requisição</button>}
+                            </div>
+                        </div>
                         <button onClick={() => setLogDetalhado(null)} className="w-full mt-7 py-3 bg-slate-900 text-white rounded-2xl">Fechar</button>
                     </div>
                 </div>

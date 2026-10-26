@@ -16,12 +16,30 @@ export interface LogSistema {
     recursoId?: string | number | null;
     resultado?: string | null;
     detalhes?: string | null;
+    requestId?: string | null;
+    sessionRef?: string | null;
+    deviceRef?: string | null;
+    correlationId?: string | null;
+    userAgent?: string | null;
+    peerIp?: string | null;
+    httpMethod?: string | null;
+    httpRoute?: string | null;
+    httpStatus?: number | null;
+    changesJson?: Record<string, unknown> | null;
+    origemConfianca?: string | null;
+    identidadeHistoricaConfirmada?: boolean;
 }
 
 export interface LogFiltros {
     page?: number;
     size?: number;
     email?: string;
+    resultado?: string;
+    entidade?: string;
+    recursoId?: string;
+    sessionRef?: string;
+    requestId?: string;
+    ip?: string;
     perfil?: string;
     acao?: string;
     search?: string;
@@ -61,7 +79,5 @@ export const logService = {
         return this.listar({ page: 0, size: 20 });
     },
 
-    async listarPorUsuario(usuarioId: number) {
-        return api.get<LogSistema[]>(`/api/admin/logs/usuario/${usuarioId}`);
-    }
+    // Consulta por e-mail histórico via listar({email}), sem rota órfã.
 };

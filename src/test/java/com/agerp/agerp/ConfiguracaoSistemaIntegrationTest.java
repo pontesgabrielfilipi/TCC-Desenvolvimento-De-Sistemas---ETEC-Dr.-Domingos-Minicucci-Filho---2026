@@ -24,6 +24,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -127,13 +128,13 @@ class ConfiguracaoSistemaIntegrationTest {
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
                         new SimpleGrantedAuthority("PAGE_PRODUTOS"))));
         for (String limite : List.of("-1", "1.5")) {
-            mvc.perform(put("/api/admin/configuracoes").with(autenticado)
+            mvc.perform(put("/api/admin/configuracoes").with(csrf()).with(autenticado)
                             .contentType("application/json").content("""
                                     {"nomeEmpresa":"AGERP","limiteEstoqueBaixo":%s,"usarEstoqueMinimoGeral":true,
                                      "exibirAlertasEstoque":true,"timeoutIaMs":2000,"versao":0}
                                     """.formatted(limite))).andExpect(status().isBadRequest());
             mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/produtos")
-                            .with(autenticado).contentType("application/json").content("""
+                            .with(csrf()).with(autenticado).contentType("application/json").content("""
                                     {"nome":"Produto limite invalido","preco":10,"custo":0,
                                      "quantidadeInicial":0,"quantidadeMinima":%s}
                                     """.formatted(limite))).andExpect(status().isBadRequest());
@@ -206,7 +207,7 @@ class ConfiguracaoSistemaIntegrationTest {
                 {"nomeEmpresa":"  ","limiteEstoqueBaixo":0,"exibirAlertasEstoque":true,"timeoutIaMs":100,"versao":0}
                 """;
         mvc.perform(put("/api/admin/configuracoes")
-                        .with(user("admin").roles("ADMIN"))
+                        .with(csrf()).with(user("admin").roles("ADMIN"))
                         .contentType("application/json").content(corpoInvalido))
                 .andExpect(status().isBadRequest());
         mvc.perform(put("/api/admin/configuracoes")
@@ -227,7 +228,7 @@ class ConfiguracaoSistemaIntegrationTest {
                 """.formatted(config.versao() + 1);
 
         mvc.perform(put("/api/admin/configuracoes")
-                        .with(user(new CustomUserDetails(admin,
+                        .with(csrf()).with(user(new CustomUserDetails(admin,
                                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))))
                         .contentType("application/json").content(corpo))
                 .andExpect(status().isConflict());

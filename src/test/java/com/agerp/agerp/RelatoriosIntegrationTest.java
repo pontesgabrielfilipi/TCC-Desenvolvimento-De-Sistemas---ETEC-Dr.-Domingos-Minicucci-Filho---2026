@@ -1,17 +1,24 @@
 package com.agerp.agerp;
 
 import com.agerp.agerp.service.RelatorioAdminService;
+import com.agerp.agerp.service.SessaoAutenticacaoService;
 import com.agerp.agerp.security.CustomUserDetails;
 import com.agerp.agerp.security.CustomUserDetailsService;
 import com.agerp.agerp.security.jwt.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.CellType;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint;
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +26,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -26,6 +36,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -33,16 +44,82 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@SpringBootTest(properties = "spring.flyway.placeholders.auditAppRole=test")
+// MockMvc's response headers are not thread-safe while an async callback
+// triggers dispatch. Its automatic printer iterates them concurrently.
+@AutoConfigureMockMvc(print = MockMvcPrint.NONE)
+@Import({TestcontainersConfiguration.class, RelatoriosIntegrationTest.MockMvcAsyncConfiguration.class})
 @Transactional
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RelatoriosIntegrationTest {
+    /** Evita concorrência de escrita nos headers de MockHttpServletResponse, que não é thread-safe.
+     *  O servidor real continua com seu executor original. */
+    @TestConfiguration
+    static class MockMvcAsyncConfiguration implements WebMvcConfigurer {
+        @Override
+        public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+            ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+            executor.setThreadNamePrefix("xlsx-test-");
+            executor.setCorePoolSize(2);
+            executor.setMaxPoolSize(4);
+            executor.setQueueCapacity(64);
+            executor.setTaskDecorator(task -> () -> {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                task.run();
+            });
+            executor.initialize();
+            configurer.setTaskExecutor(executor);
+        }
+    }
     @Autowired JdbcTemplate jdbc;
     @Autowired RelatorioAdminService service;
     @Autowired MockMvc mvc;
     @Autowired CustomUserDetailsService usuarios;
     @Autowired JwtTokenProvider tokens;
+    @Autowired SessaoAutenticacaoService sessoes;
+
+    Stream<String> idsDoCatalogo() {
+        return service.catalogo().stream().map(RelatorioAdminService.Relatorio::id);
+    }
+
+    @ParameterizedTest(name = "XLSX real e cabecalhos de {0}")
+    @MethodSource("idsDoCatalogo")
+    void descritorProduzPlanilhaComCabecalhosTiposEValoresSemFormulas(String id) throws Exception {
+        var relatorio = service.obter(id);
+        var saida = new ByteArrayOutputStream();
+        var semFiltros = new RelatorioAdminService.Filtros(null, null, null, null, null, null);
+        int linhas = service.exportarComContagem(relatorio, semFiltros, saida, null);
+        try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(saida.toByteArray()))) {
+            var dados = workbook.getSheet("Dados 1");
+            var resumo = workbook.getSheet("Informações");
+            assertNotNull(dados, id);
+            assertNotNull(resumo, id);
+            assertEquals(linhas, (int) resumo.getRow(12).getCell(1).getNumericCellValue(), id);
+            assertEquals(relatorio.colunas().size(), dados.getRow(0).getPhysicalNumberOfCells(), id);
+            for (int coluna = 0; coluna < relatorio.colunas().size(); coluna++) {
+                assertEquals(relatorio.colunas().get(coluna).titulo(),
+                        dados.getRow(0).getCell(coluna).getStringCellValue(), id);
+            }
+            for (var sheet : workbook) {
+                for (var row : sheet) {
+                    for (var cell : row) {
+                        assertNotEquals(CellType.FORMULA, cell.getCellType(), id + ":" + sheet.getSheetName());
+                    }
+                }
+            }
+            if (id.equals("clientes_tipo")) {
+                assertEquals(2, linhas, "A fixture tem exatamente PF e PJ");
+            }
+            if (id.equals("vendas_periodo")) {
+                assertTrue(linhas >= 2, "A fixture possui pedidos entregue e pendente");
+            }
+        }
+    }
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -52,6 +129,56 @@ class RelatoriosIntegrationTest {
             assertNotNull(livro.getSheet("Totais"));
             assertTrue(livro.getSheet("Dados 1").getPhysicalNumberOfRows() > 1);
         }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void exportacoesGeramEventosCorrelacionadosSemAfirmarDownloadSalvo() throws Exception {
+        Cookie cookie = cookieDe("operador@local.test");
+        MvcResult primeira = mvc.perform(get("/api/admin/relatorios/clientes_tipo/xlsx").cookie(cookie))
+                .andExpect(request().asyncStarted()).andReturn();
+        String exportId = primeira.getResponse().getHeader("X-Export-ID");
+        assertNotNull(exportId);
+        primeira.getAsyncResult(30_000);
+        MvcResult resposta = mvc.perform(asyncDispatch(primeira)).andExpect(status().isOk()).andReturn();
+        try (var livro = WorkbookFactory.create(new ByteArrayInputStream(resposta.getResponse().getContentAsByteArray()))) {
+            assertNotNull(livro.getSheet("Dados 1"));
+        }
+        var eventos = jdbc.queryForList("SELECT acao, resultado, request_id, session_ref, changes_json "
+                + "FROM agerp.log_sistema WHERE entidade='RELATORIO' AND recurso_id=? ORDER BY id_log", exportId);
+        assertEquals(3, eventos.size());
+        assertEquals("EXPORTACAO_SOLICITADA", eventos.get(0).get("acao"));
+        assertEquals("EXPORTACAO_GERADA", eventos.get(1).get("acao"));
+        assertEquals("EXPORTACAO_TRANSMISSAO_ENCERRADA", eventos.get(2).get("acao"));
+        assertEquals("OBSERVADO", eventos.get(2).get("resultado"));
+        assertNotNull(eventos.get(0).get("request_id"));
+        assertNotNull(eventos.get(0).get("session_ref"));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void auditoriaDeExportacoesCongelaCorteAntesDeRegistrarSeuProprioEvento() throws Exception {
+        Cookie cookie = cookieDe("operador@local.test");
+        try (var ignorado = baixarPlanilha("clientes_tipo", cookie, Map.of())) {
+            // A exportacao anterior gera SOLICITADA, GERADA e TRANSMISSAO_ENCERRADA.
+        }
+        MvcResult pendente = mvc.perform(get("/api/admin/relatorios/auditoria_exportacoes/xlsx").cookie(cookie))
+                .andExpect(request().asyncStarted()).andReturn();
+        String novoExportId = pendente.getResponse().getHeader("X-Export-ID");
+        assertNotNull(novoExportId);
+        pendente.getAsyncResult(30_000);
+        MvcResult resposta = mvc.perform(asyncDispatch(pendente)).andExpect(status().isOk()).andReturn();
+        try (var livro = WorkbookFactory.create(new ByteArrayInputStream(resposta.getResponse().getContentAsByteArray()))) {
+            var dados = livro.getSheet("Dados 1");
+            assertEquals(3, dados.getLastRowNum(), "A exportacao de auditoria deve listar so os eventos anteriores");
+            for (int linha = 1; linha <= dados.getLastRowNum(); linha++) {
+                assertNotEquals(novoExportId, dados.getRow(linha).getCell(4).getStringCellValue(),
+                        "A exportacao nao pode incluir seus proprios eventos");
+            }
+        }
+        assertEquals(3, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM agerp.log_sistema WHERE entidade='RELATORIO' AND recurso_id=?",
+                Integer.class, novoExportId));
     }
 
     @Test
@@ -111,7 +238,8 @@ class RelatoriosIntegrationTest {
     private Cookie cookieDe(String email) {
         CustomUserDetails detalhes = (CustomUserDetails) usuarios.loadUserByUsername(email);
         var autenticacao = new UsernamePasswordAuthenticationToken(detalhes, null, detalhes.getAuthorities());
-        return new Cookie("jwtToken", tokens.generateToken(autenticacao));
+        var sessao = sessoes.criar(detalhes.getUsuario(), null, 86_400_000);
+        return new Cookie("jwtToken", tokens.generateToken(autenticacao, sessao.getId()));
     }
 
     private org.apache.poi.ss.usermodel.Workbook baixarPlanilha(String id, Cookie cookie, Map<String, String> filtros)
@@ -122,6 +250,8 @@ class RelatoriosIntegrationTest {
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
+        // Conclui o callback antes do redispatch: headers do MockMvc não são thread-safe.
+        pendente.getAsyncResult(30_000);
         MvcResult resposta = mvc.perform(asyncDispatch(pendente))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))

@@ -17,6 +17,11 @@ import jakarta.validation.Valid;
 import com.agerp.agerp.service.LogSistemaService;
 import com.agerp.agerp.service.UsuarioService;
 import com.agerp.agerp.service.RelatorioAdminService;
+import com.agerp.agerp.service.ExportacaoAuditoriaService;
+import com.agerp.agerp.service.ExportacaoTemporarios;
+import com.agerp.agerp.service.ExportacaoFluxo;
+import com.agerp.agerp.config.ExportacaoAsyncCleanupFilter;
+import com.agerp.agerp.security.AuditRequestContext;
 import com.agerp.agerp.entity.StatusAcesso;
 import com.agerp.agerp.security.CustomUserDetails;
 import com.agerp.agerp.security.ClientIpResolver;
@@ -33,17 +38,35 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.cache.CacheManager;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.List;
 import java.util.Map;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.CountDownLatch;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipEntry;
+import java.util.zip.CRC32;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")   // ← Mudança importante aqui
 public class AdminController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AdminController.class);
+    // Restrição explícita para não saturar threads, disco e conexões JDBC com XLSX grandes.
+    private final Semaphore exportacoes;
 
     private final AdminService adminService;
     private final UsuarioService usuarioService;
@@ -54,12 +77,18 @@ public class AdminController {
     private final DiagnosticoSistemaService diagnosticoSistemaService;
     private final CacheManager cacheManager;
     private final RelatorioAdminService relatorioAdminService;
+    private final ExportacaoAuditoriaService exportacaoAuditoria;
+    private final ExportacaoTemporarios exportacaoTemporarios;
+    private final ThreadPoolTaskExecutor mvcExecutor;
 
     public AdminController(AdminService adminService, UsuarioService usuarioService,
             LogSistemaService logSistemaService, PerfilService perfilService,
             ClientIpResolver clientIpResolver, ConfiguracaoSistemaService configuracaoSistemaService,
             DiagnosticoSistemaService diagnosticoSistemaService, CacheManager cacheManager,
-            RelatorioAdminService relatorioAdminService) {
+            RelatorioAdminService relatorioAdminService, ExportacaoAuditoriaService exportacaoAuditoria,
+            ExportacaoTemporarios exportacaoTemporarios,
+            @Qualifier("exportacaoMvcExecutor") ThreadPoolTaskExecutor mvcExecutor,
+            @Qualifier("exportacaoVagas") Semaphore exportacoes) {
         this.adminService = adminService;
         this.usuarioService = usuarioService;
         this.logSistemaService = logSistemaService;
@@ -69,6 +98,10 @@ public class AdminController {
         this.diagnosticoSistemaService = diagnosticoSistemaService;
         this.cacheManager = cacheManager;
         this.relatorioAdminService = relatorioAdminService;
+        this.exportacaoAuditoria = exportacaoAuditoria;
+        this.exportacaoTemporarios = exportacaoTemporarios;
+        this.mvcExecutor = mvcExecutor;
+        this.exportacoes = exportacoes;
     }
 
     @GetMapping("/usuarios")
@@ -144,6 +177,12 @@ public class AdminController {
             @RequestParam(required = false) String email,
             @RequestParam(required = false) String perfil,
             @RequestParam(required = false) String acao,
+            @RequestParam(required = false) String resultado,
+            @RequestParam(required = false) String entidade,
+            @RequestParam(required = false) String recursoId,
+            @RequestParam(required = false) String sessionRef,
+            @RequestParam(required = false) String requestId,
+            @RequestParam(required = false) String ip,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) List<String> fields,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant inicio,
@@ -154,17 +193,18 @@ public class AdminController {
             @RequestParam(defaultValue = "desc") String direction) {
         int pagina = Math.max(page, 0);
         int tamanho = Math.min(Math.max(size, 1), 100);
-        String campoOrdenacao = switch (sortBy) {
-            case "acao", "entidade", "dataHora", "id" -> sortBy;
-            default -> "dataHora";
-        };
-        Sort.Direction direcao = Sort.Direction.fromOptionalString(direction).orElse(Sort.Direction.DESC);
+        if (!List.of("acao", "entidade", "dataHora", "id").contains(sortBy)
+                || Sort.Direction.fromOptionalString(direction).isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Ordenação inválida");
+        }
+        String campoOrdenacao = sortBy;
+        Sort.Direction direcao = Sort.Direction.fromString(direction);
         Sort ordenacao = Sort.by(new Sort.Order(direcao, campoOrdenacao));
         if (!"id".equals(campoOrdenacao)) ordenacao = ordenacao.and(Sort.by(new Sort.Order(direcao, "id")));
         var pageable = PageRequest.of(pagina, tamanho, ordenacao);
-        return ResponseEntity.ok(search != null
-                ? logSistemaService.pesquisarGeral(search, fields, inicio, fim, pageable)
-                : logSistemaService.pesquisar(email, perfil, acao, inicio, fim, pageable));
+        return ResponseEntity.ok(logSistemaService.pesquisarAvancado(email, perfil, acao, resultado, entidade,
+                recursoId, sessionRef, requestId, ip, search, fields, inicio, fim, pageable));
     }
 
     @GetMapping("/estatisticas")
@@ -230,16 +270,133 @@ public class AdminController {
             @RequestParam(required = false) Integer clienteId,
             @RequestParam(required = false) Integer produtoId,
             @RequestParam(required = false) Integer usuarioId,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) String status,
+            @AuthenticationPrincipal CustomUserDetails admin,
+            HttpServletRequest request) {
         // Validacao antecipada: 400/404 antes de abrir o stream HTTP.
         var relatorio = relatorioAdminService.obter(id);
         var filtros = new RelatorioAdminService.Filtros(inicio, fim, clienteId, produtoId, usuarioId, status);
+        // Congela o universo dos logs ANTES da primeira inserção desta exportação.
+        Long corte = relatorio.from().contains("agerp.log_sistema l") ? relatorioAdminService.corteAuditoria() : null;
+        var ator = admin == null ? null : admin.getUsuario();
+        var contexto = new ExportacaoAuditoriaService.Contexto(UUID.randomUUID(), AuditRequestContext.current(),
+                ator == null ? null : ator.getId(), ator == null ? null : ator.getNome(),
+                ator == null ? null : ator.getEmail(),
+                ator == null || ator.getIdPerfil() == null ? null : ator.getIdPerfil().getNome(),
+                referencia(request.getAttribute("agerp.session.id")),
+                referencia(request.getAttribute("agerp.device.id")), relatorio.id(),
+                ExportacaoAuditoriaService.filtrosSeguros(filtros));
+        // Return JSON before XLSX headers if the real MVC streaming executor has no room.
+        // The export semaphore separately limits spool lifetime across slow downloads.
+        if (mvcExecutor != null && mvcExecutor.getActiveCount() >= mvcExecutor.getMaxPoolSize()
+                && mvcExecutor.getThreadPoolExecutor().getQueue().remainingCapacity() == 0) {
+            exportacaoAuditoria.registrar(contexto, "EXPORTACAO_FALHA", "NEGADO", null, null,
+                    0, "EXECUTOR_SATURADO");
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Servidor ocupado com exportações. Tente novamente em instantes.");
+        }
+        if (!exportacoes.tryAcquire())
+        {
+            exportacaoAuditoria.registrar(contexto, "EXPORTACAO_FALHA", "NEGADO", null, null,
+                    0, "LIMITE_CONCORRENCIA");
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Limite de exportações simultâneas. Tente novamente.");
+        }
+        long inicioNs = System.nanoTime();
+        Path temporario = null;
+        int registros;
+        long bytes;
+        try {
+            exportacaoAuditoria.registrar(contexto, "EXPORTACAO_SOLICITADA", "INICIADO", null, null, 0, null);
+            temporario = exportacaoTemporarios.criar(contexto.exportId());
+            // Uma resposta de erro de SQL/POI ainda pode ser enviada como JSON antes dos headers.
+            try (var saida = Files.newOutputStream(temporario)) {
+                registros = relatorioAdminService.exportarComContagem(relatorio, filtros, saida, corte);
+            }
+            verificarZipXlsx(temporario);
+            bytes = Files.size(temporario);
+            exportacaoAuditoria.registrar(contexto, "EXPORTACAO_GERADA", "SUCESSO", registros,
+                    bytes, duracao(inicioNs), null);
+        } catch (IOException | RuntimeException falha) {
+            if (temporario != null) exportacaoTemporarios.apagar(temporario);
+            try {
+                exportacaoAuditoria.registrar(contexto, "EXPORTACAO_FALHA", "FALHA", null,
+                        null, duracao(inicioNs), "GERACAO");
+            } catch (RuntimeException auditoriaFalhou) {
+                LOGGER.error("Auditoria da falha de geração indisponível exportId={}", contexto.exportId(), auditoriaFalhou);
+            }
+            LOGGER.error("Falha antes dos headers, exportId={}", contexto.exportId(), falha);
+            exportacoes.release();
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Não foi possível gerar o relatório. Referência: " + contexto.exportId());
+        }
         String nome = "agerp_" + relatorio.id() + "_" + LocalDate.now() + ".xlsx";
-        StreamingResponseBody body = output -> relatorioAdminService.exportar(relatorio, filtros, output);
+        Path arquivo = temporario;
+        ExportacaoFluxo fluxo = new ExportacaoFluxo(exportacaoTemporarios, exportacaoAuditoria,
+                contexto, arquivo, exportacoes, registros, bytes, inicioNs);
+        Object barrier = request.getAttribute(ExportacaoAsyncCleanupFilter.BARRIER);
+        if (barrier instanceof CountDownLatch latch) fluxo.aguardarFiltros(latch);
+        request.setAttribute(ExportacaoAsyncCleanupFilter.ATTR, fluxo);
+        StreamingResponseBody body = output -> {
+            fluxo.iniciarTransmissao();
+            try {
+                fluxo.aguardarCabecalhos();
+                try (var entrada = Files.newInputStream(arquivo)) {
+                entrada.transferTo(output);
+                output.flush();
+                fluxo.sucesso();
+                }
+            } catch (IOException | RuntimeException falha) {
+                LOGGER.warn("Transmissão interrompida/indeterminada, exportId={} classe={}",
+                        contexto.exportId(), falha.getClass().getSimpleName(), falha);
+                fluxo.falha("TRANSMISSAO_OU_CONEXAO");
+                throw falha;
+                // O HTTP já pode ter sido comprometido: não tentar anexar JSON ao ZIP.
+            }
+        };
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nome + "\"")
                 .header(HttpHeaders.CACHE_CONTROL, "no-store, private")
+                .header("X-Export-ID", contexto.exportId().toString())
+                .contentLength(bytes)
                 .body(body);
     }
+
+    private static void verificarZipXlsx(Path arquivo) throws IOException {
+        // ZIP com entradas integralmente lidas verifica CRC; PK inicial isolado não basta.
+        boolean contentTypes = false;
+        boolean workbook = false;
+        try (ZipFile zip = new ZipFile(arquivo.toFile())) {
+            byte[] buffer = new byte[64 * 1024];
+            var entradas = zip.entries();
+            while (entradas.hasMoreElements()) {
+                ZipEntry entrada = entradas.nextElement();
+                if ("[Content_Types].xml".equals(entrada.getName())) contentTypes = true;
+                if ("xl/workbook.xml".equals(entrada.getName())) workbook = true;
+                CRC32 crc = new CRC32();
+                long lidos = 0;
+                try (var conteudo = zip.getInputStream(entrada)) {
+                    int n;
+                    while ((n = conteudo.read(buffer)) != -1) {
+                        crc.update(buffer, 0, n);
+                        lidos += n;
+                    }
+                }
+                if (entrada.getSize() != lidos || entrada.getCrc() != crc.getValue()) {
+                    throw new IOException("CRC ou tamanho ZIP invalido: " + entrada.getName());
+                }
+            }
+        }
+        if (!contentTypes || !workbook) throw new IOException("Estrutura OOXML incompleta");
+    }
+
+    private static String referencia(Object referencia) {
+        return referencia == null ? null : referencia.toString().substring(0, Math.min(100, referencia.toString().length()));
+    }
+
+    private static long duracao(long inicioNs) {
+        return java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNs);
+    }
+
 }

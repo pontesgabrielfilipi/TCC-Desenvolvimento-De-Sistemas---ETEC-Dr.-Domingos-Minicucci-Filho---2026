@@ -4,6 +4,7 @@ import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -40,6 +41,15 @@ class JwtTokenProviderTest {
         String tokenAdulterado = String.join(".", segmentos);
 
         assertFalse(jwtTokenProvider.validateToken(tokenAdulterado));
+    }
+
+    @Test
+    void jwtNovoContemSidELegadoNaoGanhaSessaoImplicita() {
+        UUID id = UUID.randomUUID();
+        var auth = new UsernamePasswordAuthenticationToken("usuario@agerp.com", null);
+        var newToken = jwtTokenProvider.generateToken(auth, id);
+        assertEquals(id, jwtTokenProvider.getSessionId(newToken));
+        assertEquals(null, jwtTokenProvider.getSessionId(jwtTokenProvider.generateToken(auth)));
     }
 
     @Test

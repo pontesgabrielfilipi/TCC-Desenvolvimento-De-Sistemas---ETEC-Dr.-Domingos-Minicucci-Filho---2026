@@ -99,10 +99,12 @@ class ConfiguracaoSistemaServiceTest {
             assertEquals("Minha Empresa", resposta.nomeEmpresa());
             assertEquals(12, service.limiteEstoqueBaixo());
             assertFalse(service.regraEstoque().usarGeral());
-            verify(auditoria).registrarLog(eq(admin), eq("ALTERACAO_CONFIGURACOES"),
+            verify(auditoria).registrarEvento(eq(admin), eq("ALTERACAO_CONFIGURACOES"),
                     eq("CONFIGURACAO"), eq("1"), eq("SUCESSO"),
-                    argThat(detalhes -> detalhes.contains("nomeEmpresa") && detalhes.contains("timeoutIaMs")),
-                    eq("127.0.0.1"));
+                    isNull(), eq("127.0.0.1"),
+                    argThat(mudancas -> mudancas.containsKey("timeoutIaMs")
+                            && mudancas.containsKey("limiteEstoqueBaixo")
+                            && !mudancas.containsKey("nomeEmpresa")));
             verify(cache, never()).clear();
             TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
             verify(cache).clear();

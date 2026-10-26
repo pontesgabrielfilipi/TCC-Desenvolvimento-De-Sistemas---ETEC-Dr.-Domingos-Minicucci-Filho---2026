@@ -4,6 +4,7 @@ import com.agerp.agerp.entity.Perfil;
 import com.agerp.agerp.entity.StatusAcesso;
 import com.agerp.agerp.entity.Usuario;
 import com.agerp.agerp.security.CustomUserDetails;
+import com.agerp.agerp.service.SessaoAutenticacaoService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,7 +30,8 @@ class JwtAuthenticationFilterApprovalTest {
     void jwtAntigoNaoAutenticaUsuarioBloqueado() throws Exception {
         JwtTokenProvider tokens = mock(JwtTokenProvider.class);
         UserDetailsService detailsService = mock(UserDetailsService.class);
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, detailsService);
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, detailsService, mock(SessaoAutenticacaoService.class),
+                mock(com.agerp.agerp.service.AuditFailureService.class), new com.agerp.agerp.security.LoginAttemptLimiter(10, 300));
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
         FilterChain chain = mock(FilterChain.class);
@@ -50,7 +52,8 @@ class JwtAuthenticationFilterApprovalTest {
     void jwtDeVersaoAnteriorNaoAutenticaAposRedefinicao() throws Exception {
         JwtTokenProvider tokens = mock(JwtTokenProvider.class);
         UserDetailsService detailsService = mock(UserDetailsService.class);
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, detailsService);
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(tokens, detailsService, mock(SessaoAutenticacaoService.class),
+                mock(com.agerp.agerp.service.AuditFailureService.class), new com.agerp.agerp.security.LoginAttemptLimiter(10, 300));
         HttpServletRequest request = mock(HttpServletRequest.class);
         FilterChain chain = mock(FilterChain.class);
         when(request.getRequestURI()).thenReturn("/api/produtos");
