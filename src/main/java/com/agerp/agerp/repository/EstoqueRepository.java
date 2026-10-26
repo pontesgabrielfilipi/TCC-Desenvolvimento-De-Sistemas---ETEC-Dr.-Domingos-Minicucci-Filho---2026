@@ -2,11 +2,13 @@ package com.agerp.agerp.repository;
 
 import com.agerp.agerp.entity.Estoque;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Map;
@@ -24,6 +26,10 @@ public interface EstoqueRepository extends JpaRepository<Estoque, Integer> {
 
     /** Busca estoque pelo ID do produto (com Optional, para PedidoService) */
     Optional<Estoque> findByIdProduto_Id(Integer produtoId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM Estoque e WHERE e.idProduto.id = :produtoId")
+    Optional<Estoque> findByProdutoIdForUpdate(@Param("produtoId") Integer produtoId);
 
     /** Estoques e nomes dos produtos numa consulta, sem carregar relacoes lazy uma a uma. */
     @Query("SELECT e FROM Estoque e JOIN FETCH e.idProduto")

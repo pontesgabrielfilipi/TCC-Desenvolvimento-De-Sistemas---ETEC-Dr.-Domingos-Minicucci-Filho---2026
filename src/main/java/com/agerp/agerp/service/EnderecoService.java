@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class EnderecoService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AuditoriaNegocioService auditoria;
 
     private final EnderecoRepository enderecoRepository;
     private final ClienteRepository clienteRepository;
@@ -60,6 +62,8 @@ public class EnderecoService {
         atualizarCampos(endereco, request);
 
         endereco = enderecoRepository.save(endereco);
+        if (auditoria != null) auditoria.registrar("CRIACAO_ENDERECO", "ENDERECO", endereco.getId(),
+                AuditoriaNegocioService.mudancas("clienteId", null, clienteId));
         return toResponse(endereco);
     }
 
@@ -74,9 +78,12 @@ public class EnderecoService {
         Endereco endereco = enderecoRepository.findByIdAndIdClienteId(id, clienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Endereço não encontrado com ID " + id + " para o cliente " + clienteId));
 
+        String estadoAnterior = endereco.getEstado();
         atualizarCampos(endereco, request);
 
         endereco = enderecoRepository.save(endereco);
+        var alteracoes = AuditoriaNegocioService.mudancas("estado", estadoAnterior, endereco.getEstado());
+        if (auditoria != null && !alteracoes.isEmpty()) auditoria.registrar("EDICAO_ENDERECO", "ENDERECO", id, alteracoes);
         return toResponse(endereco);
     }
 
@@ -92,6 +99,7 @@ public class EnderecoService {
                 .orElseThrow(() -> new IllegalArgumentException("Endereço não encontrado com ID " + id + " para o cliente " + clienteId));
 
         enderecoRepository.delete(endereco);
+        if (auditoria != null) auditoria.registrar("EXCLUSAO_ENDERECO", "ENDERECO", id, java.util.Map.of());
     }
 
     private void atualizarCampos(Endereco endereco, EnderecoCreateRequest request) {

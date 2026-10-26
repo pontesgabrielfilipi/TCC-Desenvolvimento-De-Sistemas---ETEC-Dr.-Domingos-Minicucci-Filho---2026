@@ -50,7 +50,7 @@ class UsuarioServicePasswordResetTest {
         assertTrue(alvo.getTrocaSenhaObrigatoria());
         assertEquals(StatusAcesso.PENDENTE, alvo.getStatusAcesso());
         assertFalse(alvo.getAtivo());
-        verify(logs).registrarLog(admin, "REDEFINICAO_SENHA_USUARIO_2", "USUARIO", "127.0.0.1");
+        verify(logs).registrarEvento(eq(admin), eq("REDEFINICAO_SENHA_USUARIO_2"), eq("USUARIO"), eq("2"), eq("SUCESSO"), isNull(), eq("127.0.0.1"), argThat(changes -> changes.containsKey("estado") && !changes.containsKey("senha")));
     }
 
     @Test

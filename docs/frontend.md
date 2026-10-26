@@ -125,3 +125,22 @@ Definidos e exportados em `services/pedidoService.ts`:
 
 ### Integração com IA:
 O botão "Consultar Previsão de Entrega (IA)" no modal de detalhes chama `GET /api/pedidos/{id}/previsao-entrega`, que internamente aciona o `IaPrevisaoService` Java e o microsserviço Python. A resposta exibe prazo central, intervalo mín/máx, nível de confiança, rota e versão do modelo.
+# Auditoria avançada (A05)
+
+Em Administração → Logs do Sistema, a busca textual usa OR entre os campos marcados;
+todos os filtros estruturados (e-mail do ator, ação, resultado, entidade, ID do recurso,
+referência de sessão, UUID da requisição e IP) são combinados por AND com o período
+e com a busca textual. Ação, resultado, entidade, recurso, sessão, request ID e IP
+usam comparação exata; e-mail e busca textual usam correspondência parcial sem
+diferenciar maiúsculas. As datas abrangem o início e o fim do dia selecionado no
+fuso local do navegador e são enviadas como instantes ISO com offset UTC.
+As datas de eventos são exibidas no fuso America/Sao_Paulo.
+
+Para investigar, filtre entidade=PEDIDO e recursoId=42; no modal, selecione
+"Histórico do recurso". Para correlacionar eventos da mesma navegação,
+use "Linha do tempo da sessão" ou "Linha do tempo da requisição".
+Ambas continuam paginadas pelo servidor. Filtros já preenchidos são preservados;
+use "Limpar" para iniciar uma investigação isolada. Os dados históricos ausentes
+permanecem desconhecidos. Sessão e dispositivo são referências lógicas, não
+credenciais nem prova de identificação física; IP e User-Agent são indícios limitados.
+Diferenças aparecem como texto JSON escapado, sem interpretação de HTML.

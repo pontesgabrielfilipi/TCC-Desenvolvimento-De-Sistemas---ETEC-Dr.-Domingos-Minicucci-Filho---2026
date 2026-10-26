@@ -61,8 +61,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         try {
             await authService.logout();
         } catch {
-            // Ignora erro no logout
-        } finally {
+            // A revogacao pode nao ter ocorrido; nao anuncie logout concluido.
+            throw new Error('Nao foi possivel revogar sua sessao. Tente novamente.');
+        }
+        {
             setUser(null);
             navigate('/login', { replace: true });
         }

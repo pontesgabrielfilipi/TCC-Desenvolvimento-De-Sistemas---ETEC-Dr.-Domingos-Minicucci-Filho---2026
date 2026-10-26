@@ -30,6 +30,7 @@ class UsuarioServiceUpdateTest {
         logs = mock(LogSistemaService.class);
         service = new UsuarioService(usuarios, perfis, mock(PasswordEncoder.class), logs);
         admin = usuario(1, perfil(1, "ADMIN"), StatusAcesso.APROVADO);
+        when(perfis.findAdminForUpdate()).thenReturn(Optional.of(admin.getIdPerfil()));
         when(usuarios.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -49,7 +50,7 @@ class UsuarioServiceUpdateTest {
         assertEquals("PENDENTE", response.getStatusAcesso());
         assertFalse(response.getAtivo());
         assertEquals(1L, alvo.getCredentialVersion());
-        verify(logs).registrarLog(eq(admin), contains("EDICAO_USUARIO_2_CAMPOS_"), eq("USUARIO"), eq("127.0.0.1"));
+        verify(logs).registrarEvento(eq(admin), contains("EDICAO_USUARIO_2_CAMPOS_"), eq("USUARIO"), eq("2"), eq("SUCESSO"), isNull(), eq("127.0.0.1"), argThat(changes -> changes.containsKey("perfil") && !changes.containsKey("email")));
     }
 
     @Test

@@ -168,3 +168,28 @@ exige simultaneamente permissão da página e nível >= 60. Excluir pedido
 ## Observações
 
 O `pom.xml` atual possui algumas dependências que devem ser revisadas conforme a evolução do projeto, principalmente quando um recurso deixar de ser utilizado. Evitar adicionar dependências sem necessidade.
+# Auditoria de operações de negócio (A04)
+
+Consulte [a matriz de cobertura e campos excluídos](auditoria-negocio.md). A instrumentação A04 está **parcial**; a matriz identifica explicitamente o que falta antes do aceite completo.
+# Consulta avançada de auditoria (A05)
+
+`GET /api/admin/logs` continua restrito a ADMIN no servidor. Parâmetros opcionais:
+`email`, `perfil`, `acao`, `resultado`, `entidade`, `recursoId`, `sessionRef`,
+`requestId` (UUID), `ip`, `search`, `fields`, `inicio` e `fim` (ISO-8601 com fuso),
+`page`, `size`, `sortBy`, `direction`. O período é inclusivo nas duas extremidades;
+intervalo invertido e UUID inválido retornam 400. A busca textual é OR entre
+`fields` (email, perfil, acao, entidade, ip); filtros estruturados são AND.
+`sortBy` é restrito a dataHora, acao, entidade ou id, com desempate por id;
+o tamanho máximo é 100. As respostas mantêm Page e acrescentam metadados
+de origem/sessão/requisição e `changesJson`, quando registrados. `detalhes`
+livre legado é suprimido na API para não expor possíveis segredos históricos.
+Snapshots ausentes não são preenchidos com dados atuais do cadastro.
+
+Exemplos: `/api/admin/logs?entidade=PEDIDO&recursoId=42&page=0&size=20`;
+`/api/admin/logs?sessionRef=<referencia>&page=1&size=20`;
+`/api/admin/logs?requestId=<uuid>&resultado=SUCESSO`.
+Não há consulta ilimitada; páginas usam OFFSET/LIMIT e contagem, com potencial
+custo crescente em offsets profundos. Considerar keyset `(dataHora,id)` quando
+medições em volume real o justificarem. Nenhum índice adicional foi criado sem
+plano de execução ou evidência de necessidade; os índices da migração A03 foram
+preservados. Não deduzir identificação física por IP, UA ou dispositivo lógico.

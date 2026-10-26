@@ -25,14 +25,15 @@ export const relatoriosService = {
         return response.data;
     },
 
-    async exportar(id: string, filtros: FiltrosRelatorio): Promise<Blob> {
+    async exportar(id: string, filtros: FiltrosRelatorio, signal?: AbortSignal): Promise<{ arquivo: Blob; exportId?: string }> {
         const response = await api.get<Blob>(`/api/admin/relatorios/${encodeURIComponent(id)}/xlsx`, {
             params: filtros,
+            signal,
             responseType: 'blob',
             // A exportação pode consultar milhões de registros; o timeout padrão da API é 10 s.
             timeout: 0,
             headers: { Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
         });
-        return response.data;
+        return { arquivo: response.data, exportId: response.headers['x-export-id'] };
     },
 };

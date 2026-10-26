@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class ClienteService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AuditoriaNegocioService auditoria;
 
     private final ClienteRepository clienteRepository;
     private final EnderecoRepository enderecoRepository;   // ← Injetado
@@ -75,6 +77,8 @@ public class ClienteService {
         cliente.setTelefone(request.getTelefone());
 
         cliente = clienteRepository.save(cliente);
+        if (auditoria != null) auditoria.registrar("CRIACAO_CLIENTE", "CLIENTE", cliente.getId(),
+                AuditoriaNegocioService.mudancas("tipo", null, cliente.getTipo()));
         return toResponse(cliente);
     }
 
@@ -97,6 +101,7 @@ public class ClienteService {
             throw new BusinessConflictException("E-mail já cadastrado para outro cliente.");
         }
 
+        Object tipoAnterior = cliente.getTipo();
         cliente.setNomeRazao(request.getNomeRazao().trim());
         cliente.setTipo(request.getTipo());
         cliente.setCpfCnpj(request.getCpfCnpj());
@@ -104,6 +109,8 @@ public class ClienteService {
         cliente.setTelefone(request.getTelefone());
 
         cliente = clienteRepository.save(cliente);
+        var alteracoes = AuditoriaNegocioService.mudancas("tipo", tipoAnterior, cliente.getTipo());
+        if (auditoria != null && !alteracoes.isEmpty()) auditoria.registrar("EDICAO_CLIENTE", "CLIENTE", id, alteracoes);
         return toResponse(cliente);
     }
 
@@ -131,6 +138,7 @@ public class ClienteService {
 
         // Agora é seguro excluir o cliente
         clienteRepository.deleteById(id);
+        if (auditoria != null) auditoria.registrar("EXCLUSAO_CLIENTE", "CLIENTE", id, java.util.Map.of());
     }
 
     private ClienteResponse toResponse(Cliente cliente) {

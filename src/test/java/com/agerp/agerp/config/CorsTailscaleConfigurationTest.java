@@ -2,6 +2,7 @@ package com.agerp.agerp.config;
 
 import com.agerp.agerp.security.CustomUserDetailsService;
 import com.agerp.agerp.security.jwt.JwtAuthenticationFilter;
+import com.agerp.agerp.security.jwt.JwtProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.cors.CorsConfiguration;
@@ -18,7 +19,8 @@ class CorsTailscaleConfigurationTest {
     @Test
     void springSecurityPermiteSomenteODominioTailscaleConfigurado() {
         SecurityConfig security = new SecurityConfig(
-                mock(CustomUserDetailsService.class), mock(JwtAuthenticationFilter.class));
+                mock(CustomUserDetailsService.class), mock(JwtAuthenticationFilter.class),
+                mock(JwtProperties.class), TAILSCALE_ORIGIN);
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
         CorsConfiguration cors = security.corsConfigurationSource().getCorsConfiguration(request);
 

@@ -6,6 +6,7 @@
 .env
 .env.local
 .env.*.local
+.env.*
 *.env
 !/.env.example
 
@@ -98,3 +99,4 @@ HELP.md
 agerp-frontend/playwright-report/
 agerp-frontend/test-results/
 agerp-frontend/tests/e2e/.auth/
+scripts/docker/.isolation-runs/

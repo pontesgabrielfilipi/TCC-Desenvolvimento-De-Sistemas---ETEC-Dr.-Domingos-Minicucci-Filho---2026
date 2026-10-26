@@ -8,6 +8,7 @@ import com.agerp.agerp.entity.StatusAcesso;
 import com.agerp.agerp.security.CustomUserDetails;
 import com.agerp.agerp.security.CustomUserDetailsService;
 import com.agerp.agerp.security.jwt.JwtTokenProvider;
+import com.agerp.agerp.service.SessaoAutenticacaoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,10 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties = "agerp.seed.enabled=true")
+@SpringBootTest(properties = {"agerp.seed.enabled=true", "spring.flyway.placeholders.auditAppRole=test"})
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 @Transactional
@@ -38,6 +40,7 @@ class CargosIntegrationTest {
     @Autowired UsuarioRepository usuarios;
     @Autowired CustomUserDetailsService userDetailsService;
     @Autowired JwtTokenProvider jwtTokenProvider;
+    @Autowired SessaoAutenticacaoService sessoes;
     @Autowired JdbcTemplate jdbc;
 
     @Test
@@ -55,7 +58,7 @@ class CargosIntegrationTest {
             """;
         mvc.perform(post("/api/admin/perfis").with(user("operador").roles("OPERADOR"))
                 .contentType("application/json").content(json)).andExpect(status().isForbidden());
-        mvc.perform(post("/api/admin/perfis").with(user("admin").roles("ADMIN"))
+        mvc.perform(post("/api/admin/perfis").with(csrf()).with(adminAutenticado())
                 .contentType("application/json").content(json))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.nome").value("EXPEDICAO"))
                 .andExpect(jsonPath("$.paginas[0]").value("PEDIDOS"));
@@ -82,11 +85,11 @@ class CargosIntegrationTest {
 
     @Test
     void cargoPersonalizadoNaoPodeReceberPermissaoAdminOuNivel100() throws Exception {
-        mvc.perform(post("/api/admin/perfis").with(user("admin").roles("ADMIN"))
+        mvc.perform(post("/api/admin/perfis").with(csrf()).with(user("admin").roles("ADMIN"))
                         .contentType("application/json")
                         .content("{\"nome\":\"ROOT\",\"nivelAutoridade\":100,\"paginas\":[\"PRODUTOS\"]}"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/admin/perfis").with(user("admin").roles("ADMIN"))
+        mvc.perform(post("/api/admin/perfis").with(csrf()).with(user("admin").roles("ADMIN"))
                         .contentType("application/json")
                         .content("{\"nome\":\"ROOT\",\"nivelAutoridade\":99,\"paginas\":[\"ADMIN\"]}"))
                 .andExpect(status().isBadRequest());
@@ -99,12 +102,12 @@ class CargosIntegrationTest {
         perfil.setNivelAutoridade(40);
         perfil.getPaginas().add("PEDIDOS");
         perfil = perfis.saveAndFlush(perfil);
-        mvc.perform(put("/api/admin/perfis/{id}", perfil.getId()).with(user("admin").roles("ADMIN"))
+        mvc.perform(put("/api/admin/perfis/{id}", perfil.getId()).with(csrf()).with(user("admin").roles("ADMIN"))
                 .contentType("application/json")
                 .content("{\"nome\":\"EXPEDICAO_CONCORRENCIA\",\"nivelAutoridade\":40,\"paginas\":[\"PEDIDOS\"],\"versao\":999}"))
                 .andExpect(status().isConflict());
         usuarioPersistido("vinculado@agerp.local", perfil);
-        mvc.perform(delete("/api/admin/perfis/{id}", perfil.getId()).with(user("admin").roles("ADMIN")))
+        mvc.perform(delete("/api/admin/perfis/{id}", perfil.getId()).with(csrf()).with(user("admin").roles("ADMIN")))
                 .andExpect(status().isConflict());
     }
 
@@ -121,7 +124,7 @@ class CargosIntegrationTest {
         mvc.perform(get("/api/clientes").cookie(cookie)).andExpect(status().isOk());
         mvc.perform(get("/api/produtos").cookie(cookie)).andExpect(status().isForbidden());
 
-        mvc.perform(put("/api/admin/perfis/{id}", perfil.getId()).with(user("admin").roles("ADMIN"))
+        mvc.perform(put("/api/admin/perfis/{id}", perfil.getId()).with(csrf()).with(user("admin").roles("ADMIN"))
                         .contentType("application/json")
                         .content("{\"nome\":\"EXPEDICAO_SESSAO\",\"nivelAutoridade\":40,\"paginas\":[\"PRODUTOS\"],\"versao\":" + perfil.getVersao() + "}"))
                 .andExpect(status().isOk());
@@ -146,7 +149,7 @@ class CargosIntegrationTest {
         Cookie cookieAdmin = cookieAutenticado(administrador.getEmail());
 
         mvc.perform(get("/api/clientes").cookie(cookieUsuario)).andExpect(status().isOk());
-        mvc.perform(put("/api/admin/usuarios/{id}", usuario.getId()).cookie(cookieAdmin)
+        mvc.perform(put("/api/admin/usuarios/{id}", usuario.getId()).with(csrf()).cookie(cookieAdmin)
                         .contentType("application/json")
                         .content("{\"nome\":\"Usuario teste cargos\",\"email\":\"reatribuido@agerp.local\",\"idPerfil\":" + perfil.getId() + "}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.perfilNome").value("EXPEDICAO_ATRIBUICAO"));
@@ -155,6 +158,15 @@ class CargosIntegrationTest {
         Cookie novoCookie = cookieAutenticado(usuario.getEmail());
         mvc.perform(get("/api/clientes").cookie(novoCookie)).andExpect(status().isForbidden());
         mvc.perform(get("/api/pedidos").cookie(novoCookie)).andExpect(status().isOk());
+    }
+
+    private RequestPostProcessor adminAutenticado() {
+        Usuario administrador = usuarios.findAll().stream()
+                .filter(u -> "ADMIN".equalsIgnoreCase(u.getIdPerfil().getNome()))
+                .findFirst().orElseThrow();
+        return user(new CustomUserDetails(administrador,
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
+                        new SimpleGrantedAuthority("PAGE_ADMIN"))));
     }
 
     private Usuario usuarioPersistido(String email, Perfil perfil) {
@@ -171,7 +183,8 @@ class CargosIntegrationTest {
     private Cookie cookieAutenticado(String email) {
         CustomUserDetails detalhes = (CustomUserDetails) userDetailsService.loadUserByUsername(email);
         var auth = new UsernamePasswordAuthenticationToken(detalhes, null, detalhes.getAuthorities());
-        return new Cookie("jwtToken", jwtTokenProvider.generateToken(auth));
+        var sessao = sessoes.criar(detalhes.getUsuario(), null, 86_400_000);
+        return new Cookie("jwtToken", jwtTokenProvider.generateToken(auth, sessao.getId()));
     }
 
     @Test
@@ -189,9 +202,9 @@ class CargosIntegrationTest {
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/api/produtos/999999").with(baixoComPedidos))
                 .andExpect(status().isForbidden());
-        mvc.perform(post("/api/pedidos/999999/cancelar").with(altoComPedidos))
+        mvc.perform(post("/api/pedidos/999999/cancelar").with(csrf()).with(altoComPedidos))
                 .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus()));
-        mvc.perform(patch("/api/pedidos/999999/status?status=CANCELADO").with(altoComPedidos))
+        mvc.perform(patch("/api/pedidos/999999/status?status=CANCELADO").with(csrf()).with(altoComPedidos))
                 .andExpect(result -> assertNotEquals(403, result.getResponse().getStatus()));
     }
 

@@ -7,6 +7,7 @@ import com.agerp.agerp.dto.PedidoUpdateRequest;
 import com.agerp.agerp.entity.*;
 import com.agerp.agerp.repository.*;
 import com.agerp.agerp.service.PedidoService;
+import com.agerp.agerp.service.AuditoriaNegocioService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,9 @@ public class PedidoServiceTest {
     @Mock
     private UsuarioRepository usuarioRepository;
 
+    @Mock
+    private AuditoriaNegocioService auditoriaNegocioService;
+
     @InjectMocks
     private PedidoService pedidoService;
 
@@ -62,6 +66,10 @@ public class PedidoServiceTest {
 
     @BeforeEach
     public void setup() {
+        lenient().when(pedidoRepository.findByIdForUpdate(anyInt()))
+                .thenAnswer(inv -> pedidoRepository.findById(inv.getArgument(0)));
+        lenient().when(estoqueRepository.findByProdutoIdForUpdate(anyInt()))
+                .thenAnswer(inv -> estoqueRepository.findByIdProduto_Id(inv.getArgument(0)));
         cliente = new Cliente();
         cliente.setId(1);
         cliente.setNomeRazao("Cliente Teste");

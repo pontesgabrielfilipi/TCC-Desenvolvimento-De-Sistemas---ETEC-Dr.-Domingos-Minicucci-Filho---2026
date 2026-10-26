@@ -18,6 +18,8 @@ import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -43,7 +45,7 @@ class RelatorioAdminServiceTest {
     @Test
     void catalogoTemCoberturaDeEntidadesCargosEstoqueEAuditoriaSemSegredos() {
         var ids = service.catalogo().stream().map(RelatorioAdminService.Relatorio::id).toList();
-        assertTrue(ids.size() >= 30);
+        assertEquals(39, ids.size(), "Os 35 IDs anteriores e as quatro visões novas devem permanecer estáveis");
         assertTrue(ids.containsAll(List.of("clientes_cadastro", "clientes_ranking", "produtos_estoque_baixo", "produtos_custos",
                 "estoque_movimentacoes", "pedidos_itens", "vendas_periodo", "indicadores_resumo",
                 "usuarios_cargos", "usuarios_atividade", "auditoria_logs", "entregas_registradas")));
@@ -52,6 +54,40 @@ class RelatorioAdminServiceTest {
             assertFalse(r.select().toLowerCase().contains("token"));
             assertFalse(r.colunas().isEmpty());
         });
+    }
+
+    @Test
+    void corteDoLogImpedeAutorreferenciaEParametrosPermanecemVinculados() {
+        var relatorio = service.obter("auditoria_exportacoes");
+        var consulta = service.consulta(relatorio,
+                new RelatorioAdminService.Filtros(LocalDate.of(2026, 10, 24), null, null, null, 4, null));
+        assertTrue(consulta.sql().contains("l.data_hora >= ?"));
+        assertFalse(consulta.sql().contains("l.id_log <= ?"), "Somente uma exportação com corte deve limitar o log");
+        simularResultado(List.of());
+        var arquivo = new ByteArrayOutputStream();
+        assertDoesNotThrow(() -> service.exportarComContagem(relatorio, semFiltros(), arquivo, 108L));
+        assertTrue(arquivo.size() > 100);
+    }
+
+    @Test
+    void datasDeSessoesUsamLimitesUtcExclusivos() {
+        var consulta = service.consulta(service.obter("auditoria_sessoes"),
+                new RelatorioAdminService.Filtros(LocalDate.of(2026, 10, 24),
+                        LocalDate.of(2026, 10, 24), null, null, null, null));
+        assertEquals(List.of(OffsetDateTime.of(2026,10,24,0,0,0,0,ZoneOffset.UTC),
+                OffsetDateTime.of(2026,10,25,0,0,0,0,ZoneOffset.UTC)), consulta.parametros());
+    }
+
+    @Test
+    void mesmaRegraDeEstoqueEhUsadaNaConsultaENosMetadados() throws Exception {
+        simularResultado(List.of());
+        var arquivo = new ByteArrayOutputStream();
+        service.exportarComContagem(service.obter("produtos_estoque_baixo"), semFiltros(), arquivo, null);
+        verify(estoque, times(1)).regraAtual();
+        try (var livro = WorkbookFactory.create(new ByteArrayInputStream(arquivo.toByteArray()))) {
+            assertTrue(livro.getSheet("Informações").getRow(10).getCell(1)
+                    .getStringCellValue().contains("15"));
+        }
     }
 
     @Test

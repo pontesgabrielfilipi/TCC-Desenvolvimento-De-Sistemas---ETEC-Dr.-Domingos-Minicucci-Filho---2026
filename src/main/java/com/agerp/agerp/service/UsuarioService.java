@@ -78,7 +78,11 @@ public class UsuarioService {
         usuario.setStatusAcesso(StatusAcesso.PENDENTE);
 
         usuario = usuarioRepository.save(usuario);
-        logSistemaService.registrarLog(usuario, "CRIACAO_USUARIO_" + usuario.getId(), "USUARIO", ip);
+        // Cadastro publico: autoria anonima, sem atribuir identidade antes da autenticacao.
+        logSistemaService.registrarEvento(null, "CRIACAO_USUARIO_" + usuario.getId(), "USUARIO",
+                String.valueOf(usuario.getId()), "SUCESSO", null, ip,
+                AuditoriaNegocioService.mudancas("status", null, StatusAcesso.PENDENTE,
+                        "ativo", null, false, "perfil", null, perfil.getNome()));
         return toResponse(usuario);
     }
 
@@ -125,6 +129,7 @@ public class UsuarioService {
     public UsuarioResponse atualizar(Integer id, UsuarioUpdateRequest request,
             Usuario administrador, String ip) {
         validarAdministrador(administrador);
+        bloquearAlteracoesAdministrativasConcorrentes();
         Usuario usuario = usuarioRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado. ID: " + id));
 
@@ -140,6 +145,7 @@ public class UsuarioService {
         }
 
         boolean emailAlterado = !email.equalsIgnoreCase(usuario.getEmail());
+        String perfilAnterior = usuario.getIdPerfil() == null ? null : usuario.getIdPerfil().getNome();
         boolean perfilAlterado = usuario.getIdPerfil() == null
                 || !perfil.getId().equals(usuario.getIdPerfil().getId());
         if (perfilAlterado && usuario.getStatusAcesso() == StatusAcesso.APROVADO
@@ -160,9 +166,10 @@ public class UsuarioService {
         }
         usuario = usuarioRepository.save(usuario);
         if (!campos.isEmpty()) {
-            logSistemaService.registrarLog(administrador,
+            logSistemaService.registrarEvento(administrador,
                     "EDICAO_USUARIO_" + id + "_CAMPOS_" + String.join("_", campos).toUpperCase(Locale.ROOT),
-                    "USUARIO", ip);
+                    "USUARIO", String.valueOf(id), "SUCESSO", null, ip,
+                    AuditoriaNegocioService.mudancas("perfil", perfilAnterior, perfil.getNome()));
         }
         return toResponse(usuario);
     }
@@ -210,7 +217,9 @@ public class UsuarioService {
         alvo.setTrocaSenhaObrigatoria(true);
         alvo.setCredentialVersion(proximaVersao(alvo));
         usuarioRepository.save(alvo);
-        logSistemaService.registrarLog(administrador, "REDEFINICAO_SENHA_USUARIO_" + alvoId, "USUARIO", ip);
+        logSistemaService.registrarEvento(administrador, "REDEFINICAO_SENHA_USUARIO_" + alvoId,
+                "USUARIO", String.valueOf(alvoId), "SUCESSO", null, ip,
+                AuditoriaNegocioService.mudancas("estado", null, "TROCA_SENHA_OBRIGATORIA"));
         return new RedefinicaoSenhaResponse(temporaria, expiraEm);
     }
 
@@ -251,7 +260,9 @@ public class UsuarioService {
         usuario.setTrocaSenhaObrigatoria(false);
         usuario.setCredentialVersion(proximaVersao(usuario));
         usuarioRepository.save(usuario);
-        logSistemaService.registrarLog(usuario, "ALTERACAO_OBRIGATORIA_SENHA", "USUARIO", ip);
+        logSistemaService.registrarEvento(usuario, "ALTERACAO_OBRIGATORIA_SENHA", "USUARIO",
+                String.valueOf(usuarioId), "SUCESSO", null, ip,
+                AuditoriaNegocioService.mudancas("estado", "TROCA_SENHA_OBRIGATORIA", "CONCLUIDA"));
     }
 
     private long proximaVersao(Usuario usuario) {
@@ -292,8 +303,11 @@ public class UsuarioService {
         if (administrador.getId().equals(alvoId)) {
             throw new IllegalArgumentException("Não é permitido alterar o próprio status de acesso.");
         }
-        Usuario alvo = usuarioRepository.findById(alvoId)
+        bloquearAlteracoesAdministrativasConcorrentes();
+        Usuario alvo = usuarioRepository.findByIdForUpdate(alvoId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado. ID: " + alvoId));
+        StatusAcesso statusAnterior = alvo.getStatusAcesso();
+        Boolean ativoAnterior = alvo.getAtivo();
         validarTransicao(alvo, novoStatus);
         if (novoStatus != StatusAcesso.APROVADO) {
             protegerUltimoAdministrador(alvo);
@@ -307,7 +321,10 @@ public class UsuarioService {
             case BLOQUEADO -> "BLOQUEIO_USUARIO_";
             default -> "STATUS_USUARIO_";
         };
-        logSistemaService.registrarLog(administrador, acao + alvoId, "USUARIO", ip);
+        logSistemaService.registrarEvento(administrador, acao + alvoId, "USUARIO",
+                String.valueOf(alvoId), "SUCESSO", null, ip,
+                AuditoriaNegocioService.mudancas("status", statusAnterior, novoStatus,
+                        "ativo", ativoAnterior, alvo.getAtivo()));
         return toResponse(salvo);
     }
 
@@ -321,8 +338,9 @@ public class UsuarioService {
     @Transactional
     public UsuarioResponse excluirLogicamente(Integer alvoId, Usuario administrador, String ip) {
         UsuarioResponse resposta = alterarStatus(alvoId, StatusAcesso.BLOQUEADO, administrador, ip);
-        logSistemaService.registrarLog(administrador, "EXCLUSAO_LOGICA_USUARIO_" + alvoId,
-                "USUARIO", String.valueOf(alvoId), "SUCESSO", "Usuário desativado logicamente", ip);
+        logSistemaService.registrarEvento(administrador, "EXCLUSAO_LOGICA_USUARIO_" + alvoId,
+                "USUARIO", String.valueOf(alvoId), "SUCESSO", null, ip,
+                AuditoriaNegocioService.mudancas("estado", null, "EXCLUSAO_LOGICA"));
         return resposta;
     }
 
@@ -335,6 +353,17 @@ public class UsuarioService {
         if (!valida) {
             throw new IllegalArgumentException("Transição de status inválida: " + atual + " para " + novoStatus + ".");
         }
+    }
+
+    /**
+     * Transações que alteram cargo ou status de usuários devem adquirir este
+     * bloqueio compartilhado antes do lock da linha do usuário. Bloquear apenas
+     * o alvo permitiria que duas transações removam administradores distintos
+     * após ambas observarem a contagem antiga (write skew).
+     */
+    private void bloquearAlteracoesAdministrativasConcorrentes() {
+        perfilRepository.findAdminForUpdate()
+                .orElseThrow(() -> new IllegalStateException("Perfil ADMIN não configurado."));
     }
 
     private void protegerUltimoAdministrador(Usuario usuario) {

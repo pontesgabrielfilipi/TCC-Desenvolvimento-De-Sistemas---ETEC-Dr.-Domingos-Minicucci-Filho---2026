@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class ProdutoService {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AuditoriaNegocioService auditoria;
 
     private final ProdutoRepository produtoRepository;
     private final EstoqueRepository estoqueRepository;
@@ -101,6 +103,9 @@ public class ProdutoService {
         estoque.setQuantidadeMinima(request.getQuantidadeMinima() != null ? request.getQuantidadeMinima() : 10);
         estoque.setLocalizacao("Depósito Principal");
         estoqueRepository.save(estoque);
+        if (auditoria != null) auditoria.registrar("CRIACAO_PRODUTO", "PRODUTO", produto.getId(),
+                AuditoriaNegocioService.mudancas("preco", null, produto.getPreco(), "custo", null, produto.getCusto(),
+                        "quantidadeAtual", null, estoque.getQuantidadeAtual(), "quantidadeMinima", null, estoque.getQuantidadeMinima()));
 
         return toResponse(produto);
     }
@@ -116,10 +121,16 @@ public class ProdutoService {
     })
     @Transactional
     public ProdutoResponse atualizar(Integer id, ProdutoUpdateRequest request) {
+        BigDecimal precoAnterior;
+        BigDecimal custoAnterior;
+        Boolean ativoAnterior;
         Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado com ID: " + id));
 
         // Validação de nome duplicado ao editar
+        precoAnterior = produto.getPreco();
+        custoAnterior = produto.getCusto();
+        ativoAnterior = produto.getAtivo();
         if (request.getNome() != null &&
                 produtoRepository.existsByNomeIgnoreCase(request.getNome()) &&
                 !produto.getNome().equalsIgnoreCase(request.getNome())) {
@@ -145,6 +156,8 @@ public class ProdutoService {
 
         // Atualizar estoque associado se fornecido
         Estoque estoque = estoqueRepository.findByIdProdutoId(produto.getId());
+        Integer saldoAnterior = estoque == null ? null : estoque.getQuantidadeAtual();
+        Integer minimoAnterior = estoque == null ? null : estoque.getQuantidadeMinima();
         if (estoque != null) {
             if (request.getQuantidadeAtual() != null) {
                 estoque.setQuantidadeAtual(request.getQuantidadeAtual());
@@ -162,6 +175,11 @@ public class ProdutoService {
             estoqueRepository.save(estoque);
         }
 
+        var alteracoes = AuditoriaNegocioService.mudancas("preco", precoAnterior, produto.getPreco(),
+                "custo", custoAnterior, produto.getCusto(), "ativo", ativoAnterior, produto.getAtivo(),
+                "quantidadeAtual", saldoAnterior, estoque == null ? null : estoque.getQuantidadeAtual(),
+                "quantidadeMinima", minimoAnterior, estoque == null ? null : estoque.getQuantidadeMinima());
+        if (auditoria != null && !alteracoes.isEmpty()) auditoria.registrar("EDICAO_PRODUTO", "PRODUTO", id, alteracoes);
         return toResponse(produto);
     }
 
@@ -179,8 +197,11 @@ public class ProdutoService {
         Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado com ID: " + id));
 
+        if (Boolean.FALSE.equals(produto.getAtivo())) return;
         produto.setAtivo(false);
         produtoRepository.save(produto);
+        if (auditoria != null) auditoria.registrar("EXCLUSAO_LOGICA_PRODUTO", "PRODUTO", id,
+                AuditoriaNegocioService.mudancas("ativo", true, false));
     }
 
     // ====================== HARD DELETE ======================
@@ -201,6 +222,7 @@ public class ProdutoService {
         estoqueRepository.deleteByIdProdutoId(produto.getId());
 
         produtoRepository.deleteById(id);
+        if (auditoria != null) auditoria.registrar("EXCLUSAO_PRODUTO", "PRODUTO", id, java.util.Map.of());
     }
 
     // ====================== MAPPER ======================

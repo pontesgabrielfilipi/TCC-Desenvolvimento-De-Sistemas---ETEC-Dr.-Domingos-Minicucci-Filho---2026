@@ -7,6 +7,10 @@ import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.Instant;
+import java.util.UUID;
+import java.util.Map;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -61,4 +65,32 @@ public class LogSistema {
 
     @Column(name = "detalhes", columnDefinition = "TEXT")
     private String detalhes;
+
+    @Column(name = "event_id", updatable = false)
+    private UUID eventId;
+    @Column(name = "request_id", updatable = false)
+    private UUID requestId;
+    @Column(name = "correlation_id", length = 64, updatable = false)
+    private String correlationId;
+    @Column(name = "session_ref", length = 100, updatable = false)
+    private String sessionRef;
+    @Column(name = "device_ref", length = 100, updatable = false)
+    private String deviceRef;
+    @Column(name = "event_schema_version", nullable = false, updatable = false)
+    private short eventSchemaVersion = 1;
+    @Column(name = "peer_ip", length = 50, updatable = false)
+    private String peerIp;
+    @Column(name = "user_agent", length = 256, updatable = false)
+    private String userAgent;
+    @Column(name = "http_method", length = 10, updatable = false)
+    private String httpMethod;
+    @Column(name = "http_route", length = 160, updatable = false)
+    private String httpRoute;
+    @Column(name = "http_status", updatable = false)
+    private Integer httpStatus;
+    @Column(name = "duration_ms", updatable = false)
+    private Long durationMs;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "changes_json", columnDefinition = "jsonb", updatable = false)
+    private Map<String, Object> changesJson;
 }

@@ -10,6 +10,11 @@ import com.agerp.agerp.security.jwt.JwtProperties;
 import com.agerp.agerp.security.jwt.JwtTokenProvider;
 import com.agerp.agerp.service.LogSistemaService;
 import com.agerp.agerp.service.UsuarioService;
+import com.agerp.agerp.service.SessaoAutenticacaoService;
+import com.agerp.agerp.service.AuditFailureService;
+import com.agerp.agerp.security.LoginAttemptLimiter;
+import com.agerp.agerp.entity.SessaoAutenticacao;
+import java.util.UUID;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +48,8 @@ class AuthControllerApprovalTest {
         AuthenticationManager manager = mock(AuthenticationManager.class);
         JwtTokenProvider tokens = mock(JwtTokenProvider.class);
         AuthController controller = new AuthController(manager, tokens, mock(LogSistemaService.class),
-                mock(UsuarioService.class));
+                mock(UsuarioService.class), new ClientIpResolver(""), jwtProperties,
+                sessions(), new LoginAttemptLimiter(10, 300), mock(AuditFailureService.class));
         Usuario usuario = usuario(StatusAcesso.PENDENTE);
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(new CustomUserDetails(usuario,
@@ -67,13 +73,13 @@ class AuthControllerApprovalTest {
         UsuarioService usuarios = mock(UsuarioService.class);
         jwtProperties.setCookieSecure(true);
         AuthController controller = new AuthController(manager, tokens, logs, usuarios,
-                new ClientIpResolver(""), jwtProperties);
+                new ClientIpResolver(""), jwtProperties, sessions(), new LoginAttemptLimiter(10, 300), mock(AuditFailureService.class));
         Usuario usuario = usuario(StatusAcesso.APROVADO);
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(new CustomUserDetails(usuario,
                 List.of(new SimpleGrantedAuthority("ROLE_OPERADOR"))));
         when(manager.authenticate(any())).thenReturn(authentication);
-        when(tokens.generateToken(any())).thenReturn("token-assinado");
+        when(tokens.generateToken(any(), any(UUID.class))).thenReturn("token-assinado");
         LoginRequest login = new LoginRequest();
         login.setEmail(usuario.getEmail());
         login.setSenha("senha-correta");
@@ -104,13 +110,14 @@ class AuthControllerApprovalTest {
         JwtTokenProvider tokens = mock(JwtTokenProvider.class);
         jwtProperties.setCookieSecure(false);
         AuthController controller = new AuthController(manager, tokens, mock(LogSistemaService.class),
-                mock(UsuarioService.class), new ClientIpResolver(""), jwtProperties);
+                mock(UsuarioService.class), new ClientIpResolver(""), jwtProperties,
+                sessions(), new LoginAttemptLimiter(10, 300), mock(AuditFailureService.class));
         Usuario usuario = usuario(StatusAcesso.APROVADO);
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(new CustomUserDetails(usuario,
                 List.of(new SimpleGrantedAuthority("ROLE_OPERADOR"))));
         when(manager.authenticate(any())).thenReturn(authentication);
-        when(tokens.generateToken(any())).thenReturn("token-assinado");
+        when(tokens.generateToken(any(), any(UUID.class))).thenReturn("token-assinado");
         LoginRequest login = new LoginRequest();
         login.setEmail(usuario.getEmail());
         login.setSenha("senha-correta");
@@ -137,5 +144,15 @@ class AuthControllerApprovalTest {
         usuario.setIdPerfil(perfil);
         usuario.setStatusAcesso(status);
         return usuario;
+    }
+
+    private static SessaoAutenticacaoService sessions() {
+        var mock = mock(SessaoAutenticacaoService.class);
+        when(mock.criar(any(), any(), anyLong())).thenAnswer(inv -> {
+            SessaoAutenticacao sessao = new SessaoAutenticacao();
+            sessao.setId(UUID.randomUUID());
+            return sessao;
+        });
+        return mock;
     }
 }

@@ -27,4 +27,6 @@ public interface LogSistemaRepository extends JpaRepository<LogSistema, Integer>
      * Lista logs de um usuário específico, ordenados por data/hora
      */
     List<LogSistema> findByIdUsuarioOrderByDataHoraDesc(Integer idUsuario);
+
+    List<LogSistema> findByEntidadeAndRecursoIdOrderByIdAsc(String entidade, String recursoId);
 }

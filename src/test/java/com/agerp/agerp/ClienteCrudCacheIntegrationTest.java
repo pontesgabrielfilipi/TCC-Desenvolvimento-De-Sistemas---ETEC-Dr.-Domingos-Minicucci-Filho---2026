@@ -2,15 +2,22 @@ package com.agerp.agerp;
 
 import com.agerp.agerp.dto.ClienteCreateRequest;
 import com.agerp.agerp.service.ClienteService;
+import com.agerp.agerp.repository.UsuarioRepository;
+import com.agerp.agerp.security.CustomUserDetails;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,9 +30,21 @@ class ClienteCrudCacheIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private EntityManager entityManager;
     @Autowired private CacheManager cacheManager;
+    @Autowired private UsuarioRepository usuarios;
+
+    @BeforeEach
+    void autenticarAtorAuditavel() {
+        var admin = usuarios.findAll().stream()
+                .filter(u -> "ADMIN".equalsIgnoreCase(u.getIdPerfil().getNome()))
+                .findFirst().orElseThrow();
+        var details = new CustomUserDetails(admin, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities()));
+    }
 
     @AfterEach
     void limparCaches() {
+        SecurityContextHolder.clearContext();
         cacheManager.getCacheNames().forEach(nome -> {
             var cache = cacheManager.getCache(nome);
             if (cache != null) cache.clear();

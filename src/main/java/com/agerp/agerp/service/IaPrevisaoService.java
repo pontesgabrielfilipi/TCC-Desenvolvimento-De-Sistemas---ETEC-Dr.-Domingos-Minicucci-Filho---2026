@@ -4,6 +4,7 @@ import com.agerp.agerp.dto.PrevisaoEntregaResponse;
 import com.agerp.agerp.entity.*;
 import com.agerp.agerp.repository.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
@@ -27,6 +28,8 @@ public class IaPrevisaoService {
     private final EntregaRepository entregaRepository;
     private final PrevisaoEntregaRepository previsaoEntregaRepository;
     private final ConfiguracaoSistemaService configuracaoSistemaService;
+    @Autowired
+    private AuditoriaNegocioService auditoriaNegocioService;
 
     public IaPrevisaoService(PedidoRepository pedidoRepository,
                             EnderecoRepository enderecoRepository,
@@ -46,6 +49,7 @@ public class IaPrevisaoService {
     @Cacheable(value = "pedidosPrevisaoIa", key = "#idPedido")
     @Transactional
     public PrevisaoEntregaResponse obterOuCalcularPrevisao(Integer idPedido) {
+        long inicio = System.nanoTime();
         Pedido pedido = pedidoRepository.findById(idPedido)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado com ID: " + idPedido));
 
@@ -127,6 +131,12 @@ public class IaPrevisaoService {
         // 4. Persistir ou atualizar entrega e previsão se necessário
         salvarRegistroEntregaEPrevisao(pedido, respostaIa, cidadeDestino, estadoDestino, cepDestino, cidadeOrigem, estadoOrigem, cepOrigem, pesoTotalG);
 
+        auditoriaNegocioService.registrar("SUCESSO".equals(respostaIa.getStatus())
+                        ? "CALCULO_PREVISAO_IA" : "FALLBACK_PREVISAO_IA", "PREVISAO", pedido.getId(),
+                AuditoriaNegocioService.mudancas("status", null, respostaIa.getStatus(),
+                        "modeloVersao", null, respostaIa.getModeloVersao(),
+                        "duracaoMs", null, (System.nanoTime() - inicio) / 1_000_000L));
+
         return respostaIa;
     }
 
@@ -185,6 +195,14 @@ public class IaPrevisaoService {
                     int maxDias = ((Number) prazo.get("max_dias")).intValue();
                     double estimativa = ((Number) prazo.get("estimativa_central")).doubleValue();
 
+                    // HTTP 200 com JSON estruturalmente valido ainda pode trazer
+                    // valores NaN, negativos ou fora do horizonte contratado.
+                    if (minDias < 1 || maxDias < minDias || maxDias > 365
+                            || !Double.isFinite(estimativa) || estimativa < minDias
+                            || estimativa > maxDias) {
+                        throw new IllegalArgumentException("Intervalo da IA invalido");
+                    }
+
                     return PrevisaoEntregaResponse.builder()
                             .idPedido(pedido.getId())
                             .prazoMinimoDias(minDias)
@@ -203,8 +221,8 @@ public class IaPrevisaoService {
                 }
             }
         } catch (Exception e) {
-            log.warn("Microsserviço de IA Python indisponível ou erro na chamada ({}: {}). Utilizando estimativa preditiva local.",
-                    url, e.getMessage());
+            log.warn("Microsserviço de IA indisponível ou resposta inválida ({}). Aplicando fallback.",
+                    e.getClass().getSimpleName());
         }
 
         // Fallback inteligente baseado em regras heurísticas de logística do AGERP
@@ -244,7 +262,6 @@ public class IaPrevisaoService {
             String sellerCep,
             BigDecimal pesoTotalG
     ) {
-        try {
             Entrega entrega = entregaRepository.findByIdPedidoId(pedido.getId());
             if (entrega == null) {
                 entrega = new Entrega();
@@ -287,10 +304,7 @@ public class IaPrevisaoService {
             prevEntity.setOrderHour(ZonedDateTime.now().getHour());
             prevEntity.setPrazoEntregaDias(previsao.getPrazoMaximoDias());
 
-            previsaoEntregaRepository.save(prevEntity);
-        } catch (Exception e) {
-            log.warn("Aviso ao persistir dados de entrega/previsão: {}", e.getMessage());
-        }
+            previsaoEntregaRepository.saveAndFlush(prevEntity);
     }
 
     private String normalizarCategoria(String nome) {

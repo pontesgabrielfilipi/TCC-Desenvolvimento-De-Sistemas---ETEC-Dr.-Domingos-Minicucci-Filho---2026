@@ -21,6 +21,8 @@ import java.util.Set;
 
 @Service
 public class PerfilService {
+    @Autowired(required = false)
+    private AuditoriaNegocioService auditoria;
 
     private final PerfilRepository perfilRepository;
     private UsuarioRepository usuarioRepository;
@@ -48,7 +50,10 @@ public class PerfilService {
         }
         Perfil perfil = new Perfil();
         aplicar(perfil, request, nome);
-        return toResponse(perfilRepository.saveAndFlush(perfil));
+        Perfil salvo = perfilRepository.saveAndFlush(perfil);
+        if (auditoria != null) auditoria.registrar("CRIACAO_PERFIL", "PERFIL", salvo.getId(),
+                AuditoriaNegocioService.mudancas("nivelAutoridade", null, salvo.getNivelAutoridade()));
+        return toResponse(salvo);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -70,8 +75,12 @@ public class PerfilService {
         if ("OPERADOR".equalsIgnoreCase(perfil.getNome()) && !"OPERADOR".equals(nome)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "O cargo OPERADOR não pode ser renomeado.");
         }
+        Integer nivelAnterior = perfil.getNivelAutoridade();
         aplicar(perfil, request, nome);
-        return toResponse(perfilRepository.saveAndFlush(perfil));
+        Perfil salvo = perfilRepository.saveAndFlush(perfil);
+        var alteracoes = AuditoriaNegocioService.mudancas("nivelAutoridade", nivelAnterior, salvo.getNivelAutoridade());
+        if (auditoria != null && !alteracoes.isEmpty()) auditoria.registrar("EDICAO_PERFIL", "PERFIL", id, alteracoes);
+        return toResponse(salvo);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -87,6 +96,7 @@ public class PerfilService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Cargo vinculado a usuários; reatribua-os primeiro.");
         }
         perfilRepository.delete(perfil);
+        if (auditoria != null) auditoria.registrar("EXCLUSAO_PERFIL", "PERFIL", id, java.util.Map.of());
     }
 
     private String validarNome(String nome) {

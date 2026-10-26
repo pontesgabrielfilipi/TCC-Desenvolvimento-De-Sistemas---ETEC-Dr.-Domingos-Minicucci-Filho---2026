@@ -16,6 +16,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 /** Consultas SQL somente de leitura, com filtros vinculados e exportacao incremental XLSX. */
@@ -218,9 +221,31 @@ public class RelatorioAdminService {
                 " ORDER BY l.data_hora DESC,l.id_log DESC",
                 "Log ID:n|Data:h|Usuário:t|E-mail:t|Ação:t|Entidade:t|Recurso:t|Resultado:t",L);
         add(r,"auditoria_logs","Auditoria","Logs de auditoria","Eventos registrados, resultado e IP. Sem hashes ou tokens.",
-                "l.id_log,l.data_hora,COALESCE(l.usuario_nome,u.nome),COALESCE(l.usuario_email,u.email),l.acao,l.entidade,l.recurso_id,l.resultado,l.ip",LOGS,
+                "l.id_log,l.data_hora,COALESCE(l.usuario_nome,u.nome),COALESCE(l.usuario_email,u.email),l.acao,l.entidade,l.recurso_id,l.resultado,l.ip,"+
+                "l.event_id,l.request_id,l.correlation_id,l.session_ref,l.device_ref,l.peer_ip,l.http_method,l.http_route,l.http_status,l.duration_ms",LOGS,
                 " ORDER BY l.data_hora DESC,l.id_log DESC",
-                "Log ID:n|Data:h|Usuário:t|E-mail:t|Ação:t|Entidade:t|Recurso:t|Resultado:t|IP:t",L);
+                "Log ID:n|Data:h|Usuário:t|E-mail:t|Ação:t|Entidade:t|Recurso:t|Resultado:t|IP:t|Evento ID:t|Request ID:t|Correlação:t|Sessão:t|Dispositivo:t|IP de origem:t|Método:t|Rota:t|HTTP status:n|Duração (ms):n",L);
+        add(r,"auditoria_autenticacoes","Auditoria","Eventos de autenticação","Logins, recusas, saídas e revogações efetivamente registrados.",
+                "l.id_log,l.data_hora,COALESCE(l.usuario_nome,u.nome),l.acao,l.resultado,l.session_ref,l.request_id,l.ip",LOGS+
+                " AND (l.acao IN ('LOGIN','LOGOUT','LOGIN_NEGADO','LOGIN_FALHA','REVOGACAO_SESSAO') OR l.entidade='AUTENTICACAO')",
+                " ORDER BY l.data_hora DESC,l.id_log DESC",
+                "Log ID:n|Data:h|Usuário:t|Evento:t|Resultado:t|Sessão:t|Request ID:t|IP:t",L);
+        add(r,"auditoria_alteracoes","Auditoria","Alterações auditadas","Alterações com diferenças sanitizadas, registradas a partir da auditoria correlacionada.",
+                "l.id_log,l.data_hora,COALESCE(l.usuario_nome,u.nome),l.acao,l.entidade,l.recurso_id,l.resultado,l.changes_json::text,l.request_id",LOGS+
+                " AND l.changes_json IS NOT NULL AND l.changes_json <> '{}'::jsonb AND l.acao NOT LIKE 'EXPORTACAO_%'",
+                " ORDER BY l.data_hora DESC,l.id_log DESC",
+                "Log ID:n|Data:h|Usuário:t|Ação:t|Entidade:t|Recurso:t|Resultado:t|Mudanças sanitizadas:t|Request ID:t",L);
+        add(r,"auditoria_exportacoes","Auditoria","Histórico de exportações","Estados observados no servidor; transmissão não confirma download salvo.",
+                "l.id_log,l.data_hora,COALESCE(l.usuario_nome,u.nome),l.acao,l.recurso_id,l.resultado,l.request_id,l.session_ref,l.changes_json::text",LOGS+
+                " AND l.entidade='RELATORIO' AND l.acao LIKE 'EXPORTACAO_%'",
+                " ORDER BY l.data_hora DESC,l.id_log DESC",
+                "Log ID:n|Data:h|Usuário:t|Estado:t|Export ID:t|Resultado:t|Request ID:t|Sessão:t|Metadados sanitizados:t",L);
+        add(r,"auditoria_sessoes","Auditoria","Sessões registradas","Sessões persistidas, datas de criação, validade e revogação; sem tokens.",
+                "s.id,s.id_usuario,u.nome,s.criada_em,s.expira_em,s.revogada_em,s.motivo_revogacao,s.device_ref",
+                " FROM agerp.sessao_autenticacao s JOIN agerp.usuario u ON u.id_usuario=s.id_usuario WHERE 1=1",
+                " ORDER BY s.criada_em DESC,s.id DESC",
+                "Sessão:t|Usuário ID:n|Usuário:t|Criada em:h|Expira em:h|Revogada em:h|Motivo:t|Dispositivo:t",
+                new Escopo("s.criada_em",null,null,"s.id_usuario",null));
         add(r,"entregas_registradas","Logística","Entregas registradas","Status, datas e distância das entregas cadastradas; não são recebimentos.",
                 "e.id_entrega,p.id_pedido,c.nome_razao,e.status,e.data_saida,e.data_entrega,e.tempo_estimado_ia,e.tempo_real,e.distancia_km",
                 " FROM agerp.entrega e JOIN agerp.pedido p ON p.id_pedido=e.id_pedido JOIN agerp.cliente c ON c.id_cliente=p.id_cliente WHERE 1=1",
@@ -233,16 +258,20 @@ public class RelatorioAdminService {
     public record Consulta(String sql, List<Object> parametros) {}
 
     public Consulta consulta(Relatorio relatorio, Filtros filtros) {
-        String minimo = null;
-        if (usaRegraEstoque(relatorio)) {
-            var regra = estoqueBaixo.regraAtual();
-            minimo = regra.usarGeral() ? Integer.toString(regra.limiteGeral())
-                    : "COALESCE(e.quantidade_minima," + EstoqueBaixoService.MINIMO_INDIVIDUAL_PADRAO + ")";
-        }
+        return consulta(relatorio, filtros, usaRegraEstoque(relatorio) ? estoqueBaixo.regraAtual() : null, null);
+    }
+
+    private Consulta consulta(Relatorio relatorio, Filtros filtros, EstoqueBaixoService.Regra regra, Long limiteAuditoria) {
+        String minimo = regra == null ? null : regra.usarGeral() ? Integer.toString(regra.limiteGeral())
+                : "COALESCE(e.quantidade_minima," + EstoqueBaixoService.MINIMO_INDIVIDUAL_PADRAO + ")";
         Escopo escopo = relatorio.escopo();
         StringBuilder sql = new StringBuilder("SELECT ").append(relatorio.select()).append(relatorio.from());
         List<Object> params = new ArrayList<>();
         adicionarCondicoes(sql, params, escopo, filtros);
+        if (limiteAuditoria != null && relatorio.from().contains("agerp.log_sistema l")) {
+            sql.append(" AND l.id_log <= ?");
+            params.add(limiteAuditoria);
+        }
         sql.append(relatorio.finalSql());
         // Campos de configuracao sao tipados (inteiro) e nunca chegam diretamente do request.
         String finalSql = minimo == null ? sql.toString() : sql.toString().replace("{MINIMO}", minimo);
@@ -270,17 +299,35 @@ public class RelatorioAdminService {
     }
 
     private static void adicionarCondicoes(StringBuilder sql, List<Object> valores, Escopo e, Filtros f) {
-        if (f.inicio() != null && e.data() != null) { sql.append(" AND ").append(e.data()).append(" >= ?"); valores.add(f.inicio().atStartOfDay()); }
-        if (f.fim() != null && e.data() != null) { sql.append(" AND ").append(e.data()).append(" < ?"); valores.add(f.fim().plusDays(1).atStartOfDay()); }
+        // Sessões são TIMESTAMPTZ (UTC explícito); tabelas legadas usam TIMESTAMP sem fuso.
+        if (f.inicio() != null && e.data() != null) { sql.append(" AND ").append(e.data()).append(" >= ?"); valores.add(limiteData(e.data(), f.inicio())); }
+        if (f.fim() != null && e.data() != null) { sql.append(" AND ").append(e.data()).append(" < ?"); valores.add(limiteData(e.data(), f.fim().plusDays(1))); }
         if (f.clienteId() != null && e.cliente() != null) { sql.append(" AND ").append(e.cliente()).append(" = ?"); valores.add(f.clienteId()); }
         if (f.produtoId() != null && e.produto() != null) { sql.append(" AND ").append(e.produto()).append(" = ?"); valores.add(f.produtoId()); }
         if (f.usuarioId() != null && e.usuario() != null) { sql.append(" AND ").append(e.usuario()).append(" = ?"); valores.add(f.usuarioId()); }
         if (f.status() != null && e.status() != null) { sql.append(" AND UPPER(").append(e.status()).append(") = ?"); valores.add(f.status()); }
     }
 
+    private static Object limiteData(String campo, LocalDate dia) {
+        return campo.startsWith("s.") ? dia.atStartOfDay().atOffset(ZoneOffset.UTC) : dia.atStartOfDay();
+    }
+
     @Transactional(readOnly = true)
     public void exportar(Relatorio relatorio, Filtros filtros, OutputStream destino) throws IOException {
-        Consulta consulta = consulta(relatorio, filtros);
+        exportarComContagem(relatorio, filtros, destino, null);
+    }
+
+    /** Limite capturado antes dos eventos desta exportação, evitando autorreferência nos logs. */
+    public long corteAuditoria() {
+        Long id = jdbc.queryForObject("SELECT COALESCE(MAX(id_log),0) FROM agerp.log_sistema", Long.class);
+        return id == null ? 0L : id;
+    }
+
+    @Transactional(readOnly = true)
+    public int exportarComContagem(Relatorio relatorio, Filtros filtros, OutputStream destino,
+                                   Long limiteAuditoria) throws IOException {
+        EstoqueBaixoService.Regra regra = usaRegraEstoque(relatorio) ? estoqueBaixo.regraAtual() : null;
+        Consulta consulta = consulta(relatorio, filtros, regra, limiteAuditoria);
         // SXSSF mantem somente 100 linhas em memoria e descarta os arquivos temporarios ao terminar.
         SXSSFWorkbook wb = new SXSSFWorkbook(100);
         wb.setCompressTempFiles(true);
@@ -289,7 +336,6 @@ public class RelatorioAdminService {
             Sheet resumo = wb.createSheet("Informações");
             String[] etiquetas = {"Relatório", "Categoria", "Gerado em", "Data inicial", "Data final",
                     "Cliente ID", "Produto ID", "Usuário ID", "Status", "Regra de faturamento", "Regra do estoque"};
-            var regra = usaRegraEstoque(relatorio) ? estoqueBaixo.regraAtual() : null;
             Object[] conteudo = {relatorio.titulo(), relatorio.categoria(), LocalDateTime.now(),
                     filtros.inicio(), filtros.fim(), filtros.clienteId(), filtros.produtoId(),
                     filtros.usuarioId(), filtros.status(), "Soma de pedidos não CANCELADO; ticket médio entre pedidos não cancelados.",
@@ -346,12 +392,12 @@ public class RelatorioAdminService {
             }
             total.setColumnWidth(0, 10000); total.setColumnWidth(1, 5500); total.createFreezePane(0,1);
             wb.write(destino);
+            return totalLinhas[0];
         } catch (IOException | RuntimeException erro) {
             log.error("Erro ao gerar XLSX do relatorio {} com filtros {}", relatorio.id(), filtros, erro);
             throw erro;
         } finally {
-            wb.dispose();
-            wb.close();
+            try { wb.close(); } finally { wb.dispose(); }
         }
     }
 
@@ -372,7 +418,9 @@ public class RelatorioAdminService {
     private static void escrever(Cell cell, Object valor, char tipo, Styles styles) {
         if (valor == null) { cell.setBlank(); return; }
         if (tipo == 'h' || tipo == 'a') {
-            LocalDateTime data = valor instanceof Timestamp t ? t.toLocalDateTime()
+            LocalDateTime data = valor instanceof Instant t ? LocalDateTime.ofInstant(t, ZoneOffset.UTC)
+                    : valor instanceof java.time.OffsetDateTime t ? LocalDateTime.ofInstant(t.toInstant(), ZoneOffset.UTC)
+                    : valor instanceof Timestamp t ? t.toLocalDateTime()
                     : valor instanceof LocalDateTime t ? t
                     : valor instanceof java.sql.Date d ? d.toLocalDate().atStartOfDay()
                     : valor instanceof LocalDate d ? d.atStartOfDay() : null;
