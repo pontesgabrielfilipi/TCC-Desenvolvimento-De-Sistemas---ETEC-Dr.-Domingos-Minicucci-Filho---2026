@@ -1,3 +1,6 @@
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 
 -- Credenciais chegam pelo ambiente do container e não ficam gravadas no script.
 \getenv APP_USER APP_DB_USER

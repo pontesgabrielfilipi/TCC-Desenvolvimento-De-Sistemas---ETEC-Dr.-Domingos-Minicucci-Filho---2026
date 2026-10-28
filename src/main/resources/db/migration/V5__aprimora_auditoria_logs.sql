@@ -1,3 +1,6 @@
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 -- Mantém no evento o contexto mínimo do usuário no momento da ação.
 -- As colunas continuam opcionais porque eventos de sistema podem não ter usuário.
 ALTER TABLE agerp.log_sistema

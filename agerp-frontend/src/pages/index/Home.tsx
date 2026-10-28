@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import "./HomeCSS.css";

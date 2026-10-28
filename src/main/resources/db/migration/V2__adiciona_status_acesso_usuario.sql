@@ -1,3 +1,6 @@
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 -- Adota o fluxo de aprovação sem retirar o acesso dos usuários existentes.
 -- O DEFAULT vale apenas para cadastros realizados depois desta migration.
 ALTER TABLE agerp.usuario

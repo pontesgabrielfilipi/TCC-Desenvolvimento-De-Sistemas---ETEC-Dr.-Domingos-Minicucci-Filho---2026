@@ -1,3 +1,6 @@
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 -- Dados sintéticos relacionados para o ambiente de teste.
 -- O entrypoint oficial já conecta no banco definido por POSTGRES_DB.
 CREATE SCHEMA IF NOT EXISTS agerp;

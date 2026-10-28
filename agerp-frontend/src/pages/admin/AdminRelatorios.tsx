@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { clienteService } from '../../services/clienteService';
 import { produtoService } from '../../services/produtoService';

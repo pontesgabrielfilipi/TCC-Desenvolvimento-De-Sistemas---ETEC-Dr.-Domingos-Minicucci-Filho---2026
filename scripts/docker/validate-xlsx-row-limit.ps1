@@ -1,3 +1,6 @@
+# Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+# Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 # Confere a estrutura de um XLSX do AGERP sem carregar todas as linhas em memória.
 # Para provar ausência de perdas ou duplicações, informe também os IDs da consulta
 # de origem na mesma ordenação do relatório.

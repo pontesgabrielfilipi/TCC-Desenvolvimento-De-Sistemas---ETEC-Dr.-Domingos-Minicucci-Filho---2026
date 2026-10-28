@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usuarioService } from '../../services/usuarioService';

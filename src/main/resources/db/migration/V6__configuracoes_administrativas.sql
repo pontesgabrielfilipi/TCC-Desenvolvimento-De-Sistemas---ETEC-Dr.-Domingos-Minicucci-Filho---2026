@@ -1,3 +1,6 @@
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 CREATE TABLE agerp.configuracao_sistema (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     nome_empresa VARCHAR(100) NOT NULL,

@@ -1,3 +1,6 @@
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 -- Preserva os IDs dos perfis e todas as FKs existentes em agerp.usuario.
 ALTER TABLE agerp.perfil
     ADD COLUMN nivel_autoridade INTEGER NOT NULL DEFAULT 20,

@@ -1,3 +1,6 @@
+# Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+# Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 # O backend copia somente estes caminhos. Ignorar o restante evita enviar ao
 # BuildKit o frontend, datasets da IA, documentação e artefatos locais.
 *

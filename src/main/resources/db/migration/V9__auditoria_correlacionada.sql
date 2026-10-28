@@ -1,3 +1,6 @@
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 -- O TIMESTAMP histórico permanece intacto enquanto não houver origem confiável para o fuso.
 ALTER TABLE agerp.log_sistema
     ADD COLUMN event_id UUID,

@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { execFile, execFileSync } from 'node:child_process';

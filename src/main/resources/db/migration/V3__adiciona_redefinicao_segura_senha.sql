@@ -1,3 +1,6 @@
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 -- Permite redefinição administrativa sem armazenar a credencial temporária em texto puro.
 -- Usuários existentes mantêm senha, aprovação e estado de ativação.
 ALTER TABLE agerp.usuario

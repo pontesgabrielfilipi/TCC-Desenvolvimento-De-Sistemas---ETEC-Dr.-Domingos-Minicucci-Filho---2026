@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { clienteService } from '../../services/clienteService';
 import { EnderecosModal } from './EnderecosModal';

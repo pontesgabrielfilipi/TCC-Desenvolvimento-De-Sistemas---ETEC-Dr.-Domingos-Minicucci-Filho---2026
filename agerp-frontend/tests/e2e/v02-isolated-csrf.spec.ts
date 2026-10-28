@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { expect, test } from '@playwright/test';
 
 // O opt-in explícito impede que o teste atinja o mock normal do Vite ou outra aplicação em execução.

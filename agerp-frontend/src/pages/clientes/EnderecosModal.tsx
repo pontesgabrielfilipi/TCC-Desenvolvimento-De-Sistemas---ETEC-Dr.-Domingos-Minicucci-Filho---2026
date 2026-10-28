@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useState, useEffect, useCallback } from 'react';
 import { enderecoService, type Endereco } from '../../services/enderecoService';
 import { getHttpErrorMessage } from '../../utils/httpError';

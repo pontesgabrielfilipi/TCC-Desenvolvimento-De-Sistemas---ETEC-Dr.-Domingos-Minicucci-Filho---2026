@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getBlobHttpErrorMessage } from '../../src/utils/httpError.ts';

@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import axios from 'axios';
 
 // A URL de build aceita apenas caminhos da mesma origem para não enviar cookies a hosts externos.
