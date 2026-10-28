@@ -120,7 +120,8 @@ services:
     container_name: agerp-frontend
     restart: unless-stopped
     ports:
-      - "${AGERP_BIND_ADDRESS:-127.0.0.1}:${HOST_FRONTEND_PORT:?Defina HOST_FRONTEND_PORT}:80"
+      # Bind independente para permitir acesso LAN somente ao frontend.
+      - "${AGERP_FRONTEND_BIND_ADDRESS:-127.0.0.1}:${HOST_FRONTEND_PORT:?Defina HOST_FRONTEND_PORT}:80"
     environment:
       AGERP_NGINX_PROXY_READ_TIMEOUT: ${AGERP_NGINX_PROXY_READ_TIMEOUT:-300s}
       AGERP_NGINX_PROXY_CONNECT_TIMEOUT: ${AGERP_NGINX_PROXY_CONNECT_TIMEOUT:-30s}
