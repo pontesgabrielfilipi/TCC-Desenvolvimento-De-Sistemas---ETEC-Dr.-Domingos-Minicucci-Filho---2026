@@ -28,11 +28,9 @@ const Clientes = () => {
     const [loading, setLoading] = useState(true);
     const [sort, setSort] = useState<{ key: keyof Cliente; direction: 'asc' | 'desc' }>({ key: 'nomeRazao', direction: 'asc' });
 
-    // Modal Cliente
     const [modalOpen, setModalOpen] = useState(false);
     const [editandoId, setEditandoId] = useState<number | null>(null);
 
-    // Modal Endereços
     const [enderecosModalOpen, setEnderecosModalOpen] = useState(false);
     const [clienteSelecionadoEnderecos, setClienteSelecionadoEnderecos] = useState<Cliente | null>(null);
 
@@ -44,11 +42,9 @@ const Clientes = () => {
         telefone: ''
     });
 
-    // Popover de exclusão
     const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
 
-    // Toasts
     const [toasts, setToasts] = useState<Toast[]>([]);
 
     const showToast = useCallback((type: 'success' | 'error', message: string) => {
@@ -95,7 +91,6 @@ const Clientes = () => {
     }));
     const indicador = (key: keyof Cliente) => sort.key === key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : '';
 
-    // Máscaras
     const formatarTelefone = (value: string) =>
         value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15);
 
@@ -238,10 +233,8 @@ const Clientes = () => {
     return (
         <div className="h-full min-w-0 bg-app-background flex overflow-hidden">
 
-            {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col overflow-hidden">
 
-                {/* HEADER */}
                 <header className="bg-white border-b px-3 sm:px-6 py-3 sm:py-5 flex flex-wrap items-center justify-between gap-3">
                     <div className="hidden items-center gap-4 sm:flex">
                         <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">👥 Clientes</h1>
@@ -263,7 +256,6 @@ const Clientes = () => {
                     </div>
                 </header>
 
-                {/* CONTEÚDO COM SCROLL */}
                 <div data-testid="clientes-scroll" className="min-w-0 p-3 sm:p-6 md:p-8 flex-1 overflow-y-auto overflow-x-hidden">
                     {isMobileViewport && campoBusca}
                     {loading ? (
@@ -342,7 +334,6 @@ const Clientes = () => {
                 </div>
             </div>
 
-            {/* Modal Novo / Editar Cliente */}
             {modalOpen && (
                 <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="cliente-modal-titulo">
                     <div className="agerp-modal-panel w-full max-w-lg rounded-3xl bg-white p-4 sm:p-8">
@@ -423,7 +414,6 @@ const Clientes = () => {
                 </div>
             )}
 
-            {/* Popover de Confirmação de Exclusão */}
             {deleteConfirmId && (
                 <div className="agerp-modal-overlay fixed inset-0 z-[110] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="excluir-cliente-titulo">
                     <div className="agerp-modal-panel w-full max-w-sm rounded-3xl bg-white p-5 sm:p-8">
@@ -437,7 +427,6 @@ const Clientes = () => {
                 </div>
             )}
 
-            {/* Modal de Gerenciamento de Endereços */}
             <EnderecosModal
                 isOpen={enderecosModalOpen}
                 cliente={clienteSelecionadoEnderecos}
@@ -445,7 +434,6 @@ const Clientes = () => {
                 showToast={showToast}
             />
 
-            {/* Toasts */}
             <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[120] space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map((toast) => (
                     <div

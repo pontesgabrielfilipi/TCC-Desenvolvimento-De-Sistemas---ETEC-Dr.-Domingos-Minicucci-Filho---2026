@@ -1,12 +1,12 @@
-# Confere a estrutura de um XLSX AGERP sem carregar as linhas em memoria.
-# Para provar ausencia de perda/duplicacao de registros, informe tambem um
-# arquivo de IDs da consulta de origem, na MESMA ordenacao do relatorio.
+# Confere a estrutura de um XLSX do AGERP sem carregar todas as linhas em memória.
+# Para provar ausência de perdas ou duplicações, informe também os IDs da consulta
+# de origem na mesma ordenação do relatório.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][string]$Path,
     [ValidateRange(1,9223372036854775807)][long]$ExpectedDataRows = 1048576,
     [string]$ExpectedOrderedIdsPath,
-    # Apenas para validar o proprio leitor com fixtures pequenas. Nao prova o limite real.
+    # Valida apenas o leitor com fixtures pequenas; não comprova o limite real.
     [ValidateRange(2,1048576)][int]$MaxRowsPerSheet = 1048576
 )
 $ErrorActionPreference = 'Stop'

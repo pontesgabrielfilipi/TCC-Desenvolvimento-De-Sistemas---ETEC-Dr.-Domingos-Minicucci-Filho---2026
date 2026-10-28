@@ -53,7 +53,6 @@ public class IaPrevisaoService {
         Pedido pedido = pedidoRepository.findById(idPedido)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado com ID: " + idPedido));
 
-        // 1. Preferir o endereço de entrega salvo no pedido; depois o primeiro endereço do cliente
         Endereco endereco = pedido.getIdEndereco();
         if (endereco == null) {
             List<Endereco> enderecos = enderecoRepository.findByIdClienteId(pedido.getIdCliente().getId());
@@ -68,7 +67,6 @@ public class IaPrevisaoService {
         String estadoOrigem = "SP";
         String cepOrigem = "18600000";
 
-        // 2. Extrair dados físicos agregados dos itens
         BigDecimal pesoTotalG = BigDecimal.ZERO;
         BigDecimal comprimentoMax = BigDecimal.valueOf(20);
         BigDecimal alturaMax = BigDecimal.valueOf(10);
@@ -109,7 +107,6 @@ public class IaPrevisaoService {
             }
         } catch (NumberFormatException ignored) {}
 
-        // 3. Tentar chamar a API FastAPI Python de Machine Learning
         PrevisaoEntregaResponse respostaIa = chamarMicrosservicoIa(
                 pedido,
                 customerCepPrefix,
@@ -128,7 +125,6 @@ public class IaPrevisaoService {
                 hour
         );
 
-        // 4. Persistir ou atualizar entrega e previsão se necessário
         salvarRegistroEntregaEPrevisao(pedido, respostaIa, cidadeDestino, estadoDestino, cepDestino, cidadeOrigem, estadoOrigem, cepOrigem, pesoTotalG);
 
         auditoriaNegocioService.registrar("SUCESSO".equals(respostaIa.getStatus())
@@ -195,8 +191,7 @@ public class IaPrevisaoService {
                     int maxDias = ((Number) prazo.get("max_dias")).intValue();
                     double estimativa = ((Number) prazo.get("estimativa_central")).doubleValue();
 
-                    // HTTP 200 com JSON estruturalmente valido ainda pode trazer
-                    // valores NaN, negativos ou fora do horizonte contratado.
+                    // O HTTP 200 não basta: valores inválidos acionam o fallback em vez de serem persistidos.
                     if (minDias < 1 || maxDias < minDias || maxDias > 365
                             || !Double.isFinite(estimativa) || estimativa < minDias
                             || estimativa > maxDias) {
@@ -225,7 +220,7 @@ public class IaPrevisaoService {
                     e.getClass().getSimpleName());
         }
 
-        // Fallback inteligente baseado em regras heurísticas de logística do AGERP
+        // A heurística mantém a previsão disponível quando o modelo falha ou excede o timeout.
         int diasBase = customerState.equalsIgnoreCase(sellerState) ? 2 : 4;
         if (weightG > 5000) {
             diasBase += 1;

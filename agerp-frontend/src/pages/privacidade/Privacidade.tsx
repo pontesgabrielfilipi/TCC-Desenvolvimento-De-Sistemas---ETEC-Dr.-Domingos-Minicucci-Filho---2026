@@ -5,7 +5,6 @@ const PoliticaDePrivacidade = () => {
     return (
         <div className="flex min-h-screen min-h-[100dvh] bg-gray-50 lg:h-screen lg:overflow-hidden">
 
-            {/* SIDEBAR DE BRANDING - Desktop only (mesmo padrão do Login) */}
             <div className="relative hidden h-full max-w-96 flex-col bg-slate-900 text-white lg:flex">
                 <div className="p-8 border-b border-slate-800 flex justify-between ">
                     <div>
@@ -43,14 +42,11 @@ const PoliticaDePrivacidade = () => {
                     © 2026 AGERP • Todos os direitos reservados
                 </div>
 
-                {/* Elemento decorativo (igual ao Login) */}
                 <div className="absolute bottom-12 right-8 text-[160px] opacity-5 pointer-events-none">🛡️</div>
             </div>
 
-            {/* CONTEÚDO PRINCIPAL (mesma estrutura do Login) */}
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
 
-                {/* HEADER - SOMENTE TABLET E MOBILE */}
                 <header className="flex items-center justify-between gap-3 bg-slate-900 px-3 py-4 sm:px-6 lg:hidden">
                     <div className="flex items-center gap-4">
                         <Link
@@ -69,12 +65,10 @@ const PoliticaDePrivacidade = () => {
                     </Link>
                 </header>
 
-                {/* ÁREA DO CONTEÚDO - Scrollable + Card centralizado */}
                 <div className="min-w-0 flex-1 overflow-auto p-3 sm:p-6 md:p-10 bgp">
                     <div className="mx-auto min-w-0 max-w-4xl">
                         <div className="min-w-0 break-words rounded-3xl border border-gray-100 bg-white p-5 shadow sm:p-8 md:p-12">
 
-                            {/* Cabeçalho da página */}
                             <div className="mb-10">
                                 <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Política de Privacidade</h1>
                                 <p className="text-sm text-gray-500 mt-3">
@@ -82,7 +76,6 @@ const PoliticaDePrivacidade = () => {
                                 </p>
                             </div>
 
-                            {/* Conteúdo da política */}
                             <div className="prose prose-gray max-w-none text-gray-700 leading-relaxed">
                                 <h2 className="text-2xl font-semibold mt-12 mb-5 text-gray-900">1. Introdução</h2>
                                 <p>O AGERP valoriza sua privacidade e está comprometido em proteger seus dados pessoais,
@@ -152,7 +145,6 @@ const PoliticaDePrivacidade = () => {
                                     ocasionalmente.</p>
                             </div>
 
-                            {/* Rodapé do card */}
                             <div className="mt-16 pt-8 border-t text-center text-sm text-gray-500">
                                 © 2026 AGERP - Todos os direitos reservados
                             </div>

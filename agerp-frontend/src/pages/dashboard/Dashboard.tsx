@@ -148,7 +148,6 @@ const Dashboard = () => {
         return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 
-    // ====================== EXPORTAÇÃO EXCEL ======================
     const exportarVendasDoMes = () => {
         const dados = [
             { Descricao: 'Total do Mês', Valor: data.vendasMes },
@@ -227,7 +226,6 @@ const Dashboard = () => {
     return (
         <div data-testid="dashboard-page" className="h-full min-w-0 bg-app-background flex overflow-hidden">
 
-            {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col overflow-hidden">
 
                 {mobileHeaderActionTarget && createPortal(
@@ -237,14 +235,12 @@ const Dashboard = () => {
                     mobileHeaderActionTarget
                 )}
 
-                {/* HEADER */}
                 <header className="hidden flex-wrap items-center justify-between gap-3 border-b bg-white px-3 py-4 sm:flex sm:px-6">
                     <div className="min-w-0">
                         <h1 className="text-xl font-bold text-gray-900 sm:text-3xl">Dashboard</h1>
                     </div>
 
                     <div className="flex min-w-0 items-center gap-2">
-                        {/* Relatórios - Apenas Desktop (PC) */}
                         <section aria-labelledby="dashboard-relatorios-desktop" className="hidden lg:flex flex-col gap-1">
                             <h2 id="dashboard-relatorios-desktop" className="text-xs font-semibold uppercase tracking-wide text-gray-600">Relatórios</h2>
                             <div className="flex gap-2">
@@ -258,7 +254,6 @@ const Dashboard = () => {
                     </div>
                 </header>
 
-                {/* Relatórios - Mobile / Tablet */}
                 <section aria-labelledby="dashboard-relatorios-mobile" className="min-w-0 max-w-full border-b bg-white px-4 py-3 sm:px-6 lg:hidden">
                     <h2 id="dashboard-relatorios-mobile" className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Relatórios</h2>
                     <div
@@ -276,14 +271,12 @@ const Dashboard = () => {
                     </div>
                 </section>
 
-                {/* CONTEÚDO COM SCROLL */}
                 <div data-testid="dashboard-scroll-surface" className="flex-1 overflow-auto bg-app-background p-4 sm:p-6 md:p-8">
                     {feedback && <p role="status" className="mb-4 text-sm text-gray-600">{feedback}</p>}
                     {loading ? (
                         <p className="text-center text-gray-500 py-10">Carregando estatísticas...</p>
                     ) : (
                         <>
-                            {/* CARDS */}
                                 <div className="agerp-indicator-grid">
                                     <IndicatorCard variant="dashboard" testId="dashboard-summary-card" label="Total Clientes" value={data.totalClientes} icon="👥" iconClassName="text-blue-500" />
                                     <IndicatorCard variant="dashboard" label="Vendas do Mês" value={formatarMoeda(data.vendasMes)} icon="💰" iconClassName="text-green-500" />
@@ -292,7 +285,6 @@ const Dashboard = () => {
                                     {exibirAlertasEstoque && <IndicatorCard variant="dashboard" label="Estoque Baixo" value={data.produtosEstoqueBaixo} icon="⚠️" iconClassName="text-red-500" valueClassName="text-red-600" />}
                                 </div>
 
-                            {/* GRÁFICOS */}
                                 <div className="mt-8 sm:mt-10">
                                     <div className={"border-y-2 my-4 p-3 flex mx-auto"}>
                                         <h2 className="mx-auto text-2xl font-semibold text-gray-800 sm:text-3xl">Visão Geral</h2>

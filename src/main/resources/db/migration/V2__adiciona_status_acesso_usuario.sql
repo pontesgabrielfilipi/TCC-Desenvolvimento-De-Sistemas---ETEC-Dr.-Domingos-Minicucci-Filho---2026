@@ -1,5 +1,5 @@
--- Adota o fluxo de aprovacao sem retirar acesso dos usuarios que ja existiam.
--- O DEFAULT somente se aplica aos cadastros realizados depois desta migracao.
+-- Adota o fluxo de aprovação sem retirar o acesso dos usuários existentes.
+-- O DEFAULT vale apenas para cadastros realizados depois desta migration.
 ALTER TABLE agerp.usuario
     ADD COLUMN IF NOT EXISTS status_acesso VARCHAR(20);
 

@@ -6,7 +6,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.1.0</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <relativePath/> <!-- Resolve o parent diretamente do repositório Maven. -->
     </parent>
     <groupId>com.agerp</groupId>
     <artifactId>AGERP</artifactId>
@@ -33,7 +33,6 @@
         <lombok.version>1.18.48</lombok.version>
     </properties>
     <dependencies>
-        <!-- Spring Security -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
@@ -47,7 +46,6 @@
             <artifactId>caffeine</artifactId>
             <version>3.1.8</version>
         </dependency>
-        <!-- JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -190,7 +188,6 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
-                <!-- Se quiser evitar filtrar TODOS os .properties/.yml, use nonFilteredFileExtensions -->
             </resource>
         </resources>
         <plugins>
@@ -199,9 +196,7 @@
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>3.3.1</version>
                 <configuration>
-                    <!-- Encoding da filtragem -->
                     <encoding>UTF-8</encoding>
-                    <!-- Evita filtrar determinados tipos (recomendável para binários e, se quiser, para .properties) -->
                     <nonFilteredFileExtensions>
                         <nonFilteredFileExtension>properties</nonFilteredFileExtension>
                         <nonFilteredFileExtension>yml</nonFilteredFileExtension>
@@ -210,13 +205,10 @@
                         <nonFilteredFileExtension>png</nonFilteredFileExtension>
                         <nonFilteredFileExtension>jpg</nonFilteredFileExtension>
                     </nonFilteredFileExtensions>
-                    <!-- Se quiser usar @...@ como único delimitador (evita mexer em ${...} do Spring) -->
                     <delimiters>
                         <delimiter>@</delimiter>
                     </delimiters>
                     <useDefaultDelimiters>false</useDefaultDelimiters>
-                    <!-- Para .properties usados como ResourceBundle, considere propertiesEncoding -->
-                    <!-- <propertiesEncoding>UTF-8</propertiesEncoding> -->
                 </configuration>
             </plugin>
             <plugin>

@@ -12,7 +12,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/** Reconstruct TLS scheme only from an explicitly trusted socket peer. */
+/** Reconstrói o esquema TLS apenas quando o peer do socket é explicitamente confiável. */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class TrustedSchemeFilter extends OncePerRequestFilter {
@@ -25,7 +25,7 @@ public class TrustedSchemeFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        // The peer is read before any wrapping; do not override getRemoteAddr().
+        // O peer é lido antes do wrapper; getRemoteAddr() deve continuar apontando para o socket real.
         boolean trusted = resolver.isTrustedPeer(request.getRemoteAddr());
         var protocols = request.getHeaders("X-Forwarded-Proto");
         if (!trusted || !protocols.hasMoreElements()) {

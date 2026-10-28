@@ -78,7 +78,7 @@ public class UsuarioService {
         usuario.setStatusAcesso(StatusAcesso.PENDENTE);
 
         usuario = usuarioRepository.save(usuario);
-        // Cadastro publico: autoria anonima, sem atribuir identidade antes da autenticacao.
+        // O cadastro público é anônimo; atribuir identidade antes da autenticação falsificaria a autoria.
         logSistemaService.registrarEvento(null, "CRIACAO_USUARIO_" + usuario.getId(), "USUARIO",
                 String.valueOf(usuario.getId()), "SUCESSO", null, ip,
                 AuditoriaNegocioService.mudancas("status", null, StatusAcesso.PENDENTE,

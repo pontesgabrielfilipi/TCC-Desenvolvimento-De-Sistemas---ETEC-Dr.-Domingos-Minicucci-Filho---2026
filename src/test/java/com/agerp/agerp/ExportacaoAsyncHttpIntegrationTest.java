@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** Exercises the actual Spring MVC StreamingResponseBody executor, not a standalone test pool. */
+/** Exercita o executor real de StreamingResponseBody do Spring MVC, não um pool criado pelo teste. */
 @SpringBootTest(properties = "spring.flyway.placeholders.auditAppRole=test")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
@@ -48,7 +48,7 @@ class ExportacaoAsyncHttpIntegrationTest {
         var session = sessoes.criar(details.getUsuario(), null, 86_400_000);
         Cookie cookie = new Cookie("jwtToken", tokens.generateToken(auth, session.getId()));
 
-        // Configuration under test: core=2, max=4, queue=8, AbortPolicy.
+        // Configuração sob teste: core=2, máximo=4, fila=8 e AbortPolicy.
         assertEquals(4, executor.getMaxPoolSize());
         assertEquals(8, executor.getThreadPoolExecutor().getQueue().remainingCapacity());
         var started = new CountDownLatch(4);

@@ -2,17 +2,13 @@
 CREATE SCHEMA IF NOT EXISTS agerp;
 SET search_path TO agerp,
     public;
--- =========================
--- PERFIL
--- =========================
+-- Perfis
 CREATE TABLE perfil (
     id_perfil SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     descricao TEXT
 );
--- =========================
--- USUARIO
--- =========================
+-- Usuários
 CREATE TABLE usuario (
     id_usuario SERIAL PRIMARY KEY,
     nome VARCHAR(150) NOT NULL,
@@ -24,7 +20,6 @@ CREATE TABLE usuario (
     credencial_temporaria_expira_em TIMESTAMP WITH TIME ZONE,
     credencial_temporaria_usada_em TIMESTAMP WITH TIME ZONE,
     ativo BOOLEAN DEFAULT TRUE,
-    -- Controle de acesso
     status_acesso VARCHAR(20) NOT NULL DEFAULT 'PENDENTE',
     data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     id_perfil INT NOT NULL,
@@ -52,9 +47,7 @@ CREATE TABLE usuario (
     ),
     CONSTRAINT fk_usuario_perfil FOREIGN KEY (id_perfil) REFERENCES perfil(id_perfil)
 );
--- =========================
--- CLIENTE
--- =========================
+-- Clientes
 CREATE TABLE cliente (
     id_cliente SERIAL PRIMARY KEY,
     tipo VARCHAR(20),
@@ -64,9 +57,7 @@ CREATE TABLE cliente (
     telefone VARCHAR(20),
     data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
--- =========================
--- ENDERECO
--- =========================
+-- Endereços
 CREATE TABLE endereco (
     id_endereco SERIAL PRIMARY KEY,
     id_cliente INT NOT NULL,
@@ -80,9 +71,7 @@ CREATE TABLE endereco (
     longitude NUMERIC(10, 6),
     CONSTRAINT fk_endereco_cliente FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente)
 );
--- =========================
--- PRODUTO
--- =========================
+-- Produtos
 CREATE TABLE produto (
     id_produto SERIAL PRIMARY KEY,
     nome VARCHAR(150) NOT NULL,
@@ -93,9 +82,7 @@ CREATE TABLE produto (
     volume NUMERIC(10, 2),
     ativo BOOLEAN DEFAULT TRUE
 );
--- =========================
--- ESTOQUE
--- =========================
+-- Estoque
 CREATE TABLE estoque (
     id_estoque SERIAL PRIMARY KEY,
     id_produto INT UNIQUE NOT NULL,
@@ -104,9 +91,7 @@ CREATE TABLE estoque (
     localizacao VARCHAR(100),
     CONSTRAINT fk_estoque_produto FOREIGN KEY (id_produto) REFERENCES produto(id_produto)
 );
--- =========================
--- MOVIMENTACAO_ESTOQUE
--- =========================
+-- Movimentações de estoque
 CREATE TABLE movimentacao_estoque (
     id_movimentacao SERIAL PRIMARY KEY,
     id_produto INT NOT NULL,
@@ -117,9 +102,7 @@ CREATE TABLE movimentacao_estoque (
     CONSTRAINT fk_mov_produto FOREIGN KEY (id_produto) REFERENCES produto(id_produto),
     CONSTRAINT fk_mov_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
 );
--- =========================
--- PEDIDO
--- =========================
+-- Pedidos
 CREATE TABLE pedido (
     id_pedido SERIAL PRIMARY KEY,
     id_cliente INT NOT NULL,
@@ -133,9 +116,7 @@ CREATE TABLE pedido (
     CONSTRAINT fk_pedido_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario),
     CONSTRAINT fk_pedido_endereco FOREIGN KEY (id_endereco) REFERENCES endereco(id_endereco)
 );
--- =========================
--- ITEM_PEDIDO
--- =========================
+-- Itens de pedido
 CREATE TABLE item_pedido (
     id_item SERIAL PRIMARY KEY,
     id_pedido INT NOT NULL,
@@ -145,9 +126,7 @@ CREATE TABLE item_pedido (
     CONSTRAINT fk_item_pedido FOREIGN KEY (id_pedido) REFERENCES pedido(id_pedido),
     CONSTRAINT fk_item_produto FOREIGN KEY (id_produto) REFERENCES produto(id_produto)
 );
--- =========================
--- ENTREGA
--- =========================
+-- Entregas
 CREATE TABLE entrega (
     id_entrega SERIAL PRIMARY KEY,
     id_pedido INT UNIQUE NOT NULL,
@@ -159,9 +138,7 @@ CREATE TABLE entrega (
     distancia_km NUMERIC(10, 2),
     CONSTRAINT fk_entrega_pedido FOREIGN KEY (id_pedido) REFERENCES pedido(id_pedido)
 );
--- =========================
--- PREVISAO_ENTREGA
--- =========================
+-- Previsões de entrega
 CREATE TABLE previsao_entrega (
     id_previsao SERIAL PRIMARY KEY,
     id_entrega INT UNIQUE NOT NULL,
@@ -190,9 +167,7 @@ CREATE TABLE previsao_entrega (
     prazo_entrega_dias INT,
     CONSTRAINT fk_previsao_entrega FOREIGN KEY (id_entrega) REFERENCES entrega(id_entrega)
 );
--- =========================
--- PAGAMENTO
--- =========================
+-- Pagamentos
 CREATE TABLE pagamento (
     id_pagamento SERIAL PRIMARY KEY,
     id_pedido INT NOT NULL,
@@ -202,9 +177,7 @@ CREATE TABLE pagamento (
     data_pagamento TIMESTAMP,
     CONSTRAINT fk_pagamento_pedido FOREIGN KEY (id_pedido) REFERENCES pedido(id_pedido)
 );
--- =========================
--- LOG_SISTEMA
--- =========================
+-- Logs do sistema
 CREATE TABLE log_sistema (
     id_log SERIAL PRIMARY KEY,
     id_usuario INT,

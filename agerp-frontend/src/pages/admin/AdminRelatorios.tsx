@@ -34,7 +34,7 @@ async function validarArquivoXlsx(blob: Blob): Promise<void> {
     if (inicio[0] !== 0x50 || inicio[1] !== 0x4b || inicio[2] !== 0x03 || inicio[3] !== 0x04) {
         throw new Error('O servidor não retornou uma planilha XLSX válida.');
     }
-    // O registro final ZIP (EOCD) deve estar no fim do arquivo, incluindo um eventual comentario.
+    // O registro final ZIP (EOCD) deve estar no fim do arquivo, incluindo um eventual comentário.
     const trecho = new Uint8Array(await blob.slice(-65557).arrayBuffer());
     let zipCompleto = false;
     for (let i = trecho.length - 22; i >= 0; i--) {
@@ -126,7 +126,7 @@ export default function AdminRelatorios() {
         }
         void carregarOpcoes();
         return () => { ativo = false; };
-        // As listas ficam em cache neste componente; evita repetir requests após trocar de relatório.
+        // As listas ficam em cache no componente para evitar novas requisições ao trocar de relatório.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selecionado]);
 

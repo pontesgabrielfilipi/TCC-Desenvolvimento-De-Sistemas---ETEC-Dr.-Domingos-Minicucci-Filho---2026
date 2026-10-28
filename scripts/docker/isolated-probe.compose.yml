@@ -1,4 +1,4 @@
-# Harness independente. NUNCA acrescentar container_name nem volumes do Compose principal.
+# Ambiente independente: nunca adicionar container_name nem volumes do Compose principal.
 services:
   postgres-probe:
     image: postgres:16

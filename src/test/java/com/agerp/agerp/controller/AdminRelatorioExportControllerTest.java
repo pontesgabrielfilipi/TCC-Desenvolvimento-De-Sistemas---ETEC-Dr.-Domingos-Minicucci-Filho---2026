@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** Simulates errors at either side of the XLSX response boundary without opening sockets. */
+/** Simula falhas antes e depois de comprometer a resposta XLSX, sem abrir sockets. */
 class AdminRelatorioExportControllerTest {
     private RelatorioAdminService relatorios;
     private ExportacaoAuditoriaService auditoria;

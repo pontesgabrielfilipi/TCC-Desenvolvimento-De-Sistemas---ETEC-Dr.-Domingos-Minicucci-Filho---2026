@@ -56,42 +56,36 @@ public class DatabaseSeeder implements CommandLineRunner {
 
         System.out.println("🚀 Iniciando Database Seeder COMPLETO...");
 
-        // 1. Perfis
         if (perfilRepository.count() == 0) {
             criarPerfisIniciais();
         } else {
             System.out.println("✅ Perfis já existem.");
         }
 
-        // 2. Usuários (12)
         if (usuarioRepository.count() == 0) {
             criarUsuariosIniciais();
         } else {
             System.out.println("✅ Usuários já existem.");
         }
 
-        // 3. Clientes (10)
         if (clienteRepository.count() == 0) {
             criarClientesIniciais();
         } else {
             System.out.println("✅ Clientes já existem.");
         }
 
-        // 4. Endereços (10)
         if (enderecoRepository.count() == 0) {
             criarEnderecosIniciais();
         } else {
             System.out.println("✅ Endereços já existem.");
         }
 
-        // 5. Produtos + Estoque (15)
         if (produtoRepository.count() == 0) {
             criarProdutosEEstoquesIniciais();
         } else {
             System.out.println("✅ Produtos e estoques já existem.");
         }
 
-        // 6. Pedidos completos (12)
         if (pedidoRepository.count() == 0) {
             criarPedidosCompletosIniciais();
         } else {
@@ -106,7 +100,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         System.out.println("   • 12 Pedidos completos");
     }
 
-    // ====================== PERFIS ======================
     private void criarPerfisIniciais() {
         Perfil admin = new Perfil(); admin.setNome("ADMIN"); admin.setDescricao("Administrador do sistema - Acesso total");
         Perfil gerente = new Perfil(); gerente.setNome("GERENTE"); gerente.setDescricao("Gerente - Acesso intermediário");
@@ -117,7 +110,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         System.out.println("✅ 4 perfis criados.");
     }
 
-    // ====================== USUÁRIOS ======================
     private void criarUsuariosIniciais() {
         List<Perfil> perfis = perfilRepository.findAll();
         Perfil pAdmin = perfis.stream().filter(p -> "ADMIN".equals(p.getNome())).findFirst().orElseThrow();
@@ -155,7 +147,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         return u;
     }
 
-    // ====================== CLIENTES ======================
     private void criarClientesIniciais() {
         List<Cliente> clientes = List.of(
                 criarCliente("FISICA", "João Silva", "123.456.789-01", "joao@email.com", "(11) 98765-4321"),
@@ -184,7 +175,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         return c;
     }
 
-    // ====================== ENDEREÇOS ======================
     private void criarEnderecosIniciais() {
         List<Cliente> clientes = clienteRepository.findAll();
 
@@ -220,7 +210,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         return e;
     }
 
-    // ====================== PRODUTOS + ESTOQUE ======================
     private void criarProdutosEEstoquesIniciais() {
         List<Produto> produtos = List.of(
                 criarProduto("Notebook Dell Inspiron 15", "Intel i5, 8GB RAM, 512GB SSD", new BigDecimal("3499.90"), new BigDecimal("2800.00"), new BigDecimal("2.1"), new BigDecimal("0.5")),
@@ -267,7 +256,6 @@ public class DatabaseSeeder implements CommandLineRunner {
         return p;
     }
 
-    // ====================== PEDIDOS COMPLETOS (CORRIGIDO) ======================
     private void criarPedidosCompletosIniciais() {
         List<Cliente> clientes = clienteRepository.findAll();
         List<Usuario> usuarios = usuarioRepository.findAll();
@@ -277,7 +265,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             Cliente cliente = clientes.get(random.nextInt(clientes.size()));
             Usuario usuario = usuarios.get(random.nextInt(usuarios.size()));
 
-            // Pedido
             Pedido pedido = new Pedido();
             pedido.setIdCliente(cliente);
             pedido.setIdUsuario(usuario);
@@ -285,7 +272,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             pedido.setDataPedido(Instant.now().minus(random.nextInt(30), ChronoUnit.DAYS));
             pedido = pedidoRepository.save(pedido);
 
-            // Itens do pedido
             BigDecimal valorTotal = BigDecimal.ZERO;
             int qtdItens = 2 + random.nextInt(3);
             for (int j = 0; j < qtdItens; j++) {
@@ -305,7 +291,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             pedido.setValorTotal(valorTotal);
             pedidoRepository.save(pedido);
 
-            // Pagamento
             Pagamento pagamento = new Pagamento();
             pagamento.setIdPedido(pedido);
             pagamento.setTipoPagamento(random.nextBoolean() ? "CARTAO_CREDITO" : "PIX");
@@ -314,7 +299,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             pagamento.setDataPagamento(pedido.getDataPedido().plus(2, ChronoUnit.HOURS));
             pagamentoRepository.save(pagamento);
 
-            // Entrega
             Entrega entrega = new Entrega();
             entrega.setIdPedido(pedido);
             entrega.setDataSaida(pedido.getDataPedido().plus(1, ChronoUnit.DAYS));

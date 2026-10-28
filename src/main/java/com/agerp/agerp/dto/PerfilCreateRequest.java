@@ -1,4 +1,3 @@
-// PerfilCreateRequest.java
 package com.agerp.agerp.dto;
 
 import jakarta.validation.constraints.NotBlank;

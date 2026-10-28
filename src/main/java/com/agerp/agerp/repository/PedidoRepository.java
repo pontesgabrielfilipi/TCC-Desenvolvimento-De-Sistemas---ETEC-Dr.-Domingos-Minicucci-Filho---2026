@@ -22,14 +22,12 @@ public interface PedidoRepository extends JpaRepository<Pedido, Integer> {
     @Query("SELECT p FROM Pedido p WHERE p.id = :id")
     Optional<Pedido> findByIdForUpdate(@Param("id") Integer id);
 
-    // ====================== ESTATÍSTICAS BÁSICAS ======================
     @Query("SELECT COALESCE(SUM(p.valorTotal), 0) FROM Pedido p " +
             "WHERE EXTRACT(MONTH FROM p.dataPedido) = :mes AND EXTRACT(YEAR FROM p.dataPedido) = :ano")
     BigDecimal calcularTotalVendasDoMes(@Param("mes") int mes, @Param("ano") int ano);
 
     long countByStatusIn(List<String> status);
 
-    // ====================== GRÁFICOS DO DASHBOARD ======================
 
     /** Vendas mensais dos últimos 6 meses */
     @Query(value = """
@@ -71,13 +69,11 @@ public interface PedidoRepository extends JpaRepository<Pedido, Integer> {
         """, nativeQuery = true)
     List<Map<String, Object>> statusPedidosAtual();
 
-    // ====================== MÉTODOS AUXILIARES ======================
     @Query("SELECT COUNT(p) FROM Pedido p WHERE p.status IN ('PENDENTE', 'EM_ANDAMENTO')")
     long countPedidosPendentes();
 
     List<Pedido> findTop10ByOrderByDataPedidoDesc();
 
-    // ====================== PEDIDO SERVICE ======================
     List<Pedido> findByStatus(String status);
 
     List<Pedido> findByIdCliente_Id(Integer idCliente);

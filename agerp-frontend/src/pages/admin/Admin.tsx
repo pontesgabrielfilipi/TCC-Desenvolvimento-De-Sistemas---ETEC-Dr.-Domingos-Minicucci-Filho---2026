@@ -114,7 +114,6 @@ const Admin = () => {
     const [salvandoEdicao, setSalvandoEdicao] = useState(false);
     const nomeEdicaoRef = useRef<HTMLInputElement>(null);
 
-    // Toasts
     const [toasts, setToasts] = useState<Toast[]>([]);
 
     const showToast = useCallback((type: 'success' | 'error', message: string) => {
@@ -408,7 +407,6 @@ const Admin = () => {
 
     return (
         <div className="flex h-full min-w-0 bg-app-background">
-            {/* Conteúdo Principal */}
             <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
                 <header className="hidden items-center gap-3 border-b bg-white px-4 py-4 sm:flex sm:px-8 sm:py-5">
                     <span className="text-2xl sm:text-3xl" aria-hidden="true">🔧</span>
@@ -416,7 +414,6 @@ const Admin = () => {
                 </header>
 
                 <div className="min-w-0 p-3 sm:p-6 xl:p-8 flex-1 overflow-y-auto overflow-x-hidden">
-                    {/* Tabs */}
                     <div className="flex border-b mb-6 overflow-x-auto max-w-full" role="group" aria-label="Seções administrativas">
                         {abas.map(aba => (
                             <button
@@ -434,7 +431,6 @@ const Admin = () => {
                         ))}
                     </div>
 
-                    {/* Aba Usuários */}
                     {abaAtiva === 'usuarios' && (
                         <div>
                             <div className="mb-6 grid grid-cols-1 items-center gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_18rem_auto_auto]">
@@ -518,7 +514,6 @@ const Admin = () => {
                         </div>
                     )}
 
-                    {/* Aba Logs */}
                     {abaAtiva === 'logs' && (
                         <div>
                             <div className="mb-6">
@@ -776,7 +771,6 @@ const Admin = () => {
                 </div>
             )}
 
-            {/* Toasts */}
             <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[110] space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map((toast) => (
                     <div

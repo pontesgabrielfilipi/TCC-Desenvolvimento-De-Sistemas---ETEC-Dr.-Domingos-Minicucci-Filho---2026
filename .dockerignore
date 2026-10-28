@@ -1,5 +1,5 @@
 # O backend copia somente estes caminhos. Ignorar o restante evita enviar ao
-# BuildKit o frontend, datasets da IA, documentacao e artefatos locais.
+# BuildKit o frontend, datasets da IA, documentação e artefatos locais.
 *
 !Dockerfile
 !pom.xml

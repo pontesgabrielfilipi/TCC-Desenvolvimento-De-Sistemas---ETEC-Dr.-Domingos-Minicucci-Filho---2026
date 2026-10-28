@@ -15,10 +15,10 @@ import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Small repeatable workload, NOT a production capacity or scalability claim. */
+/** Carga pequena e repetível; não representa capacidade nem escalabilidade de produção. */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
-@Transactional // The 10,000 synthetic logs are rolled back in the disposable test database.
+@Transactional // Os 10 mil logs sintéticos são revertidos no banco de teste descartável.
 class AuditQueryPerformanceIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired LogSistemaService logs;

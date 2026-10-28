@@ -1,9 +1,7 @@
 SELECT 'CREATE DATABASE agdb' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'agdb')\gexec
 
--- Conecta no banco agdb para rodar o restante do script
 \c agdb
 
--- Criar e selecionar schema
 CREATE SCHEMA IF NOT EXISTS agerp;
 SET search_path TO agerp, public;
 

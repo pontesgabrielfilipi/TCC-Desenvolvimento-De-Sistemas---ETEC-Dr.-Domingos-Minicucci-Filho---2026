@@ -12,14 +12,12 @@
     background-size: 50px 100%;
     pointer-events: none;
 
-    /* Navegadores modernos */
     mask-image: linear-gradient(
             to bottom,
             rgba(0, 0, 0, 1) 0%,
             rgba(0, 0, 0, 0) 70%
     );
 
-    /* Safari / WebKit (era isso que tava dando erro) */
     -webkit-mask-image: -webkit-linear-gradient(
             rgba(0, 0, 0, 1) 0%,
             rgba(0, 0, 0, 0) 70%

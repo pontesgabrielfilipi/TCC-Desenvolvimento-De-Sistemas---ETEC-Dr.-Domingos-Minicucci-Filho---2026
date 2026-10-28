@@ -61,7 +61,6 @@ const Pedidos = () => {
     const [salvando, setSalvando] = useState(false);
     const [sort, setSort] = useState<{ key: 'id' | 'nomeCliente' | 'dataPedido' | 'status' | 'valorTotal'; direction: 'asc' | 'desc' }>({ key: 'dataPedido', direction: 'desc' });
 
-    // Modal de Criação / Edição
     const [modalOpen, setModalOpen] = useState(false);
     const [editandoId, setEditandoId] = useState<number | null>(null);
 
@@ -72,22 +71,18 @@ const Pedidos = () => {
         observacoes: ''
     });
 
-    // Endereços do cliente selecionado no modal
     const [enderecosCliente, setEnderecosCliente] = useState<Endereco[]>([]);
     const [loadingEnderecos, setLoadingEnderecos] = useState(false);
     const [erroEnderecos, setErroEnderecos] = useState<string | null>(null);
 
-    // Modal de Detalhes e IA
     const [detalhesOpen, setDetalhesOpen] = useState(false);
     const [pedidoDetalhe, setPedidoDetalhe] = useState<PedidoResponse | null>(null);
     const [previsaoIa, setPrevisaoIa] = useState<PrevisaoEntregaResponse | null>(null);
     const [loadingPrevisao, setLoadingPrevisao] = useState(false);
 
-    // Exclusão / Cancelamento
     const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
     const [statusChangeId, setStatusChangeId] = useState<number | null>(null);
 
-    // Toasts
     const [toasts, setToasts] = useState<Toast[]>([]);
 
     const showToast = useCallback((type: 'success' | 'error', message: string) => {
@@ -96,7 +91,6 @@ const Pedidos = () => {
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
     }, []);
 
-    // Carregar dados
     const carregarPedidos = useCallback(async (refresh = false) => {
         try {
             setLoading(true);
@@ -173,7 +167,6 @@ const Pedidos = () => {
         await Promise.all([carregarPedidos(true), carregarProdutos(true), carregarClientes(true)]);
     };
 
-    // Adicionar item ao pedido
     const adicionarItem = () => {
         setFormData(prev => ({
             ...prev,
@@ -181,7 +174,6 @@ const Pedidos = () => {
         }));
     };
 
-    // Remover item do pedido
     const removerItem = (index: number) => {
         setFormData(prev => ({
             ...prev,
@@ -189,7 +181,6 @@ const Pedidos = () => {
         }));
     };
 
-    // Atualizar item
     const atualizarItem = (index: number, campo: 'idProduto' | 'quantidade', valor: string) => {
         setFormData(prev => ({
             ...prev,
@@ -199,7 +190,6 @@ const Pedidos = () => {
         }));
     };
 
-    // Calcular total no frontend para visualização em tempo real
     const calcularTotalVisual = (): number => {
         return formData.itens.reduce((total, item) => {
             const produto = produtos.find(p => p.id.toString() === item.idProduto);
@@ -208,7 +198,6 @@ const Pedidos = () => {
         }, 0);
     };
 
-    // Formatar exibição amigável do endereço
     const formatarEnderecoAmigavel = (end: Endereco): string => {
         const partes: string[] = [];
         if (end.logradouro) partes.push(end.logradouro);
@@ -220,7 +209,6 @@ const Pedidos = () => {
         return partes.join(', ') || `Endereço #${end.id}`;
     };
 
-    // Carregar endereços de um cliente
     const carregarEnderecosDoCliente = async (clienteId: number): Promise<Endereco[]> => {
         try {
             setLoadingEnderecos(true);
@@ -239,9 +227,7 @@ const Pedidos = () => {
         }
     };
 
-    // Handler de alteração do cliente no formulário
     const handleClienteChange = async (novoClienteId: string) => {
-        // Ao trocar de cliente, atualize a lista de endereços e limpe a seleção anterior
         setFormData(prev => ({
             ...prev,
             idCliente: novoClienteId,
@@ -258,7 +244,6 @@ const Pedidos = () => {
         }
     };
 
-    // Abrir modal de criação ou edição
     const abrirModal = async (pedido?: PedidoResponse) => {
         setErroEnderecos(null);
         if (pedido) {
@@ -277,7 +262,6 @@ const Pedidos = () => {
                 observacoes: pedido.observacoes || ''
             });
             setModalOpen(true);
-            // Carregar os endereços do cliente do pedido sendo editado
             await carregarEnderecosDoCliente(pedido.idCliente);
         } else {
             setEditandoId(null);
@@ -294,7 +278,6 @@ const Pedidos = () => {
         void carregarProdutos(true);
     };
 
-    // Fechar modal
     const fecharModal = () => {
         setModalOpen(false);
         setEditandoId(null);
@@ -304,7 +287,6 @@ const Pedidos = () => {
         setLoadingEnderecos(false);
     };
 
-    // Abrir detalhes do pedido com IA
     const abrirDetalhes = async (pedido: PedidoResponse) => {
         setPedidoDetalhe(pedido);
         setDetalhesOpen(true);
@@ -324,14 +306,12 @@ const Pedidos = () => {
         }
     };
 
-    // Validar formulário
     const validarFormulario = (): boolean => {
         if (!formData.idCliente) {
             showToast('error', 'Selecione um cliente');
             return false;
         }
 
-        // Validação das regras de negócio do endereço
         if (formData.idEndereco) {
             const endId = parseInt(formData.idEndereco);
             const enderecoValido = enderecosCliente.some(e => e.id === endId);
@@ -367,7 +347,6 @@ const Pedidos = () => {
         return true;
     };
 
-    // Salvar pedido
     const salvarPedido = async () => {
         if (!validarFormulario()) return;
 
@@ -402,10 +381,8 @@ const Pedidos = () => {
         }
     };
 
-    // Confirmar exclusão
     const confirmarExclusao = (id: number) => setDeleteConfirmId(id);
 
-    // Executar cancelamento/exclusão
     const executarExclusao = async () => {
         if (!deleteConfirmId) return;
         try {
@@ -419,7 +396,6 @@ const Pedidos = () => {
         }
     };
 
-    // Mudar status
     const transicoes: Record<string, string[]> = {
         'PENDENTE': ['CONFIRMADO', 'CANCELADO'],
         'CONFIRMADO': ['EM_PREPARACAO', 'CANCELADO'],
@@ -444,7 +420,6 @@ const Pedidos = () => {
         }
     };
 
-    // Badge de status
     const getStatusBadge = (status: string) => {
         const cores: Record<string, string> = {
             'PENDENTE': 'bg-amber-100 text-amber-800 border-amber-200',
@@ -481,9 +456,7 @@ const Pedidos = () => {
 
     return (
         <div className="h-full min-w-0 bg-app-background flex overflow-hidden">
-            {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* HEADER */}
                 <header className="bg-white border-b px-3 sm:px-6 py-3 sm:py-5 flex flex-wrap items-center justify-between gap-3">
                     <div className="hidden min-w-0 items-center gap-4 sm:flex">
                         <h1 className="flex items-center gap-3 text-xl font-bold text-gray-900 sm:text-3xl">📋 Pedidos</h1>
@@ -501,10 +474,8 @@ const Pedidos = () => {
                     </div>
                 </header>
 
-                {/* FILTROS E CORPO */}
                 <div data-testid="pedidos-scroll" className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 md:p-8">
                     {isMobileViewport && campoBusca}
-                    {/* BARRA DE FILTROS RÁPIDOS */}
                     <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center lg:gap-4">
                         <select
                             value={filtroStatus}
@@ -538,14 +509,12 @@ const Pedidos = () => {
                         </div>
                     </div>
 
-                    {/* LOADING */}
                     {loading && (
                         <div className="text-center py-16 text-gray-500 font-medium">
                             Carregando pedidos...
                         </div>
                     )}
 
-                    {/* EMPTY STATE */}
                     {!loading && pedidosFiltrados.length === 0 && (
                         <div className="mx-auto mt-8 max-w-lg rounded-3xl border border-gray-100 bg-white p-6 text-center shadow-sm sm:p-12">
                             <span className="text-5xl block mb-4">📋</span>
@@ -564,7 +533,6 @@ const Pedidos = () => {
                         </div>
                     )}
 
-                    {/* TABELA DE PEDIDOS */}
                     {!loading && pedidosFiltrados.length > 0 && (
                         <>
                             <div className="mb-3 flex items-center gap-2 md:hidden">
@@ -648,7 +616,6 @@ const Pedidos = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <div className="flex items-center justify-center gap-2">
-                                                        {/* Botão Ver Detalhes + IA */}
                                                         <button
                                                             onClick={() => abrirDetalhes(pedido)}
                                                             className="min-h-11 min-w-11 rounded-lg p-2.5 text-gray-600 transition hover:bg-indigo-50 hover:text-indigo-600"
@@ -658,7 +625,6 @@ const Pedidos = () => {
                                                             👁
                                                         </button>
 
-                                                        {/* Editar (somente PENDENTE) */}
                                                         {pedido.status === 'PENDENTE' && (
                                                             <button
                                                                 onClick={() => abrirModal(pedido)}
@@ -670,7 +636,6 @@ const Pedidos = () => {
                                                             </button>
                                                         )}
 
-                                                        {/* Transições de Status */}
                                                         {transicoes[pedido.status]?.some(status => podeCancelar || status !== 'CANCELADO') && (
                                                             <select value="" onChange={(event) => event.target.value && void executarMudancaStatus(pedido.id, event.target.value)} aria-label={`Mudar status do pedido ${pedido.id}`} className="min-h-11 max-w-40 rounded-lg border border-amber-200 bg-amber-50 px-2 text-xs font-medium text-amber-800">
                                                                 <option value="">Status...</option>
@@ -678,7 +643,6 @@ const Pedidos = () => {
                                                             </select>
                                                         )}
 
-                                                        {/* Cancelar */}
                                                         {podeCancelar && pedido.status !== 'ENTREGUE' && pedido.status !== 'CANCELADO' && (
                                                             <button
                                                                 onClick={() => confirmarExclusao(pedido.id)}
@@ -702,7 +666,6 @@ const Pedidos = () => {
                 </div>
             </div>
 
-            {/* MODAL DETALHES DO PEDIDO + IA */}
             {detalhesOpen && pedidoDetalhe && (
                 <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="detalhes-pedido-titulo">
                     <div className="agerp-modal-panel w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
@@ -728,7 +691,6 @@ const Pedidos = () => {
                         </div>
 
                         <div className="space-y-6 p-4 sm:p-6">
-                            {/* DADOS BÁSICOS */}
                             <div className="grid grid-cols-1 gap-4 rounded-2xl bg-gray-50 p-4 text-sm sm:grid-cols-2">
                                 <div>
                                     <span className="text-gray-500 text-xs block">Cliente</span>
@@ -757,7 +719,6 @@ const Pedidos = () => {
                                 )}
                             </div>
 
-                            {/* PAINEL DE INTELIGÊNCIA ARTIFICIAL - PREVISÃO DE ENTREGA */}
                             <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-purple-50 p-4 sm:p-5">
                                 <div className="mb-3 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
                                     <h3 className="flex min-w-0 items-start gap-2 break-words text-sm font-bold text-indigo-950">
@@ -804,7 +765,6 @@ const Pedidos = () => {
                                 )}
                             </div>
 
-                            {/* LISTA DE ITENS */}
                             <div>
                                 <h4 className="text-sm font-bold text-gray-900 mb-3">Itens do Pedido</h4>
                                 <div className="grid gap-2 sm:hidden">
@@ -837,7 +797,6 @@ const Pedidos = () => {
                                 </div>
                             </div>
 
-                            {/* TOTAL */}
                             <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-4 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
                                 <span className="font-semibold text-gray-700">Total do Pedido</span>
                                 <span className="break-words text-2xl font-bold text-indigo-600">
@@ -858,7 +817,6 @@ const Pedidos = () => {
                 </div>
             )}
 
-            {/* MODAL CRIAÇÃO / EDIÇÃO */}
             {modalOpen && (
                 <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="pedido-modal-titulo">
                     <div className="agerp-modal-panel w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
@@ -876,7 +834,6 @@ const Pedidos = () => {
                         </div>
 
                         <div className="space-y-6 p-4 sm:p-6">
-                            {/* SELEÇÃO DO CLIENTE */}
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
                                     Cliente *
@@ -893,7 +850,6 @@ const Pedidos = () => {
                                 </select>
                             </div>
 
-                            {/* SELEÇÃO DO ENDEREÇO DE ENTREGA */}
                             <div>
                                 <div className="mb-2 flex flex-col items-start justify-between gap-1 sm:flex-row sm:items-center">
                                     <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -930,7 +886,6 @@ const Pedidos = () => {
                                     )}
                                 </select>
 
-                                {/* Mensagens de auxílio e estado */}
                                 {erroEnderecos && (
                                     <div className="mt-2 text-xs text-rose-600 flex items-center gap-1">
                                         <span>⚠️</span> {erroEnderecos}
@@ -961,7 +916,6 @@ const Pedidos = () => {
                                 )}
                             </div>
 
-                            {/* ITENS DO PEDIDO */}
                             <div>
                                 <div className="mb-3 flex flex-col items-start justify-between gap-2 min-[360px]:flex-row min-[360px]:items-center">
                                     <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -1035,7 +989,6 @@ const Pedidos = () => {
                                 </div>
                             </div>
 
-                            {/* OBSERVAÇÕES */}
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
                                     Observações (Opcional)
@@ -1049,7 +1002,6 @@ const Pedidos = () => {
                                 />
                             </div>
 
-                            {/* TOTAL ESTIMADO */}
                             <div className="flex flex-col gap-1 rounded-2xl bg-gray-50 p-4 text-sm min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
                                 <span className="text-gray-600">Total Previsto:</span>
                                 <span className="break-words text-xl font-bold text-gray-900">
@@ -1079,7 +1031,6 @@ const Pedidos = () => {
                 </div>
             )}
 
-            {/* CONFIRMAÇÃO DE CANCELAMENTO */}
             {deleteConfirmId && podeCancelar && (
                 <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="cancelar-pedido-titulo">
                     <div className="agerp-modal-panel w-full max-w-sm rounded-3xl bg-white p-5 text-center shadow-2xl sm:p-6">
@@ -1106,7 +1057,6 @@ const Pedidos = () => {
                 </div>
             )}
 
-            {/* TOASTS */}
             <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map(toast => (
                     <div

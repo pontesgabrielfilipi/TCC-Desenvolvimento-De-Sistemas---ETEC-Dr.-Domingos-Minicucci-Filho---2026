@@ -136,9 +136,7 @@ public class PerfilService {
         perfil.getPaginas().addAll(paginas);
     }
 
-    /**
-     * Compatibilidade com a entrada legada. Não contorna as regras do cadastro de cargos.
-     */
+    /** Mantém a entrada legada sem contornar as regras do cadastro de cargos. */
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public PerfilResponse criar(PerfilCreateRequest request) {
@@ -147,9 +145,6 @@ public class PerfilService {
                 Set.of("DASHBOARD", "CLIENTES", "PRODUTOS", "PEDIDOS"), null));
     }
 
-    /**
-     * Lista todos os perfis
-     */
     @Transactional(readOnly = true)
     public List<PerfilResponse> listarTodos() {
         return perfilRepository.findAll().stream()
@@ -157,9 +152,6 @@ public class PerfilService {
                 .toList();
     }
 
-    /**
-     * Busca perfil por ID
-     */
     @Transactional(readOnly = true)
     public PerfilResponse buscarPorId(Integer id) {
         Perfil perfil = perfilRepository.findById(id)
@@ -168,9 +160,6 @@ public class PerfilService {
         return toResponse(perfil);
     }
 
-    /**
-     * Busca perfil por nome (útil para seed e validações)
-     */
     @Transactional(readOnly = true)
     public PerfilResponse buscarPorNome(String nome) {
         Perfil perfil = perfilRepository.findByNome(nome)

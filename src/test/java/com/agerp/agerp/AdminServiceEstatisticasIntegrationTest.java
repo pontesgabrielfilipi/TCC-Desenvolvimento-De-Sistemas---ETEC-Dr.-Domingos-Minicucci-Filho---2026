@@ -89,12 +89,12 @@ class AdminServiceEstatisticasIntegrationTest {
         assertEquals(2, resultado.usuarios().movimentacoes().conteudo().getFirst().quantidadeSaida());
         assertEquals(3, resultado.usuarios().movimentacoes().conteudo().getFirst().quantidadeEntrada());
 
-        // Quantidade/valor dos itens respeitam os filtros; a regra de exclusao
+        // Quantidade e valor dos itens respeitam os filtros; a regra de exclusão
         // de CANCELADO aplica-se especificamente ao faturamento de pedidos.
         assertEquals(5, resultado.produtos().quantidadeVendida());
         assertDecimal("0.25", resultado.produtos().valorVendido());
 
-        // Cadastros e estoque sao globais e nao devem encolher com filtros de pedidos.
+        // Cadastros e estoque são globais e não devem encolher com filtros de pedidos.
         assertEquals(3, resultado.usuarios().total());
         assertEquals(2, resultado.usuarios().ativos());
         assertEquals(1, resultado.usuarios().pendentes());
@@ -102,7 +102,7 @@ class AdminServiceEstatisticasIntegrationTest {
         assertEquals(2, resultado.clientes().total());
         assertEquals(2, resultado.produtos().total());
         assertEquals(17, resultado.produtos().estoqueDisponivel());
-        // O limite padrao configuravel agora e 15: ambos os estoques (10 e 7) estao abaixo dele.
+        // O limite configurável é 15; ambos os estoques, 10 e 7, estão abaixo dele.
         assertEquals(2, resultado.produtos().estoqueBaixo());
         assertTrue(resultado.metadados().filtrosNaoAplicaveis().get("usuariosGlobais").contains("inicio"));
         assertTrue(resultado.filtrosDisponiveis().categoriasProduto().isEmpty());

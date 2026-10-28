@@ -136,7 +136,6 @@ public class ClienteService {
         // Sem histórico de pedidos, os endereços cadastrais podem ser removidos com o cliente.
         enderecoRepository.deleteByIdCliente_Id(id);
 
-        // Agora é seguro excluir o cliente
         clienteRepository.deleteById(id);
         if (auditoria != null) auditoria.registrar("EXCLUSAO_CLIENTE", "CLIENTE", id, java.util.Map.of());
     }

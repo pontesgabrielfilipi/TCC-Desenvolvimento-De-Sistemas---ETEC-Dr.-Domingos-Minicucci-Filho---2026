@@ -84,7 +84,6 @@ async def health_check():
         )
     return {"status": "healthy", "service": "delivery-time-ia"}
 
-# ===== FUNÇÃO DISTÂNCIA =====
 def calculate_distance(lat1, lon1, lat2, lon2):
     R = 6371
 
@@ -101,9 +100,8 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 
     return R * c
 
-mae = 3  # erro médio salvo no treino
+mae = 3  # Margem fixa usada para transformar a estimativa pontual em intervalo.
 
-# ===== SCHEMA =====
 class Pedido(BaseModel):
     price: float = Field(gt=0)
     customer_zip_code_prefix: int = Field(ge=0)
@@ -121,8 +119,6 @@ class Pedido(BaseModel):
 
 
 
-
-# ===== FUNÇÕES DE PROCESSAMENTO =====
 
 def preparar_dados(pedido_dict):
     return pd.DataFrame([pedido_dict])
@@ -160,7 +156,7 @@ def adicionar_distancia(data):
     c_lat, c_lng = get_lat_lng(data.loc[0, "customer_zip_code_prefix"])
     s_lat, s_lng = get_lat_lng(data.loc[0, "seller_zip_code_prefix"])
 
-    # fallback simples
+    # CEPs ausentes no dicionário recebem uma distância conservadora em vez de inviabilizar a previsão.
     if None in [c_lat, c_lng, s_lat, s_lng]:
         data["distance"] = 1000
         return data
@@ -184,8 +180,6 @@ def aplicar_encoders(data):
     return data
 
 
-# ===== ROTAS =====
-
 @app.get("/")
 def home():
     return {"message": "API de previsão de prazo de entrega"}
@@ -202,16 +196,14 @@ def predict(pedido: Pedido):
     data = adicionar_distancia(data)
     data = aplicar_encoders(data)
 
-    # garante ordem correta
+    # O scikit-learn exige as mesmas colunas e a mesma ordem usadas no treinamento.
     data = data[model.feature_names_in_]
 
     prediction = float(model.predict(data)[0])
 
-    # intervalo baseado no erro médio
     min_days = max(0, prediction - mae)
     max_days = prediction + mae
 
-    # deixa mais realista (dias inteiros)
     min_days = math.floor(min_days)
     max_days = math.ceil(max_days)
 

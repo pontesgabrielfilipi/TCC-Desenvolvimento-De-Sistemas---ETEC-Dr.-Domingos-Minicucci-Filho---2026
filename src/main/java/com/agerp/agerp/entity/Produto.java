@@ -44,7 +44,6 @@ public class Produto {
     @Column(name = "ativo")
     private Boolean ativo = true;
 
-    // Relacionamento com Estoque (1:1)
     @OneToOne(mappedBy = "idProduto", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Estoque estoque;
 }

@@ -35,7 +35,7 @@ public class JwtProperties {
     @Pattern(regexp = "Strict|Lax|None")
     private String cookieSameSite = "Strict";
 
-    // Empty means host-only cookies; not shared across unrelated hosts.
+    // Vazio mantém o cookie restrito ao host e impede o compartilhamento entre domínios.
     private String cookieDomain = "";
 
     @Min(1) @Max(365)

@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/** Limits failed attempts by combined network source and attempted account, never locking accounts. */
+/** Limita falhas pela combinação de origem de rede e conta, sem bloquear a conta em si. */
 @Component
 public class LoginAttemptLimiter {
     private record Failure(int count, long firstAt) {}

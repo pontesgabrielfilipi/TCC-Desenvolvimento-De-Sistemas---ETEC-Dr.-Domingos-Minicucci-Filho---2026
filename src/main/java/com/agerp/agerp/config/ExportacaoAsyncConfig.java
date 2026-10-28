@@ -10,7 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
 
-/** Bounded MVC executor: streaming must never rely on SimpleAsyncTaskExecutor. */
+/** Limita o executor MVC para que o streaming não dependa do SimpleAsyncTaskExecutor sem controle. */
 @Configuration
 public class ExportacaoAsyncConfig implements WebMvcConfigurer {
     private final ThreadPoolTaskExecutor executor;

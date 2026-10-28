@@ -37,7 +37,6 @@ export interface RedefinicaoSenhaResponse {
 }
 
 export const usuarioService = {
-    // Usado na página Admin
     async listarTodos(refresh = false) {
         return await api.get('/api/admin/usuarios', { params: refresh ? { refresh: true, _ts: Date.now() } : undefined });
     },

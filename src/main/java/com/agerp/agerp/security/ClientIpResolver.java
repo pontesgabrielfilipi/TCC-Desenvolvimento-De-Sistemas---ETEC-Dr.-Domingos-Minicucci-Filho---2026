@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/** Uses the socket peer as the trust anchor; never resolves hostnames. */
+/** Usa o peer do socket como âncora de confiança e nunca resolve nomes de host. */
 @Component
 public class ClientIpResolver {
     private static final int MAX_HEADER = 2048;
@@ -28,7 +28,7 @@ public class ClientIpResolver {
         if (address == null) return "0.0.0.0";
         if (!isTrusted(address)) return peer;
 
-        // A single supported header format avoids ambiguous precedence and proxy hopping.
+        // Um único formato de cabeçalho evita precedência ambígua e saltos entre proxies.
         if (request.getHeaders("Forwarded").hasMoreElements()
                 || request.getHeaders("X-Real-IP").hasMoreElements()
                 || request.getHeaders("CF-Connecting-IP").hasMoreElements()) return peer;

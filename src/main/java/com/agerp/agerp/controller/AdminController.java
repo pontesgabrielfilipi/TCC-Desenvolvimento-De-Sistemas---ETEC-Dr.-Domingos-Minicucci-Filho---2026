@@ -273,10 +273,10 @@ public class AdminController {
             @RequestParam(required = false) String status,
             @AuthenticationPrincipal CustomUserDetails admin,
             HttpServletRequest request) {
-        // Validacao antecipada: 400/404 antes de abrir o stream HTTP.
+        // Valida antes de abrir o stream para ainda permitir respostas JSON com 400 ou 404.
         var relatorio = relatorioAdminService.obter(id);
         var filtros = new RelatorioAdminService.Filtros(inicio, fim, clienteId, produtoId, usuarioId, status);
-        // Congela o universo dos logs ANTES da primeira inserção desta exportação.
+        // Congela o conjunto de logs antes do primeiro evento desta exportação.
         Long corte = relatorio.from().contains("agerp.log_sistema l") ? relatorioAdminService.corteAuditoria() : null;
         var ator = admin == null ? null : admin.getUsuario();
         var contexto = new ExportacaoAuditoriaService.Contexto(UUID.randomUUID(), AuditRequestContext.current(),
@@ -286,8 +286,8 @@ public class AdminController {
                 referencia(request.getAttribute("agerp.session.id")),
                 referencia(request.getAttribute("agerp.device.id")), relatorio.id(),
                 ExportacaoAuditoriaService.filtrosSeguros(filtros));
-        // Return JSON before XLSX headers if the real MVC streaming executor has no room.
-        // The export semaphore separately limits spool lifetime across slow downloads.
+        // Se o executor MVC estiver cheio, responde em JSON antes de comprometer os cabeçalhos XLSX.
+        // O semáforo limita separadamente o tempo de vida do spool em downloads lentos.
         if (mvcExecutor != null && mvcExecutor.getActiveCount() >= mvcExecutor.getMaxPoolSize()
                 && mvcExecutor.getThreadPoolExecutor().getQueue().remainingCapacity() == 0) {
             exportacaoAuditoria.registrar(contexto, "EXPORTACAO_FALHA", "NEGADO", null, null,

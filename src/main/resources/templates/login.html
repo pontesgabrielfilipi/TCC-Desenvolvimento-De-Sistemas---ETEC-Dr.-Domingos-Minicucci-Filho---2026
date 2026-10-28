@@ -24,7 +24,6 @@
 </head>
 <body class="min-h-screen flex flex-col antialiased bg-gradient-to-br from-gray-50 via-white to-indigo-50/60">
 
-<!-- Navbar -->
 <header class="bg-slate-900 border-b border-slate-800/70 sticky top-0 z-50">
     <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
@@ -44,7 +43,6 @@
 
         <div class="bg-white shadow-2xl rounded-3xl p-10 border border-gray-100">
 
-            <!-- Header -->
             <div class="text-center mb-10">
                 <div class="mx-auto w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mb-4">
                     <span class="text-3xl">🔐</span>
@@ -53,7 +51,6 @@
                 <p class="mt-3 text-gray-600 text-lg">Faça login para acessar sua conta</p>
             </div>
 
-            <!-- Mensagens -->
             <div th:if="${param.error}"
                  class="mb-8 p-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-center text-sm font-medium">
                 ⚠️ Credenciais inválidas. Verifique seu email e senha.
@@ -64,11 +61,9 @@
                 ✅ Você saiu com sucesso. Até logo!
             </div>
 
-            <!-- Formulário -->
             <form th:action="@{/login}" method="post" id="loginForm" class="space-y-7">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
-                <!-- Email -->
                 <div>
                     <label for="email" class="block text-sm font-semibold text-gray-700 mb-1.5">E-mail</label>
                     <input
@@ -83,7 +78,6 @@
                     >
                 </div>
 
-                <!-- Senha -->
                 <div>
                     <label for="password" class="block text-sm font-semibold text-gray-700 mb-1.5">Senha</label>
                     <div class="relative">
@@ -103,7 +97,6 @@
                     </div>
                 </div>
 
-                <!-- Opções -->
                 <div class="flex items-center justify-between text-sm">
                     <div class="flex items-center">
                         <input id="remember" name="remember" type="checkbox"
@@ -116,7 +109,6 @@
                     </a>
                 </div>
 
-                <!-- Botão Entrar -->
                 <button
                         type="submit"
                         id="submitBtn"
@@ -126,7 +118,6 @@
                 </button>
             </form>
 
-            <!-- Separador -->
             <div class="relative my-8">
                 <div class="absolute inset-0 flex items-center">
                     <div class="w-full border-t border-gray-200"></div>
@@ -136,7 +127,6 @@
                 </div>
             </div>
 
-            <!-- Link para cadastro -->
             <p class="text-center text-gray-600">
                 Não tem uma conta?
                 <a href="/começar-agora"
@@ -146,14 +136,12 @@
             </p>
         </div>
 
-        <!-- Social Proof -->
         <p class="mt-10 text-center text-sm text-gray-500">
             +180 negócios já confiam no AGERP
         </p>
     </div>
 </main>
 
-<!-- Footer -->
 <footer class="bg-slate-900 border-t border-slate-800/70 mt-auto">
     <div class="mx-auto max-w-7xl px-6 py-6 text-center text-slate-400 text-sm">
         © 2026 AGERP • Todos os direitos reservados •
@@ -162,9 +150,7 @@
     </div>
 </footer>
 
-<!-- JavaScript -->
 <script>
-    // Toggle senha
     const toggleBtn = document.getElementById('togglePassword');
     const passwordInput = document.getElementById('password');
 
@@ -174,7 +160,6 @@
         toggleBtn.textContent = isPassword ? '🙈' : '👁';
     });
 
-    // Loading no botão
     const form = document.getElementById('loginForm');
     const submitBtn = document.getElementById('submitBtn');
     const btnText = document.getElementById('btnText');
@@ -186,7 +171,6 @@
         submitBtn.disabled = true;
     });
 
-    // Validação simples (opcional)
     form.addEventListener('submit', (e) => {
         const email = document.getElementById('email').value.trim();
         const password = passwordInput.value.trim();

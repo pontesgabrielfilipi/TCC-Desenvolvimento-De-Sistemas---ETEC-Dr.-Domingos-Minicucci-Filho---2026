@@ -11,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/** A separate short transaction is valid exclusively for an independently observed failure. */
+/** Usa uma transação curta e independente apenas para falhas observadas fora da transação de negócio. */
 @Service
 public class AuditFailureService {
     private static final Logger LOG = LoggerFactory.getLogger(AuditFailureService.class);

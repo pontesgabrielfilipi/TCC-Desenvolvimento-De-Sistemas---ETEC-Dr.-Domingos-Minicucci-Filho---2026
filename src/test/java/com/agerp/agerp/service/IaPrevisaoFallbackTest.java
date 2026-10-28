@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** Tests failure branches using real loopback HTTP, without replacing online Python E2E evidence. */
+/** Testa falhas com HTTP real em loopback sem substituir a cobertura E2E do serviço Python. */
 class IaPrevisaoFallbackTest {
     private PedidoRepository pedidos;
     private EntregaRepository entregas;
@@ -87,7 +87,7 @@ class IaPrevisaoFallbackTest {
             } catch (InterruptedException ignored) {
                 Thread.currentThread().interrupt();
             } catch (java.io.IOException ignored) {
-                // Client has already timed out and closed the socket.
+                // O cliente já excedeu o timeout e fechou o socket.
             } finally {
                 exchange.close();
             }
@@ -104,7 +104,7 @@ class IaPrevisaoFallbackTest {
 
     @Test
     void realHttpInvalidJsonHttpErrorInvalidValuesAndRecoveryAreAudited() throws Exception {
-        // O servidor usa um socket TCP real, alternando os cenarios sem tocar no
+        // O servidor usa um socket TCP real, alternando os cenários sem tocar no
         // container Python nem na rede do Compose principal.
         AtomicInteger chamadas = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

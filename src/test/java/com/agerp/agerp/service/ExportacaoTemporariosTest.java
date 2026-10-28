@@ -100,7 +100,7 @@ class ExportacaoTemporariosTest {
         }
     }
 
-    /** Standalone JVM; deliberately never closes spool or executes a shutdown hook. */
+    /** A JVM isolada termina sem fechar o spool nem executar hook de desligamento. */
     public static class KillProbe {
         public static void main(String[] args) throws Exception {
             var temp = new ExportacaoTemporarios(Path.of(args[0]), null);

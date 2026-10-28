@@ -36,7 +36,6 @@ const Produtos = () => {
     const [loading, setLoading] = useState(true);
     const [sort, setSort] = useState<{ key: keyof Produto; direction: 'asc' | 'desc' }>({ key: 'nome', direction: 'asc' });
 
-    // Modal
     const [modalOpen, setModalOpen] = useState(false);
     const [editandoId, setEditandoId] = useState<number | null>(null);
 
@@ -52,10 +51,8 @@ const Produtos = () => {
         ativo: true,
     });
 
-    // Popover de exclusão
     const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
-    // Toasts
     const [toasts, setToasts] = useState<Toast[]>([]);
 
     const showToast = useCallback((type: 'success' | 'error', message: string) => {
@@ -146,7 +143,6 @@ const Produtos = () => {
         setEditandoId(null);
     };
 
-    // ==================== VALIDAÇÃO EXATA DO DTO ====================
     const validarFormulario = (): boolean => {
         if (!formData.nome.trim()) {
             showToast('error', 'Nome do produto é obrigatório');
@@ -279,10 +275,8 @@ const Produtos = () => {
     return (
         <div className="h-full min-w-0 bg-app-background flex overflow-hidden">
 
-            {/* CONTEÚDO PRINCIPAL */}
             <div className="flex-1 flex flex-col overflow-hidden">
 
-                {/* HEADER */}
                 <header className="bg-white border-b px-3 sm:px-6 py-3 sm:py-5 flex flex-wrap items-center justify-between gap-3">
                     <div className="hidden min-w-0 items-center gap-4 sm:flex">
                         <h1 className="flex items-center gap-3 text-xl font-bold text-gray-900 sm:text-3xl">📦 Produtos</h1>
@@ -304,7 +298,6 @@ const Produtos = () => {
                     </div>
                 </header>
 
-                {/* CONTEÚDO COM SCROLL */}
                 <div data-testid="produtos-scroll" className="min-w-0 p-3 sm:p-6 md:p-8 flex-1 overflow-y-auto overflow-x-hidden">
                     {isMobileViewport && campoBusca}
                     {loading ? (
@@ -379,7 +372,6 @@ const Produtos = () => {
                 </div>
             </div>
 
-            {/* Modal Novo / Editar Produto - com validações do DTO */}
             {modalOpen && (
                 <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="produto-modal-titulo">
                     <div className="agerp-modal-panel w-full max-w-lg rounded-3xl bg-white p-4 sm:p-8">
@@ -522,7 +514,6 @@ const Produtos = () => {
                 </div>
             )}
 
-            {/* Popover de Confirmação de Exclusão */}
             {deleteConfirmId && podeExcluir && (
                 <div className="agerp-modal-overlay fixed inset-0 z-[110] flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="excluir-produto-titulo">
                     <div className="agerp-modal-panel w-full max-w-sm rounded-3xl bg-white p-5 sm:p-8">
@@ -536,7 +527,6 @@ const Produtos = () => {
                 </div>
             )}
 
-            {/* Toasts */}
             <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[120] space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map((toast) => (
                     <div

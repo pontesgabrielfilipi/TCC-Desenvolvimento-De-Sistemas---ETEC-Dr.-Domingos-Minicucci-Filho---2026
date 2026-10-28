@@ -1,3 +1,2 @@
--- The test container runs Flyway with the application's default placeholder.
--- The restricted production role is represented here by an inert NOLOGIN role.
+-- Representa o papel restrito de produção sem permitir login no container de teste.
 CREATE ROLE aguser NOLOGIN;

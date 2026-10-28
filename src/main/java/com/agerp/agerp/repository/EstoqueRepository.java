@@ -17,28 +17,25 @@ import java.util.Optional;
 @Repository
 public interface EstoqueRepository extends JpaRepository<Estoque, Integer> {
 
-    /** Busca estoque pelo ID do produto (usado no toResponse do ProdutoService) */
     Estoque findByIdProdutoId(Integer produtoId);
 
     /** Carrega os saldos da lista em lote, evitando uma consulta por produto. */
     @Query("SELECT e FROM Estoque e WHERE e.idProduto.id IN :produtoIds")
     List<Estoque> buscarPorProdutos(@Param("produtoIds") List<Integer> produtoIds);
 
-    /** Busca estoque pelo ID do produto (com Optional, para PedidoService) */
     Optional<Estoque> findByIdProduto_Id(Integer produtoId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM Estoque e WHERE e.idProduto.id = :produtoId")
     Optional<Estoque> findByProdutoIdForUpdate(@Param("produtoId") Integer produtoId);
 
-    /** Estoques e nomes dos produtos numa consulta, sem carregar relacoes lazy uma a uma. */
+    /** Traz estoques e nomes dos produtos sem carregar relações lazy uma a uma. */
     @Query("SELECT e FROM Estoque e JOIN FETCH e.idProduto")
     List<Estoque> listarComProduto();
 
     @Query("SELECT COALESCE(SUM(e.quantidadeAtual), 0) FROM Estoque e")
     long somarQuantidadeAtual();
 
-    /** Hard Delete: Remove o estoque ao excluir permanentemente um produto */
     @Modifying
     @Transactional
     @Query("DELETE FROM Estoque e WHERE e.idProduto.id = :produtoId")

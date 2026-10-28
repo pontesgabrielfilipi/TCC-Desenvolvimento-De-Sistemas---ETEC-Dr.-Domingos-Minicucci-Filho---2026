@@ -28,7 +28,6 @@ public class UsuarioController {
         this.clientIpResolver = clientIpResolver;
     }
 
-    // ====================== CRIAR USUÁRIO ======================
     @PostMapping
     public ResponseEntity<UsuarioResponse> criar(@Valid @RequestBody UsuarioCreateRequest request,
             HttpServletRequest httpRequest) {
@@ -36,35 +35,30 @@ public class UsuarioController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // ====================== LISTAR TODOS ======================
     @GetMapping
     public ResponseEntity<List<UsuarioResponse>> listarTodos() {
         List<UsuarioResponse> usuarios = usuarioService.listarTodos();
         return ResponseEntity.ok(usuarios);
     }
 
-    // ====================== LISTAR APENAS ATIVOS ======================
     @GetMapping("/ativos")
     public ResponseEntity<List<UsuarioResponse>> listarAtivos() {
         List<UsuarioResponse> usuarios = usuarioService.listarAtivos();
         return ResponseEntity.ok(usuarios);
     }
 
-    // ====================== BUSCAR POR ID ======================
     @GetMapping("/{id}")
     public ResponseEntity<UsuarioResponse> buscarPorId(@PathVariable Integer id) {
         UsuarioResponse usuario = usuarioService.buscarPorId(id);
         return ResponseEntity.ok(usuario);
     }
 
-    // ====================== BUSCAR POR EMAIL ======================
     @GetMapping("/email/{email}")
     public ResponseEntity<UsuarioResponse> buscarPorEmail(@PathVariable String email) {
         UsuarioResponse usuario = usuarioService.buscarPorEmail(email);
         return ResponseEntity.ok(usuario);
     }
 
-    // ====================== SOFT DELETE (RECOMENDADO) ======================
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletar(@PathVariable Integer id,
             @AuthenticationPrincipal CustomUserDetails admin, HttpServletRequest request) {
@@ -72,7 +66,6 @@ public class UsuarioController {
         return ResponseEntity.noContent().build();
     }
 
-    // ====================== HARD DELETE (opcional - cuidado!) ======================
     @DeleteMapping("/{id}/permanente")
     public ResponseEntity<Void> deletarPermanente(@PathVariable Integer id) {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();

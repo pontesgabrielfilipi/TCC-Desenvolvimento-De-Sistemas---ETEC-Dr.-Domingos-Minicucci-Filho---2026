@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Exactly one terminal event and release, including MVC async error/timeout. */
+/** Garante um único evento terminal e uma única liberação, inclusive em erro ou timeout assíncrono. */
 public final class ExportacaoFluxo {
     private static final Logger LOG = LoggerFactory.getLogger(ExportacaoFluxo.class);
     private final AtomicBoolean ended = new AtomicBoolean(false);
@@ -39,7 +39,7 @@ public final class ExportacaoFluxo {
         this.inicioNs = inicioNs;
     }
 
-    /** Synchronize callback writes with final response headers from servlet filters. */
+    /** Sincroniza a escrita do callback com os cabeçalhos finais definidos pelos filtros. */
     public void aguardarFiltros(CountDownLatch barrier) { filtersFinished = barrier; }
 
     public void aguardarCabecalhos() throws java.io.IOException {
@@ -52,10 +52,10 @@ public final class ExportacaoFluxo {
         }
     }
 
-    /** Called immediately before opening the spool for transmission. */
+    /** Executado imediatamente antes de abrir o spool para transmissão. */
     public void iniciarTransmissao() { streaming.set(true); }
 
-    /** A timeout may race with a blocked socket write: retain resources until the callback exits. */
+    /** Um timeout pode concorrer com a escrita bloqueada no socket; os recursos ficam até o callback terminar. */
     public void falhaAsync(String motivo) {
         asyncFailure.compareAndSet(null, motivo);
         if (!streaming.get()) falha(motivo);

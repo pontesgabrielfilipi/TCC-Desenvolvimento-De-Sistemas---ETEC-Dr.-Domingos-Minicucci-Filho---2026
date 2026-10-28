@@ -82,7 +82,7 @@ for (const pagina of paginas) {
 
     await scroller.evaluate((el) => { el.scrollTop = 0; });
     await busca.focus();
-    // Simula a reducao da altura util provocada pelo teclado virtual.
+    // Simula a redução da altura útil provocada pelo teclado virtual.
     await page.setViewportSize({ width: 390, height: 540 });
     await busca.fill('Alvo');
     await expect(cards).toHaveCount(1);

@@ -35,7 +35,6 @@ public class ProdutoService {
         this.estoqueBaixoService = estoqueBaixoService;
     }
 
-    // ====================== LISTAR ATIVOS ======================
     @Cacheable("produtosAtivos")
     @Transactional(readOnly = true)
     public List<ProdutoResponse> listarAtivos() {
@@ -48,15 +47,12 @@ public class ProdutoService {
         return listarComEstoques(produtoRepository.findByAtivoTrue());
     }
 
-    // ====================== LISTAR TODOS (ativos + inativos)
-    // ======================
     @Cacheable("produtosTodos")
     @Transactional(readOnly = true)
     public List<ProdutoResponse> listarTodos() {
         return listarComEstoques(produtoRepository.findAll());
     }
 
-    // ====================== BUSCAR POR ID ======================
     @Cacheable(value = "produtoPorId", key = "#id")
     @Transactional(readOnly = true)
     public ProdutoResponse buscarPorId(Integer id) {
@@ -65,7 +61,6 @@ public class ProdutoService {
         return toResponse(produto);
     }
 
-    // ====================== CRIAR ======================
     @Caching(evict = {
             @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
@@ -79,7 +74,6 @@ public class ProdutoService {
             throw new IllegalArgumentException("Já existe um produto com este nome.");
         }
 
-        // Defesas contra null
         if (request.getPeso() == null)
             request.setPeso(BigDecimal.ZERO);
         if (request.getVolume() == null)
@@ -96,7 +90,6 @@ public class ProdutoService {
 
         produto = produtoRepository.save(produto);
 
-        // Cria estoque automaticamente
         Estoque estoque = new Estoque();
         estoque.setIdProduto(produto);
         estoque.setQuantidadeAtual(request.getQuantidadeInicial() != null ? request.getQuantidadeInicial() : 0);
@@ -110,7 +103,6 @@ public class ProdutoService {
         return toResponse(produto);
     }
 
-    // ====================== ATUALIZAR ======================
     @Caching(evict = {
             @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
@@ -127,7 +119,6 @@ public class ProdutoService {
         Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado com ID: " + id));
 
-        // Validação de nome duplicado ao editar
         precoAnterior = produto.getPreco();
         custoAnterior = produto.getCusto();
         ativoAnterior = produto.getAtivo();
@@ -154,7 +145,6 @@ public class ProdutoService {
 
         produto = produtoRepository.save(produto);
 
-        // Atualizar estoque associado se fornecido
         Estoque estoque = estoqueRepository.findByIdProdutoId(produto.getId());
         Integer saldoAnterior = estoque == null ? null : estoque.getQuantidadeAtual();
         Integer minimoAnterior = estoque == null ? null : estoque.getQuantidadeMinima();
@@ -183,7 +173,6 @@ public class ProdutoService {
         return toResponse(produto);
     }
 
-    // ====================== SOFT DELETE ======================
     @Caching(evict = {
             @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
@@ -204,7 +193,6 @@ public class ProdutoService {
                 AuditoriaNegocioService.mudancas("ativo", true, false));
     }
 
-    // ====================== HARD DELETE ======================
     @Caching(evict = {
             @CacheEvict(cacheNames = "produtosAtivos", allEntries = true),
             @CacheEvict(cacheNames = "produtosTodos", allEntries = true),
@@ -218,14 +206,12 @@ public class ProdutoService {
         Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado com ID: " + id));
 
-        // Remove estoque associado antes (evita erro de constraint)
         estoqueRepository.deleteByIdProdutoId(produto.getId());
 
         produtoRepository.deleteById(id);
         if (auditoria != null) auditoria.registrar("EXCLUSAO_PRODUTO", "PRODUTO", id, java.util.Map.of());
     }
 
-    // ====================== MAPPER ======================
     private List<ProdutoResponse> listarComEstoques(List<Produto> produtos) {
         var regra = estoqueBaixoService.regraAtual();
         if (produtos.isEmpty()) {

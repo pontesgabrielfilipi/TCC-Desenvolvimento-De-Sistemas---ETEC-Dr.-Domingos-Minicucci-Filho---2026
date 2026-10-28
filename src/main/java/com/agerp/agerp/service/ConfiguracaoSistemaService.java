@@ -91,7 +91,7 @@ public class ConfiguracaoSistemaService {
         logSistemaService.registrarEvento(administrador, "ALTERACAO_CONFIGURACOES", "CONFIGURACAO",
                 "1", "SUCESSO", null, ip, diferencas);
 
-        // Evict only after commit: no other request may repopulate caches with uncommitted settings.
+        // A invalidação ocorre após o commit para impedir que outra requisição recoloque dados não confirmados no cache.
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {

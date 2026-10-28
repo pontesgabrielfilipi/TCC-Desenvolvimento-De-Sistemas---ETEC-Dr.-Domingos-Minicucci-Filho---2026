@@ -1,4 +1,3 @@
-// PerfilResponse.java
 package com.agerp.agerp.dto;
 
 import lombok.AllArgsConstructor;

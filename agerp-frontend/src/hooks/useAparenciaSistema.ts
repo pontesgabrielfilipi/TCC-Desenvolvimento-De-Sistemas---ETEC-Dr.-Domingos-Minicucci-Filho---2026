@@ -14,7 +14,7 @@ export function useAparenciaSistema() {
                 const { data } = await configuracoesService.aparencia();
                 if (ativo) setAparencia(data);
             } catch {
-                // A interface preserva os valores iniciais quando a API esta indisponivel.
+                // A interface preserva os valores iniciais quando a API está indisponível.
             }
         };
         void atualizar();

@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // ====================== RESPOSTA PADRÃO (compatível com seu React) ======================
     public record ErrorResponse(String message) {}
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -47,7 +46,6 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("Servidor ocupado com exportações. Tente novamente em instantes."));
     }
 
-    // 1. MethodArgumentNotValidException → 400 Bad Request
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
         String mensagem = ex.getBindingResult().getFieldErrors().stream()
@@ -59,21 +57,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(new ErrorResponse(mensagem));
     }
 
-    // 2. IllegalArgumentException → 400 Bad Request (o que você mais usa)
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse(ex.getMessage()));
     }
 
-    // 2. UsernameNotFoundException → 404 Not Found
     @ExceptionHandler(UsernameNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUsernameNotFound(UsernameNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(ex.getMessage()));
     }
 
-    // 3. AuthenticationException → 401 Unauthorized (login, JWT, etc.)
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -99,7 +94,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(ex.getMessage()));
     }
 
-    // 4. ServletException e IOException (dos filtros que aparecem nas imagens)
     @ExceptionHandler({ServletException.class, IOException.class})
     public ResponseEntity<ErrorResponse> handleServletAndIoException(Exception ex) {
         String diagnosticId = UUID.randomUUID().toString();
@@ -108,12 +102,10 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("Erro interno de processamento. Referência: " + diagnosticId));
     }
 
-    // 5. Catch-all para qualquer outra exceção não tratada
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
         String diagnosticId = UUID.randomUUID().toString();
         LOG.error("Unhandled HTTP failure id={} exception={}", diagnosticId, ex.getClass().getSimpleName());
-        // ex.printStackTrace(); // descomente em desenvolvimento para ver o stack no console
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponse("Ocorreu um erro inesperado no servidor. Referência: " + diagnosticId));
     }

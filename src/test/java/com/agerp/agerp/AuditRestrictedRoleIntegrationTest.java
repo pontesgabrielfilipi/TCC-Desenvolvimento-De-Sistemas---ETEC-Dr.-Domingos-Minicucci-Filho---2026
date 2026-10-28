@@ -12,7 +12,7 @@ import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** An actual PostgreSQL LOGIN role in the disposable PostgreSQL 16 Testcontainer. */
+/** Usa um LOGIN real do PostgreSQL apenas no Testcontainer descartável. */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 class AuditRestrictedRoleIntegrationTest {
@@ -21,7 +21,7 @@ class AuditRestrictedRoleIntegrationTest {
 
     @Test
     void usuarioRestritoPodeLerMasNaoAlterarOuApagarAuditoria() throws Exception {
-        // The init script creates aguser NOLOGIN; enable LOGIN only inside this disposable container.
+        // O script cria aguser como NOLOGIN; o LOGIN só é habilitado dentro deste container descartável.
         owner.execute("ALTER ROLE aguser LOGIN PASSWORD 'v01-only-disposable-container'");
         owner.execute("GRANT USAGE ON SCHEMA agerp TO aguser");
         owner.execute("GRANT SELECT, INSERT ON agerp.log_sistema TO aguser");

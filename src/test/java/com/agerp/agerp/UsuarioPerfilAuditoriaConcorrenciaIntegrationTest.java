@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Concurrent writes run only against the disposable PostgreSQL 16 Testcontainers database. */
+/** As escritas concorrentes ocorrem apenas no PostgreSQL descartável do Testcontainers. */
 @SpringBootTest(properties = "agerp.seed.enabled=true")
 @Import(TestcontainersConfiguration.class)
 class UsuarioPerfilAuditoriaConcorrenciaIntegrationTest {

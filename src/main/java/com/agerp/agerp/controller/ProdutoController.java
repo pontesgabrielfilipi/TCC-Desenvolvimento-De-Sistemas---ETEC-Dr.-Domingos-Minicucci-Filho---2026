@@ -22,14 +22,12 @@ public class ProdutoController {
         this.produtoService = produtoService;
     }
 
-    /** Lista apenas ativos (padrão da aplicação) */
     @GetMapping
     public ResponseEntity<List<ProdutoResponse>> listarAtivos(
             @RequestParam(defaultValue = "false") boolean refresh) {
         return ResponseEntity.ok(refresh ? produtoService.recarregarAtivos() : produtoService.listarAtivos());
     }
 
-    /** Lista TODOS os produtos (ativos + inativos) */
     @GetMapping("/todos")
     public ResponseEntity<List<ProdutoResponse>> listarTodos() {
         return ResponseEntity.ok(produtoService.listarTodos());

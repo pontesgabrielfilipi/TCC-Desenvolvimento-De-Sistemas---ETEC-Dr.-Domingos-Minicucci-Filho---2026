@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** Exercises the actual servlet filters together, including their ordering and cleanup. */
+/** Exercita os filtros Servlet reais em conjunto, incluindo ordem e limpeza do contexto. */
 class AuditContextFilterFlowTest {
     @RestController
     static class Probe {

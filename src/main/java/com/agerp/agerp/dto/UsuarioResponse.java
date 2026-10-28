@@ -1,4 +1,3 @@
-// UsuarioResponse.java
 package com.agerp.agerp.dto;
 
 import java.time.Instant;

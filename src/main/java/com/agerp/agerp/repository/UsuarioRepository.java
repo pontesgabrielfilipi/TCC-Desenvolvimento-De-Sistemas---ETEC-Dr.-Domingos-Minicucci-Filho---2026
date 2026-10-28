@@ -25,7 +25,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
 
     boolean existsByEmailIgnoreCaseAndIdNot(String email, Integer id);
 
-    // Opcional: buscar usuários ativos
     List<Usuario> findByAtivoTrue();
 
     long countByAtivoTrue();

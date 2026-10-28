@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
     strictPort: true,
     allowedHosts,
     // Vite e o backend executados no host (fora do Docker) durante o desenvolvimento.
-    // Em producao, o Nginx do frontend usa o DNS interno backend-api:8080.
+    // Em produção, o Nginx do frontend usa o DNS interno backend-api:8080.
     proxy: {
       '/api': {
         target: local.AGERP_DEV_PROXY_TARGET || 'http://127.0.0.1:8080',

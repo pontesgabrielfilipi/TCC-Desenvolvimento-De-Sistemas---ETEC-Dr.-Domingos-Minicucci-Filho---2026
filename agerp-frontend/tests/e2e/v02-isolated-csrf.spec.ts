@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// Explicit opt-in prevents this integration test from hitting the normal Vite
-// mock server or an unrelated running application.
+// O opt-in explícito impede que o teste atinja o mock normal do Vite ou outra aplicação em execução.
 const isolatedBaseURL = process.env.E2E_ISOLATED_BASE_URL;
 
 test.describe('V02 - CSRF through the isolated real Nginx', () => {

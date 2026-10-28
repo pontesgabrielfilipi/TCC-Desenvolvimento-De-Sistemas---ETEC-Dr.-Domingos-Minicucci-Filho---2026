@@ -23,7 +23,6 @@ const Login = () => {
 
         try {
             await login(email, senha);
-            // AuthContext já redireciona para /dashboard em caso de sucesso
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const data = error.response?.data as { code?: string; codigo?: string; status?: string; statusAcesso?: string; message?: string } | undefined;
@@ -54,7 +53,6 @@ const Login = () => {
     return (
         <div className="flex min-h-screen min-h-[100dvh] bg-gray-50 lg:h-screen lg:overflow-hidden">
 
-            {/* SIDEBAR DE BRANDING - Desktop only */}
             <div className="relative hidden h-full w-96 flex-col bg-slate-900 text-white lg:flex">
                 <div className="p-8 border-b border-slate-800">
                     <Link to="/" className="brand text-4xl font-bold tracking-tight text-white no-underline">
@@ -74,7 +72,6 @@ const Login = () => {
                             Acesse sua conta e gerencie clientes, produtos, pedidos e estoque com total controle.
                         </p>
 
-                        {/* Trust signals */}
                         <div className="mt-16 grid grid-cols-2 gap-6">
                             <div className="bg-slate-800/50 rounded-3xl p-5">
                                 <div className="text-4xl font-semibold">+180</div>
@@ -95,10 +92,8 @@ const Login = () => {
                 <div className="absolute bottom-12 right-8 text-[160px] opacity-5 pointer-events-none">📊</div>
             </div>
 
-            {/* CONTEÚDO PRINCIPAL */}
             <div className="flex min-w-0 flex-1 flex-col">
 
-                {/* HEADER - SOMENTE TABLET E MOBILE */}
                 <header className="flex items-center justify-between gap-3 bg-slate-900 px-3 py-4 sm:px-6 lg:hidden">
                     <div className="flex items-center gap-4">
                         <Link to="/" className="brand text-2xl font-bold tracking-tight text-white no-underline transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg sm:text-3xl">
@@ -114,12 +109,10 @@ const Login = () => {
                     </Link>
                 </header>
 
-                {/* ÁREA DO FORMULÁRIO - com margin-top em mobile/tablet */}
                 <div className="min-w-0 flex-1 flex items-start lg:items-center justify-center p-3 sm:p-6 lg:p-10 overflow-y-auto overflow-x-hidden bgp">
                     <div className="w-full max-w-md my-4 sm:my-8">
                         <div className="rounded-3xl border border-gray-100 bg-white px-4 py-6 shadow sm:px-7 md:p-10">
 
-                            {/* Cabeçalho do card */}
                             <div className="text-center mb-8">
                                 <div className="mx-auto w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mb-4">
                                     <span className="text-4xl">🔐</span>
@@ -163,7 +156,6 @@ const Login = () => {
                             )}
 
                             <form onSubmit={handleSubmit} className="space-y-8">
-                                {/* E-mail */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">E-mail</label>
                                     <input
@@ -176,7 +168,6 @@ const Login = () => {
                                     />
                                 </div>
 
-                                {/* Senha */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Senha</label>
                                     <div className="relative">
@@ -232,12 +223,6 @@ const Login = () => {
                             </p>
                         </div>
 
-                        {/*/!* Trust bar *!/*/}
-                        {/*<div className={"flex justify-center"}>*/}
-                        {/*    <p className="mt-8 text-center text-xs text-white bg-slate-900 rounded-3xl p-3 w-fit">*/}
-                        {/*        +180 negócios já confiam no AGERP*/}
-                        {/*    </p>*/}
-                        {/*</div>*/}
                     </div>
                 </div>
             </div>

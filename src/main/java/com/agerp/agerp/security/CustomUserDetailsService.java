@@ -27,7 +27,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Credenciais inválidas"));
 
-        // Cria a autoridade no formato ROLE_XXXX
         String role = "ROLE_" + usuario.getIdPerfil().getNome().toUpperCase();
 
         var authorities = new ArrayList<SimpleGrantedAuthority>();

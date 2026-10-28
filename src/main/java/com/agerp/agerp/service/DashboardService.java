@@ -41,14 +41,12 @@ public class DashboardService {
         var estoqueBaixo = estoqueBaixoService.listar();
 
         return DashboardRelatorioCompletoDTO.builder()
-                // Estatísticas básicas
                 .totalClientes(clienteRepository.count())
                 .totalProdutos(produtoRepository.count())
                 .vendasMes(pedidoRepository.calcularTotalVendasDoMes(hoje.getMonthValue(), hoje.getYear()))
                 .pedidosPendentes(pedidoRepository.countByStatusIn(List.of("PENDENTE", "EM_ANDAMENTO")))
                 .produtosEstoqueBaixo(estoqueBaixo.size())
 
-                // Gráficos
                 .vendasMensais(pedidoRepository.vendasMensaisUltimos6Meses())
                 .topProdutos(pedidoRepository.top5ProdutosMaisVendidos())
                 .distribuicaoClientes(clienteRepository.distribuicaoTipoCliente())
@@ -59,7 +57,7 @@ public class DashboardService {
                 .build();
     }
 
-    // Método antigo (mantido para compatibilidade)
+    // Mantém o contrato consumido por integrações que ainda não usam o relatório completo.
     @Cacheable("dashboardEstatisticas")
     @Transactional(readOnly = true)
     public Map<String, Object> getEstatisticasBasicas() {

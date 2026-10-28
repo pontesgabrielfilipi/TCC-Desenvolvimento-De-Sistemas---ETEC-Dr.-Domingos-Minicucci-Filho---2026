@@ -89,8 +89,8 @@ class ConfiguracaoSistemaIntegrationTest {
         configuracoes.atualizar(new ConfiguracaoSistemaRequest(inicial.nomeEmpresa(), 15,
                 false, inicial.exibirAlertasEstoque(), inicial.timeoutIaMs(), inicial.versao()),
                 usuarioAdmin, "127.0.0.1");
-        // @Transactional reverte o teste: afterCommit nao roda aqui. Simula a invalidacao
-        // que ocorre depois do commit real, para verificar os consumidores com cache.
+        // @Transactional reverte o teste, portanto afterCommit não roda aqui. A invalidação
+        // pós-commit é simulada para verificar os consumidores com cache.
         limparCachesDeTestesTransacionais();
 
         assertEquals(2, estoqueBaixo.listar().size());

@@ -22,7 +22,7 @@ public class DiagnosticoSistemaService {
                               String versaoModelo, Instant ultimaConfiguracao) { }
 
     public Diagnostico consultar() {
-        // Access to persisted settings verifies connectivity without exposing connection strings.
+        // Ler uma configuração persistida verifica a conexão sem expor a string do banco.
         var config = configuracoes.consultar();
         String versao = getClass().getPackage().getImplementationVersion();
         if (versao == null || versao.isBlank()) versao = "Nao informada neste build";

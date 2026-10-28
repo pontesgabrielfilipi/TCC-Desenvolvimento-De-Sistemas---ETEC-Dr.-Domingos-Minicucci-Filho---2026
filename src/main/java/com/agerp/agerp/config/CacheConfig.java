@@ -10,10 +10,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * Configuração de Cache para o AGERP
- * Utiliza Caffeine (cache em memória) - leve, rápido e excelente para TCC
- */
+/** Define os caches locais e seus limites de retenção. */
 @Configuration
 @EnableCaching
 public class CacheConfig {
@@ -40,7 +37,6 @@ public class CacheConfig {
         registerCache(cacheManager, "adminEstatisticas", 10, 30, TimeUnit.SECONDS);
         registerCache(cacheManager, "adminRelatorios", 50, 1, TimeUnit.MINUTES);
 
-        // Módulo Pedidos
         registerCache(cacheManager, "pedidos", 500, 2, TimeUnit.MINUTES);
         registerCache(cacheManager, "pedidoPorId", 1000, 2, TimeUnit.MINUTES);
         registerCache(cacheManager, "pedidosPorStatus", 100, 1, TimeUnit.MINUTES);

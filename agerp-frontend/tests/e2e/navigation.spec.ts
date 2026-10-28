@@ -9,7 +9,7 @@ test('protected routes reject an unauthenticated browser', async ({ page }) => {
   }
 });
 
-// Credentials are injected at runtime only; no accounts or secrets are committed.
+// As credenciais entram apenas em runtime; nenhuma conta ou segredo fica no repositório.
 for (const role of ['ADMIN', 'USER'] as const) {
   const email = process.env[`E2E_${role}_EMAIL`];
   const password = process.env[`E2E_${role}_PASSWORD`];

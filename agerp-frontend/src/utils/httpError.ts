@@ -14,7 +14,7 @@ export const getHttpErrorMessage = (error: unknown, fallback: string): string =>
     return error.message || fallback;
 };
 
-/** O Axios devolve ate erros JSON como Blob quando responseType='blob'. */
+/** O Axios devolve até erros JSON como Blob quando responseType='blob'. */
 export const getBlobHttpErrorMessage = async (error: unknown, fallback: string): Promise<string> => {
     if (error instanceof Error && !axios.isAxiosError(error)) return error.message || fallback;
     if (!axios.isAxiosError(error)) return fallback;
@@ -30,7 +30,7 @@ export const getBlobHttpErrorMessage = async (error: unknown, fallback: string):
             if (typeof body.error === 'string' && body.error.trim()) return body.error;
         }
     } catch {
-        // Nunca mostrar HTML de proxy nem stack trace como mensagem de usuario.
+        // HTML do proxy e stack traces não devem aparecer como mensagem para o usuário.
     }
     return fallback;
 };

@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 
-// Explicit opt-in for a bounded, synthetic, temporary data load in TEST agdb.
+// Opt-in explícito para uma carga sintética, temporária e limitada no agdb DE TESTE.
 const origin = 'http://127.0.0.1:5173';
 const allowed = process.env.E2E_TEST_DEPLOY_AUTH === 'I_AUTHORIZE_TEST_ACCOUNTS'
   && process.env.E2E_BASE_URL === origin && process.env.E2E_LONG_STREAM === 'I_AUTHORIZE_SYNTHETIC_LOGS';
@@ -127,8 +127,8 @@ test.describe('V02 Nginx prolonged transfer (synthetic TEST data only)', () => {
       token = await csrf(auth);
       expect((await auth.post('/api/auth/login', { headers: { [token.headerName]: token.token }, data: { email, senha: password } })).status()).toBe(200);
 
-      // Per-row fields vary deterministically; they are not compressed into a tiny response.
-      // One INSERT with a unique owner marker, and one equally narrow DELETE in finally.
+      // Os campos variam de forma determinística para impedir compressão em uma resposta irrealmente pequena.
+      // Um INSERT usa marcador único de proprietário, e o finally remove apenas essas linhas.
       const insertedRows = sql(`WITH ins AS (INSERT INTO agerp.log_sistema
         (acao,entidade,recurso_id,resultado,detalhes,usuario_nome,usuario_email,usuario_perfil,ip,
          correlation_id,session_ref,device_ref,peer_ip,user_agent,http_method,http_route,http_status,duration_ms)

@@ -77,7 +77,7 @@ public class LogSistemaService {
         log.setIp(limitar(context == null ? ip : context.resolvedIp(), 50));
         log.setRecursoId(limitar(recursoId, 100));
         log.setResultado(limitar(resultado, 50));
-        // Legacy freeform details can include sensitive payloads; only safe structured changes are persisted.
+        // Detalhes livres legados podem conter dados sensíveis; só persistimos alterações estruturadas permitidas.
         log.setDetalhes(null);
         log.setChangesJson(sanitizeChanges(alteracoes));
         if (usuario != null) {
@@ -85,7 +85,7 @@ public class LogSistemaService {
             log.setUsuarioEmail(limitar(usuario.getEmail(), 255));
             log.setUsuarioPerfil(usuario.getIdPerfil() == null ? null : limitar(usuario.getIdPerfil().getNome(), 100));
         }
-        logSistemaRepository.saveAndFlush(log); // fail closed within the domain transaction
+        logSistemaRepository.saveAndFlush(log); // Falhar na auditoria também reverte a transação de negócio.
     }
 
     private static final Set<String> ALLOWED_CHANGES = Set.of(
@@ -114,7 +114,7 @@ public class LogSistemaService {
             } else if (value instanceof Number || value instanceof Boolean) output.put(entry.getKey(), value);
             else if (value instanceof String text) {
                 String normalized = text.replaceAll("[\\p{Cntrl}]", " ");
-                // Do not persist credential-shaped values even under a permitted field name.
+                // Valores com formato de credencial são descartados mesmo em campos permitidos.
                 if (normalized.matches("(?i).*(bearer\\s+|password|passwd|secret|token|api[_-]?key|private[_-]?key).*")) {
                     output.put(entry.getKey(), "[REDACTED]");
                 } else {
@@ -170,7 +170,7 @@ public class LogSistemaService {
                         case "acao" -> alternativas.add(cb.like(cb.lower(root.get("acao")), conter(termo)));
                         case "entidade" -> alternativas.add(cb.like(cb.lower(root.get("entidade")), conter(termo)));
                         case "ip" -> alternativas.add(cb.like(cb.lower(root.get("ip")), conter(termo)));
-                        default -> { /* ignora campos não permitidos */ }
+                        default -> { /* Campos fora da lista permitida não entram na auditoria. */ }
                     }
                 }
                 if (!alternativas.isEmpty()) obrigatorios.add(cb.or(alternativas.toArray(Predicate[]::new)));
