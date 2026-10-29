@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.service;
 
 import com.agerp.agerp.entity.LogSistema;
@@ -11,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/** A separate short transaction is valid exclusively for an independently observed failure. */
+/** Usa uma transação curta e independente apenas para falhas observadas fora da transação de negócio. */
 @Service
 public class AuditFailureService {
     private static final Logger LOG = LoggerFactory.getLogger(AuditFailureService.class);

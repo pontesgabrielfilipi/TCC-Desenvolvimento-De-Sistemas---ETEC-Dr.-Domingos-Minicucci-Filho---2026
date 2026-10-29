@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { usuarioService, type PerfilResponse, type PerfilSaveRequest } from '../../services/usuarioService';
 import { getHttpErrorMessage } from '../../utils/httpError';

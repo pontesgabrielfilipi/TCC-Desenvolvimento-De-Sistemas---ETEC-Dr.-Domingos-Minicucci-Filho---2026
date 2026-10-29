@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, type ReactNode, type FC } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -61,7 +64,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         try {
             await authService.logout();
         } catch {
-            // A revogacao pode nao ter ocorrido; nao anuncie logout concluido.
+            // A revogação pode ter falhado; não anuncie o logout como concluído.
             throw new Error('Nao foi possivel revogar sua sessao. Tente novamente.');
         }
         {

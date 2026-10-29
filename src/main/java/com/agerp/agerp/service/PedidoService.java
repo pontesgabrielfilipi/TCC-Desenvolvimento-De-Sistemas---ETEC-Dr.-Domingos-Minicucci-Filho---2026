@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.service;
 
 import com.agerp.agerp.dto.*;
@@ -52,18 +55,14 @@ public class PedidoService {
         this.auditoriaNegocioService = auditoriaNegocioService;
     }
 
-    // ====================== TRANSIÇÕES DE STATUS VÁLIDAS ======================
-
     private static final Map<String, Set<String>> TRANSICOES_VALIDAS = Map.ofEntries(
             Map.entry("PENDENTE", Set.of("CONFIRMADO", "CANCELADO")),
             Map.entry("CONFIRMADO", Set.of("EM_PREPARACAO", "CANCELADO")),
             Map.entry("EM_PREPARACAO", Set.of("PRONTO", "CANCELADO")),
             Map.entry("PRONTO", Set.of("ENTREGUE", "CANCELADO")),
-            Map.entry("ENTREGUE", Set.of()),  // Terminal, sem transições
-            Map.entry("CANCELADO", Set.of()) // Terminal, sem transições
+            Map.entry("ENTREGUE", Set.of()),
+            Map.entry("CANCELADO", Set.of())
     );
-
-    // ====================== LISTAR ======================
 
     @Cacheable(value = "pedidos", key = "#root.methodName")
     @Transactional(readOnly = true)
@@ -125,7 +124,6 @@ public class PedidoService {
         return pedidoRepository.findByIdCliente_Id(idCliente, pageable).map(this::toResponse);
     }
 
-    // ====================== BUSCAR POR ID ======================
 
     @Cacheable(value = "pedidoPorId", key = "#id")
     @Transactional(readOnly = true)
@@ -135,7 +133,6 @@ public class PedidoService {
         return toResponse(pedido);
     }
 
-    // ====================== CRIAR ======================
 
     @Caching(evict = {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
@@ -147,18 +144,13 @@ public class PedidoService {
     })
     @Transactional
     public PedidoResponse criar(PedidoCreateRequest request) {
-        // ========== VALIDAÇÕES ==========
-
-        // Validar cliente
         Cliente cliente = clienteRepository.findById(request.getIdCliente())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado com ID: " + request.getIdCliente()));
 
-        // Validar itens
         if (request.getItens() == null || request.getItens().isEmpty()) {
             throw new IllegalArgumentException("Pedido deve conter pelo menos um item");
         }
 
-        // Validar e vincular endereço de entrega (opcional)
         Endereco enderecoEntrega = null;
         if (request.getIdEndereco() != null) {
             enderecoEntrega = enderecoRepository.findByIdAndIdClienteId(request.getIdEndereco(), request.getIdCliente())
@@ -166,32 +158,26 @@ public class PedidoService {
                             "Endereço ID " + request.getIdEndereco() + " não pertence ao cliente informado"));
         }
 
-        // Validar produtos e checar disponibilidade de estoque
         Map<Integer, ItemPedidoRequest> produtosUnicos = new HashMap<>();
         BigDecimal valorTotal = BigDecimal.ZERO;
 
         for (ItemPedidoRequest item : request.getItens()) {
-            // Produto duplicado no mesmo pedido?
             if (produtosUnicos.containsKey(item.getIdProduto())) {
                 throw new IllegalArgumentException("Produto duplicado no pedido (ID: " + item.getIdProduto() + ")");
             }
             produtosUnicos.put(item.getIdProduto(), item);
 
-            // Produto existe?
             Produto produto = produtoRepository.findById(item.getIdProduto())
                     .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado com ID: " + item.getIdProduto()));
 
-            // Produto ativo?
             if (produto.getAtivo() != null && !produto.getAtivo()) {
                 throw new IllegalArgumentException("Produto inativo (ID: " + item.getIdProduto() + ")");
             }
 
-            // Quantidade válida?
             if (item.getQuantidade() == null || item.getQuantidade() <= 0) {
                 throw new IllegalArgumentException("Quantidade deve ser maior que zero (Produto ID: " + item.getIdProduto() + ")");
             }
 
-            // Estoque suficiente?
             Estoque estoque = estoqueRepository.findByIdProduto_Id(item.getIdProduto())
                     .orElseThrow(() -> new IllegalArgumentException("Estoque não encontrado para produto ID: " + item.getIdProduto()));
 
@@ -203,12 +189,10 @@ public class PedidoService {
                 );
             }
 
-            // Somar ao total
             BigDecimal subtotal = produto.getPreco().multiply(BigDecimal.valueOf(item.getQuantidade()));
             valorTotal = valorTotal.add(subtotal);
         }
 
-        // ========== CRIAR PEDIDO ==========
 
         Pedido pedido = new Pedido();
         pedido.setIdCliente(cliente);
@@ -221,7 +205,6 @@ public class PedidoService {
 
         pedido = pedidoRepository.save(pedido);
 
-        // ========== CRIAR ITENS ==========
 
         for (ItemPedidoRequest itemRequest : request.getItens()) {
             Produto produto = produtoRepository.findById(itemRequest.getIdProduto()).orElseThrow();
@@ -245,7 +228,6 @@ public class PedidoService {
         return toResponse(pedido);
     }
 
-    // ====================== ATUALIZAR ======================
 
     @Caching(evict = {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
@@ -262,7 +244,6 @@ public class PedidoService {
         Pedido pedido = pedidoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado com ID: " + id));
 
-        // Validate the state before accessing potentially optional associations.
         if (!"PENDENTE".equals(pedido.getStatus())) {
             throw new IllegalArgumentException("Apenas pedidos PENDENTES podem ser editados. Status atual: " + pedido.getStatus());
         }
@@ -273,16 +254,13 @@ public class PedidoService {
         Map<Integer, Integer> quantidadesAnteriores = pedido.getItens().stream()
                 .collect(Collectors.toMap(item -> item.getIdProduto().getId(), ItemPedido::getQuantidade));
 
-        // Validar cliente
         Cliente cliente = clienteRepository.findById(request.getIdCliente())
                 .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado com ID: " + request.getIdCliente()));
 
-        // Validar itens
         if (request.getItens() == null || request.getItens().isEmpty()) {
             throw new IllegalArgumentException("Pedido deve conter pelo menos um item");
         }
 
-        // Validar endereço de entrega (opcional)
         Endereco enderecoEntrega = null;
         if (request.getIdEndereco() != null) {
             enderecoEntrega = enderecoRepository.findByIdAndIdClienteId(request.getIdEndereco(), request.getIdCliente())
@@ -325,18 +303,15 @@ public class PedidoService {
             valorTotal = valorTotal.add(subtotal);
         }
 
-        // Atualizar dados gerais do pedido
         pedido.setIdCliente(cliente);
         pedido.setValorTotal(valorTotal);
         pedido.setIdEndereco(enderecoEntrega);
 
         pedido.setObservacoes(request.getObservacoes());
 
-        // Remover itens antigos
         itemPedidoRepository.deleteAll(pedido.getItens());
         pedido.getItens().clear();
 
-        // Adicionar novos itens
         for (ItemPedidoRequest itemRequest : request.getItens()) {
             Produto produto = produtoRepository.findById(itemRequest.getIdProduto()).orElseThrow();
             
@@ -367,7 +342,6 @@ public class PedidoService {
         return toResponse(pedido);
     }
 
-    // ====================== MUDAR STATUS E CONTROLE DE ESTOQUE ======================
 
     @Caching(evict = {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
@@ -390,17 +364,15 @@ public class PedidoService {
 
         String statusAtual = pedido.getStatus();
 
-        // Se já está no status solicitado, operação é idempotente
+        // Repetir a mesma transição não pode movimentar o estoque novamente.
         if (novoStatus.equals(statusAtual)) {
             return toResponse(pedido);
         }
 
-        // Validar novo status
         if (!TRANSICOES_VALIDAS.containsKey(novoStatus)) {
             throw new IllegalArgumentException("Status inválido: " + novoStatus);
         }
 
-        // Validar transição
         Set<String> transicoesPermitidas = TRANSICOES_VALIDAS.get(statusAtual);
         if (transicoesPermitidas == null || !transicoesPermitidas.contains(novoStatus)) {
             throw new IllegalArgumentException(
@@ -409,20 +381,18 @@ public class PedidoService {
             );
         }
 
-        // ========== REGRA CRÍTICA DE ESTOQUE: BAIXA AO CONFIRMAR ==========
+        // O estoque só é baixado na confirmação; pedidos pendentes ainda podem ser editados.
         if ("PENDENTE".equals(statusAtual) && "CONFIRMADO".equals(novoStatus)) {
             executarBaixaEstoque(pedido);
         }
 
-        // ========== REGRA CRÍTICA DE ESTOQUE: ESTORNO AO CANCELAR ==========
+        // Cancelamentos posteriores à confirmação devolvem exatamente os itens já baixados.
         if ("CANCELADO".equals(novoStatus)) {
-            // Apenas pedidos que já tiveram o estoque baixado devem estornar
             if ("CONFIRMADO".equals(statusAtual) || "EM_PREPARACAO".equals(statusAtual) || "PRONTO".equals(statusAtual)) {
                 executarEstornoEstoque(pedido);
             }
         }
 
-        // Atualizar status
         pedido.setStatus(novoStatus);
         pedido = pedidoRepository.save(pedido);
         auditoriaNegocioService.registrar("ALTERACAO_STATUS_PEDIDO", "PEDIDO", pedido.getId(),
@@ -501,7 +471,6 @@ public class PedidoService {
                         "quantidadeAtual", antes, depois, "quantidade", null, quantidade));
     }
 
-    // ====================== CANCELAR ======================
 
     @Caching(evict = {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
@@ -521,7 +490,6 @@ public class PedidoService {
         return mudarStatus(id, "CANCELADO");
     }
 
-    // ====================== DELETAR (soft delete) ======================
 
     @Caching(evict = {
             @CacheEvict(cacheNames = "pedidos", allEntries = true),
@@ -547,7 +515,6 @@ public class PedidoService {
         if (!"CANCELADO".equals(pedido.getStatus())) mudarStatus(id, "CANCELADO");
     }
 
-    // ====================== CONVERSOR DTO ======================
 
     private PedidoResponse toResponse(Pedido pedido) {
         List<ItemPedidoResponse> itens = pedido.getItens() != null 
@@ -565,7 +532,6 @@ public class PedidoService {
                     .collect(Collectors.toList())
                 : Collections.emptyList();
 
-        // Resumo do endereço de entrega
         Endereco enderecoPedido = pedido.getIdEndereco();
         Integer idEndereco = null;
         String enderecoResumo = null;
@@ -596,7 +562,6 @@ public class PedidoService {
                 .build();
     }
 
-    // ====================== UTILITÁRIOS ======================
 
     private String normalizarStatus(String status) {
         if (status == null || status.isBlank()) {

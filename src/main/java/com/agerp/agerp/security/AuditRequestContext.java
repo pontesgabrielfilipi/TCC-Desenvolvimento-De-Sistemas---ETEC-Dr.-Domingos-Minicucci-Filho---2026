@@ -1,9 +1,12 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.security;
 
 import java.util.UUID;
 import org.slf4j.MDC;
 
-/** Immutable, detached snapshot: safe for task handoff; never references servlet or JPA objects. */
+/** Snapshot imutável e desacoplado, seguro para tarefas assíncronas e sem referências Servlet ou JPA. */
 public record AuditRequestContext(UUID requestId, String correlationId, String peerIp,
                                   String resolvedIp, String userAgent, String method, String route) {
     private static final ThreadLocal<AuditRequestContext> CURRENT = new ThreadLocal<>();

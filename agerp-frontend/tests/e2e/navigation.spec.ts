@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { test, expect } from '@playwright/test';
 import { assertNoDocumentOverflow } from './helpers';
 
@@ -9,7 +12,7 @@ test('protected routes reject an unauthenticated browser', async ({ page }) => {
   }
 });
 
-// Credentials are injected at runtime only; no accounts or secrets are committed.
+// As credenciais entram apenas em runtime; nenhuma conta ou segredo fica no repositório.
 for (const role of ['ADMIN', 'USER'] as const) {
   const email = process.env[`E2E_${role}_EMAIL`];
   const password = process.env[`E2E_${role}_PASSWORD`];

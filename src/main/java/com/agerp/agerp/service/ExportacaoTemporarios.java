@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.service;
 
 import jakarta.annotation.PreDestroy;
@@ -20,8 +23,8 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * Exclusive, per-JVM XLSX spool. Only own UUID-named files in locked run
- * directories are eligible for recovery. Never scans or removes generic /tmp.
+ * Spool XLSX exclusivo por JVM. A recuperação considera apenas arquivos próprios,
+ * nomeados por UUID e dentro de diretórios bloqueados; o /tmp genérico nunca é varrido.
  */
 @Component
 public class ExportacaoTemporarios {
@@ -55,7 +58,7 @@ public class ExportacaoTemporarios {
 
     public void apagar(Path file) {
         if (file == null) return;
-        // Never delete a supplied arbitrary file, even if it has a similar name.
+        // Um caminho fornecido externamente nunca é apagado, mesmo que tenha nome semelhante.
         if (!current.equals(file.toAbsolutePath().normalize().getParent())
                 || !FILE.matcher(file.getFileName().toString()).matches()) {
             throw new IllegalArgumentException("Arquivo fora da area de exportacao ativa");
@@ -69,7 +72,7 @@ public class ExportacaoTemporarios {
         recuperar();
     }
 
-    /** Returns the number of orphaned XLSX files removed, not files of other owners. */
+    /** Retorna apenas a quantidade de XLSX órfãos removidos deste proprietário. */
     public int recuperar() {
         int removed = 0;
         try (var dirs = Files.list(root)) {
@@ -82,7 +85,7 @@ public class ExportacaoTemporarios {
                     FileLock oldLease;
                     try { oldLease = other.tryLock(); }
                     catch (OverlappingFileLockException busy) { continue; }
-                    if (oldLease == null) continue; // A different process still owns this run.
+                    if (oldLease == null) continue; // Outro processo ainda é proprietário desta execução.
                     try (oldLease; var files = Files.list(dir)) {
                         var entries = files.toList();
                         if (entries.stream().anyMatch(f -> !f.equals(lockPath) &&

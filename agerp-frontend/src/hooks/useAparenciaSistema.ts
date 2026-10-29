@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useEffect, useState } from 'react';
 import { configuracoesService } from '../services/configuracoesService';
 import type { AparenciaSistema } from '../services/configuracoesService';
@@ -14,7 +17,7 @@ export function useAparenciaSistema() {
                 const { data } = await configuracoesService.aparencia();
                 if (ativo) setAparencia(data);
             } catch {
-                // A interface preserva os valores iniciais quando a API esta indisponivel.
+                // A interface preserva os valores iniciais quando a API está indisponível.
             }
         };
         void atualizar();

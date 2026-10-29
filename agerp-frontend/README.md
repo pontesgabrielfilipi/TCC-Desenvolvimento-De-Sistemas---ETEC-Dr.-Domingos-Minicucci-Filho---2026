@@ -1,75 +1,50 @@
-# React + TypeScript + Vite
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# Frontend do AGERP
 
-Currently, two official plugins are available:
+Interface web do AGERP, desenvolvida com React 19, TypeScript 6 e Vite 8. As telas incluem autenticação, clientes, produtos, pedidos, dashboard e administração. O frontend consome a API Spring Boot; o banco de dados não é acessado diretamente pelo navegador.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Desenvolvimento local
 
-## React Compiler
+Na pasta `agerp-frontend/`, com Node.js e npm compatíveis com a versão do Vite indicada em [`package.json`](package.json):
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```powershell
+npm ci
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+É necessário configurar e iniciar o backend e suas dependências separadamente. Consulte o [README principal](../README.md) e a [configuração por ambiente](../docs/configuracao-ambientes.md). O servidor Vite usa por padrão a porta `5173`; o arquivo [`vite.config.ts`](vite.config.ts) permite ajustá-la com `AGERP_DEV_PORT` no `.env` da raiz, além de configurar o endereço de escuta, os hosts autorizados e o destino de `/api` (`AGERP_DEV_PROXY_TARGET`, padrão `http://127.0.0.1:8080`).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+A autenticação depende dos cookies emitidos pelo backend e da proteção CSRF. As rotas protegidas verificam autenticação e permissões; a autorização efetiva permanece no servidor.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Scripts disponíveis
+
+| Comando | Finalidade |
+| --- | --- |
+| `npm run dev` | Executa o Vite para desenvolvimento. |
+| `npm run build` | Compila o TypeScript e gera o bundle de produção. |
+| `npm run lint` | Executa o ESLint. |
+| `npm run preview` | Pré-visualiza o bundle compilado localmente. |
+| `npm run test:e2e` | Executa os testes Playwright; alguns cenários exigem ambiente de teste configurado. |
+| `npm run test:e2e:report` | Abre um relatório Playwright já gerado. |
+
+## Organização
+
+- `src/api/`: cliente HTTP e interceptadores.
+- `src/components/`: componentes compartilhados e navegação.
+- `src/contexts/`: estado de autenticação.
+- `src/hooks/`: hooks reutilizáveis.
+- `src/pages/`: páginas de autenticação, cadastros, dashboard e administração.
+- `src/routes/`: definição e proteção das rotas.
+- `src/services/`: chamadas à API por domínio.
+- `src/utils/`: funções auxiliares e formatação.
+- `tests/e2e/` e `tests/unit/`: testes de interface e de utilitários.
+
+O build utilizado no Docker é servido pelo Nginx, cuja configuração está em [`nginx.conf`](nginx.conf). Para detalhes das telas, consulte a [documentação do frontend](../docs/frontend.md).
+
+## Licença
+
+O código próprio deste frontend está sujeito à [licença proprietária do projeto](../LICENSE). Bibliotecas e dependências mantêm suas licenças individuais.

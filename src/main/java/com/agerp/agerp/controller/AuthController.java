@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.controller;
 
 import com.agerp.agerp.dto.LoginRequest;
@@ -63,10 +66,9 @@ public class AuthController {
         this.auditFailures = auditFailures;
     }
 
-    // Mantém compatibilidade com integrações que instanciam o controller diretamente.
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest,
-                                   HttpServletRequest request,      // ← Adicionado
+                                   HttpServletRequest request,
                                    HttpServletResponse response) {
 
         String ip = clientIpResolver.resolve(request);
@@ -110,7 +112,7 @@ public class AuthController {
             try {
                 jwtToken = jwtTokenProvider.generateToken(authentication, sessao.getId());
                 if (jwtToken == null || jwtToken.isBlank()) throw new IllegalStateException("Token indisponivel");
-                // Auditoria obrigatoria antes de publicar cookies.
+                // O login só publica cookies depois que a auditoria obrigatória foi persistida.
                 logSistemaService.registrarLog(authenticatedUser.getUsuario(), "LOGIN", "USUARIO", clientIpResolver.resolve(request));
             } catch (Exception e) {
                 sessoes.revogar(sessao.getId(), "LOGIN_INCOMPLETO");
@@ -139,9 +141,6 @@ public class AuthController {
         }
     }
 
-    /**
-     * Método robusto para pegar o IP real do usuário mesmo atrás de proxy/Cloudflare/Docker
-     */
     @GetMapping("/me")
     public ResponseEntity<UsuarioResponse> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -240,7 +239,7 @@ public class AuthController {
     }
 
     private Cookie deviceCookie(UUID device, HttpServletRequest request) {
-        // Dedicated logical browser ID. No hardware identifiers.
+        // Identifica apenas o navegador lógico, sem coletar identificadores do dispositivo.
         Cookie result = new Cookie("agerpDevice", device.toString());
         result.setHttpOnly(true);
         result.setSecure(jwtProperties.isCookieSecure() || request.isSecure());

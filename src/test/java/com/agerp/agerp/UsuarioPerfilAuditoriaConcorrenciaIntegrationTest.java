@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp;
 
 import com.agerp.agerp.dto.PerfilSaveRequest;
@@ -33,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Concurrent writes run only against the disposable PostgreSQL 16 Testcontainers database. */
+/** As escritas concorrentes ocorrem apenas no PostgreSQL descartável do Testcontainers. */
 @SpringBootTest(properties = "agerp.seed.enabled=true")
 @Import(TestcontainersConfiguration.class)
 class UsuarioPerfilAuditoriaConcorrenciaIntegrationTest {

@@ -1,3 +1,7 @@
+/* Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+   Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+*/
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,7 +10,6 @@
     --agerp-app-background: #e2e8f0;
 }
 
-/* Estilos globais */
 body {
     font-family: 'Inter', system-ui, sans-serif;
 }
@@ -19,7 +22,7 @@ html, body, #root {
 }
 #root { min-height: 100vh; min-height: 100dvh; }
 button, input, select, textarea { max-width: 100%; }
-/* Avoid iOS auto-zoom on focused form fields and keep long values inside flex/grid items. */
+/* Evita o zoom automático do iOS e mantém valores longos dentro de flex e grid. */
 @media (max-width: 767px) {
     input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px; }
 }

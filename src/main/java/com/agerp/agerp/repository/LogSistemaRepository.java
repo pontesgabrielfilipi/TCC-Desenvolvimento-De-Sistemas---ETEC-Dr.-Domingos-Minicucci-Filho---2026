@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.repository;
 
 import com.agerp.agerp.entity.LogSistema;
@@ -18,14 +21,8 @@ public interface LogSistemaRepository extends JpaRepository<LogSistema, Integer>
     @EntityGraph(attributePaths = {"idUsuario", "idUsuario.idPerfil"})
     Page<LogSistema> findAll(Specification<LogSistema> spec, Pageable pageable);
 
-    /**
-     * Lista todos os logs ordenados por data/hora (mais recente primeiro)
-     */
     List<LogSistema> findAllByOrderByDataHoraDesc();
 
-    /**
-     * Lista logs de um usuário específico, ordenados por data/hora
-     */
     List<LogSistema> findByIdUsuarioOrderByDataHoraDesc(Integer idUsuario);
 
     List<LogSistema> findByEntidadeAndRecursoIdOrderByIdAsc(String entidade, String recursoId);

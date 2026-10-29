@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.repository;
 
 import com.agerp.agerp.entity.Usuario;
@@ -25,7 +28,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
 
     boolean existsByEmailIgnoreCaseAndIdNot(String email, Integer id);
 
-    // Opcional: buscar usuários ativos
     List<Usuario> findByAtivoTrue();
 
     long countByAtivoTrue();

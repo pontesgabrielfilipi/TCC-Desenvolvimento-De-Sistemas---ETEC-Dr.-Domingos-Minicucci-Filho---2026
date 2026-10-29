@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.security;
 
 import jakarta.servlet.FilterChain;
@@ -49,7 +52,7 @@ public class AuditContextFilter extends OncePerRequestFilter {
         if (uri == null) return null;
         int query = uri.indexOf('?');
         if (query >= 0) uri = uri.substring(0, query);
-        // Replace resource identifiers, UUIDs and unknown long/path segments.
+        // Normaliza IDs, UUIDs e segmentos variáveis para evitar cardinalidade ilimitada na auditoria.
         String normalized = uri.replaceAll("/[0-9]+(?=/|$)", "/{id}")
                 .replaceAll("/[0-9a-fA-F]{8}-[0-9a-fA-F-]{27,}(?=/|$)", "/{id}");
         return clean(normalized, 160);

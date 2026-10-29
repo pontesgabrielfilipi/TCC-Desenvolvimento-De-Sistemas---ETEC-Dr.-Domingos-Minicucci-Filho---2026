@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.service;
 
 import com.agerp.agerp.dto.UsuarioCreateRequest;
@@ -78,7 +81,7 @@ public class UsuarioService {
         usuario.setStatusAcesso(StatusAcesso.PENDENTE);
 
         usuario = usuarioRepository.save(usuario);
-        // Cadastro publico: autoria anonima, sem atribuir identidade antes da autenticacao.
+        // O cadastro público é anônimo; atribuir identidade antes da autenticação falsificaria a autoria.
         logSistemaService.registrarEvento(null, "CRIACAO_USUARIO_" + usuario.getId(), "USUARIO",
                 String.valueOf(usuario.getId()), "SUCESSO", null, ip,
                 AuditoriaNegocioService.mudancas("status", null, StatusAcesso.PENDENTE,

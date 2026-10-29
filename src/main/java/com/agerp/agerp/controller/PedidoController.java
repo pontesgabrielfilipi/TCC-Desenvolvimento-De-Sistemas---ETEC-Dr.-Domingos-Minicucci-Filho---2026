@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.controller;
 
 import com.agerp.agerp.dto.PedidoCreateRequest;
@@ -30,7 +33,6 @@ public class PedidoController {
         this.iaPrevisaoService = iaPrevisaoService;
     }
 
-    // ====================== LISTAR ======================
 
     @GetMapping
     public ResponseEntity<List<PedidoResponse>> listarTodos(
@@ -68,21 +70,18 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.listarPorCliente(idCliente, pageable));
     }
 
-    // ====================== BUSCAR POR ID ======================
 
     @GetMapping("/{id}")
     public ResponseEntity<PedidoResponse> buscarPorId(@PathVariable Integer id) {
         return ResponseEntity.ok(pedidoService.buscarPorId(id));
     }
 
-    // ====================== PREVISÃO DE ENTREGA VIA IA ======================
 
     @GetMapping("/{id}/previsao-entrega")
     public ResponseEntity<PrevisaoEntregaResponse> obterPrevisaoEntrega(@PathVariable Integer id) {
         return ResponseEntity.ok(iaPrevisaoService.obterOuCalcularPrevisao(id));
     }
 
-    // ====================== CRIAR ======================
 
     @PreAuthorize("hasAuthority('PAGE_PEDIDOS')")
     @PostMapping
@@ -91,7 +90,6 @@ public class PedidoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // ====================== ATUALIZAR ======================
 
     @PreAuthorize("hasAuthority('PAGE_PEDIDOS')")
     @PutMapping("/{id}")
@@ -101,7 +99,6 @@ public class PedidoController {
         return ResponseEntity.ok(response);
     }
 
-    // ====================== MUDAR STATUS ======================
 
     @PreAuthorize("hasAuthority('PAGE_PEDIDOS') and @cargoAutorizacao.podeAlterarStatusPedido(authentication, #status)")
     @PatchMapping("/{id}/status")
@@ -111,7 +108,6 @@ public class PedidoController {
         return ResponseEntity.ok(response);
     }
 
-    // ====================== CANCELAR ======================
 
     @PreAuthorize("hasAuthority('PAGE_PEDIDOS') and @cargoAutorizacao.nivelMinimo(authentication, 60)")
     @PostMapping("/{id}/cancelar")
@@ -120,7 +116,6 @@ public class PedidoController {
         return ResponseEntity.ok(response);
     }
 
-    // ====================== DELETAR (soft) ======================
 
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     @DeleteMapping("/{id}")

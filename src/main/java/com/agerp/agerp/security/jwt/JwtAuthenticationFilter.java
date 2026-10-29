@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.security.jwt;
 
 import jakarta.servlet.FilterChain;
@@ -44,7 +47,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // não executa validação de token nas rotas de autenticação
         String requestURI = request.getRequestURI();
         if (requestURI.contains("/auth/login")) {
 
@@ -84,7 +86,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 request.setAttribute("agerp.device.id", sessoes.dispositivo(jwtTokenProvider.getSessionId(jwt)));
 
             } catch (Exception e) {
-                // Token inválido ou usuário não encontrado → limpa o contexto
+                // Um token inválido nunca pode reaproveitar autenticação deixada no contexto.
                 SecurityContextHolder.clearContext();
                 auditTokenFailure(request, "ACESSO_NEGADO");
             }
@@ -106,9 +108,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 || uri.equals("/api/auth/me") || uri.equals("/api/auth/logout");
     }
 
-    /**
-     * Lê o token do cookie HttpOnly chamado "jwtToken"
-     */
     private String getJwtFromCookie(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {

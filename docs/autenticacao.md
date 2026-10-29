@@ -1,3 +1,8 @@
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
+
 # Autenticação e Segurança
 
 ## A03 — Sessões persistidas, revogação e transição
@@ -190,7 +195,7 @@ Durante o desenvolvimento foram investigados:
 - problemas de carregamento de variáveis `SPRING_DATASOURCE_*`.
 
 Esses casos devem ser mantidos em `problemas.md` quando ainda forem relevantes.
-# Correlação e privacidade de auditoria (A02)
+## Correlação e privacidade de auditoria (A02)
 
 O servidor gera `request_id` (UUID) e devolve `X-Request-ID` para diagnóstico. `X-Correlation-ID` recebido do cliente é aceito apenas quando tiver de 1 a 64 caracteres ASCII `[A-Za-z0-9_-]`; caso contrário o valor interno do request é utilizado. Um correlation ID válido é identificador de correlação, **não** prova de identidade nem autenticação. `peer_ip` representa a conexão recebida; `ip` representa o endereço obtido pelo resolvedor confiável A01. A rota é normalizada e não inclui query string. `User-Agent` é sanitizado e limitado; não salvar cookies, Authorization, query strings, tokens, credenciais ou corpo completo.
 

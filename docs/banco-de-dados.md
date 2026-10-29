@@ -1,3 +1,8 @@
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
+
 # Banco de Dados
 
 ## Tecnologia
@@ -188,7 +193,7 @@ As features de treinamento incluem:
 - dia da semana;
 - mês;
 - hora do pedido.
-# Auditoria correlacionada (V9)
+## Auditoria correlacionada (V9)
 
 A V9 adiciona campos opcionais a `agerp.log_sistema` sem preencher artificialmente registros históricos: `event_id` (UUID único para novos eventos), `request_id` (UUID gerado pelo servidor), `correlation_id` (identificador externo validado), `session_ref` e `device_ref` (reservados para A03), `event_schema_version`, `peer_ip`, `user_agent`, `http_method`, `http_route`, `http_status`, `duration_ms` e `changes_json` (`JSONB`). O campo `ip` continua representando a origem validada, distinta do peer TCP. `http_status` e `duration_ms` ficam nulos em eventos de domínio emitidos antes do fim da requisição; não devem ser estimados.
 

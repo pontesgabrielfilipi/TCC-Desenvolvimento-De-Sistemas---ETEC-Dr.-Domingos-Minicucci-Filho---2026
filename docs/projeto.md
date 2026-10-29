@@ -1,3 +1,8 @@
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
+
 # Projeto AGERP
 
 ## Identificação
@@ -6,7 +11,7 @@
 - **Instituição:** Centro Estadual de Educação Tecnológica Paula Souza - ETEC Dr. Domingos Minicucci Filho
 - **Local:** Botucatu - SP
 - **Ano:** 2026
-- **Autores:** André Correia Gomes da Silva e Gabriel Filipe Pontes
+- **Autores:** André Correia Gomes da Silva e Gabriel Filipi Pontes
 - **Orientador:** Prof. Marcos
 - **Tipo:** Trabalho de Conclusão de Curso (TCC)
 
@@ -20,7 +25,9 @@ PMEs podem enfrentar dificuldades para adotar sistemas ERP tradicionais devido a
 
 O AGERP busca centralizar esses processos e acrescentar uma camada preditiva para apoiar a estimativa de prazos de entrega.
 
-## Principais módulos
+## Módulos previstos e componentes existentes
+
+A relação abaixo descreve o escopo do projeto; a presença de entidades como pagamentos e entregas não comprova, por si só, um módulo completo disponível ao usuário.
 
 1. Autenticação e segurança
 2. Gestão de usuários e perfis

@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usuarioService } from '../../services/usuarioService';
@@ -20,7 +23,6 @@ const Cadastro = () => {
 
     const [loading, setLoading] = useState(false);
 
-    // Toasts
     const [toasts, setToasts] = useState<{ id: number; type: 'success' | 'error'; message: string }[]>([]);
 
     const showToast = (type: 'success' | 'error', message: string) => {
@@ -31,7 +33,6 @@ const Cadastro = () => {
         }, 4000);
     };
 
-    // Máscaras
     const formatarTelefone = (value: string) => {
         return value
             .replace(/\D/g, '')
@@ -67,7 +68,6 @@ const Cadastro = () => {
         }
     };
 
-    // Validações
     const validarCPF = (cpf: string) => {
         const cleaned = cpf.replace(/\D/g, '');
         if (cleaned.length !== 11 || /^(\d)\1+$/.test(cleaned)) return false;
@@ -122,7 +122,6 @@ const Cadastro = () => {
     return (
         <div className="flex min-h-screen min-h-[100dvh] bg-gray-50 lg:h-screen lg:overflow-hidden">
 
-            {/* SIDEBAR DE BRANDING - Desktop only */}
             <div className="relative hidden h-full w-96 flex-col bg-slate-900 text-white lg:flex">
                 <div className="p-8 border-b border-slate-800">
                     <Link to="/" className="brand text-4xl font-bold tracking-tight text-white no-underline">
@@ -142,7 +141,6 @@ const Cadastro = () => {
                             Comece agora mesmo. Sem cartão. Sem compromisso. 14 dias de teste completo.
                         </p>
 
-                        {/* Trust signals */}
                         <div className="mt-16 grid grid-cols-2 gap-6">
                             <div className="bg-slate-800/50 rounded-3xl p-5">
                                 <div className="text-4xl font-semibold">+180</div>
@@ -163,10 +161,8 @@ const Cadastro = () => {
                 <div className="absolute bottom-12 right-8 text-[160px] opacity-5 pointer-events-none">🚀</div>
             </div>
 
-            {/* CONTEÚDO PRINCIPAL */}
             <div className="flex min-w-0 flex-1 flex-col">
 
-                {/* HEADER - SOMENTE TABLET E MOBILE */}
                 <header className="flex items-center justify-between gap-3 bg-slate-900 px-3 py-4 sm:px-6 lg:hidden">
                     <div className="flex items-center gap-4">
                         <Link
@@ -185,12 +181,10 @@ const Cadastro = () => {
                     </Link>
                 </header>
 
-                {/* ÁREA DO FORMULÁRIO */}
                 <div className="min-w-0 flex-1 flex items-start justify-center p-3 py-6 sm:p-6 lg:p-10 overflow-y-auto overflow-x-hidden bgp">
                     <div className="w-full max-w-md">
                         <div className="bg-white rounded-3xl shadow px-4 py-6 sm:px-7 md:p-10 border border-gray-100">
 
-                            {/* Cabeçalho do card */}
                             <div className="text-center mb-8">
                                 <div className="mx-auto w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mb-4">
                                     <span className="text-4xl">✍️</span>
@@ -200,7 +194,6 @@ const Cadastro = () => {
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
-                                {/* Tipo de Pessoa */}
                                 <div>
                                     <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-1.5">Tipo de Pessoa</label>
                                     <select
@@ -215,7 +208,6 @@ const Cadastro = () => {
                                     </select>
                                 </div>
 
-                                {/* CPF / CNPJ */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                                         {formData.tipo === 'FISICA' ? 'CPF' : 'CNPJ'} *
@@ -232,7 +224,6 @@ const Cadastro = () => {
                                     />
                                 </div>
 
-                                {/* Nome / Razão Social */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Nome completo / Razão Social</label>
                                     <input
@@ -345,17 +336,10 @@ const Cadastro = () => {
                             </p>
                         </div>
 
-                        {/*/!* Trust bar *!/*/}
-                        {/*<div className={"flex justify-center"}>*/}
-                        {/*    <p className="mt-8 text-center text-xs text-white bg-slate-900 rounded-3xl p-3 w-fit">*/}
-                        {/*        +180 negócios já confiam no AGERP*/}
-                        {/*    </p>*/}
-                        {/*</div>*/}
                     </div>
                 </div>
             </div>
 
-            {/* TOASTS */}
             <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[120] space-y-2 sm:left-auto sm:right-6 sm:max-w-md">
                 {toasts.map((toast) => (
                     <div

@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp;
 
 import com.agerp.agerp.dto.ItemPedidoRequest;
@@ -32,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Executes competing business transactions against disposable PostgreSQL 16 Testcontainers only. */
+/** Executa transações de negócio concorrentes apenas no PostgreSQL descartável do Testcontainers. */
 @SpringBootTest(properties = "agerp.seed.enabled=true")
 @Import(TestcontainersConfiguration.class)
 class PedidoAuditoriaConcorrenciaIntegrationTest {

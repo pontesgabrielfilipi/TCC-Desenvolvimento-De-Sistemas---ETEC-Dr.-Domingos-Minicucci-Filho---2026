@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.service;
 
 import com.agerp.agerp.entity.Usuario;
@@ -11,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/** Auditoria de negócio transacional. Apenas campos permitidos são entregues ao log. */
+/** Mantém a auditoria na transação de negócio e envia ao log apenas campos permitidos. */
 @Service
 public class AuditoriaNegocioService {
     private final LogSistemaService logs;

@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp;
 
 import com.agerp.agerp.dto.ConfiguracaoSistemaRequest;
@@ -19,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Real competing updates, only against the disposable PostgreSQL 16 Testcontainers database. */
+/** Executa atualizações concorrentes reais apenas no PostgreSQL descartável do Testcontainers. */
 @SpringBootTest(properties = "agerp.seed.enabled=true")
 @Import(TestcontainersConfiguration.class)
 class ConfiguracaoAuditoriaConcorrenciaIntegrationTest {
@@ -58,7 +61,7 @@ class ConfiguracaoAuditoriaConcorrenciaIntegrationTest {
             assertEquals(initialEvents + 1, auditCount(),
                     "The failed transaction must not persist a success event");
         } finally {
-            // Preserve other tests' expected settings; this is still an isolated database.
+            // Restaura a configuração esperada pelos demais testes, embora o banco seja isolado.
             var current = configuracoes.consultar();
             if (current.limiteEstoqueBaixo() != original.limiteEstoqueBaixo()) {
                 configuracoes.atualizar(new ConfiguracaoSistemaRequest(original.nomeEmpresa(),

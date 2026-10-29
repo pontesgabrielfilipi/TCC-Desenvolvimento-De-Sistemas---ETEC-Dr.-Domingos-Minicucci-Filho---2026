@@ -1,3 +1,6 @@
+# Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+# Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 # Requer Docker Desktop ativo. Nunca utiliza compose down, prune nem containers por prefixo.
 [CmdletBinding()]
 param(
@@ -11,7 +14,7 @@ $script:JournalDirectory = Join-Path $PSScriptRoot '.isolation-runs'
 $script:ComposeFile = Join-Path $PSScriptRoot 'isolated-probe.compose.yml'
 
 function Invoke-Docker([string[]]$Arguments) {
-    # Windows PowerShell 5.1 trata o stderr de progress do Compose como NativeCommandError
+    # O Windows PowerShell 5.1 trata o stderr de progresso do Compose como NativeCommandError
     # quando ErrorActionPreference=Stop, mesmo com exit 0.
     $output = @(& docker @Arguments)
     if ($LASTEXITCODE -ne 0) {
@@ -53,7 +56,7 @@ function Assert-Owned([string]$kind, [string]$resourceId, $record) {
 
 function Clear-Owned($record) {
     $resources = Get-Resources $record.Id
-    # Congela os alvos antes de executar qualquer remocao; cada ID e suas labels sao validados.
+    # Congela os alvos antes de qualquer remoção; cada ID e suas labels são validados.
     foreach ($kind in @('Containers', 'Networks', 'Volumes')) {
         foreach ($resourceId in @($resources[$kind])) {
             Assert-Owned $kind $resourceId $record
@@ -116,7 +119,7 @@ try {
         $record.Resources.Networks.Count -ne 1 -or $record.Resources.Volumes.Count -ne 1) {
         throw 'Inventario isolado inesperado; verificar IDs e labels.'
     }
-    # Teste de conexao ao banco sem enviar credenciais por log ou usar o DB principal.
+    # Testa a conexão sem registrar credenciais nem usar o banco principal.
     Invoke-Docker -Arguments @('exec', $record.Resources.Containers[0], 'pg_isready', '-U', 'probe', '-d', 'probe') | Out-Null
     Write-Host "Teste PG16 isolado aprovado; execucao $runId, porta localhost:$port."
     if ($FailAfterStart) { throw 'FALHA_CONTROLADA_APOS_START' }

@@ -1,3 +1,8 @@
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
+
 # Backend
 
 ## Tecnologias atuais
@@ -168,10 +173,10 @@ exige simultaneamente permissão da página e nível >= 60. Excluir pedido
 ## Observações
 
 O `pom.xml` atual possui algumas dependências que devem ser revisadas conforme a evolução do projeto, principalmente quando um recurso deixar de ser utilizado. Evitar adicionar dependências sem necessidade.
-# Auditoria de operações de negócio (A04)
+## Auditoria de operações de negócio (A04)
 
 Consulte [a matriz de cobertura e campos excluídos](auditoria-negocio.md). A instrumentação A04 está **parcial**; a matriz identifica explicitamente o que falta antes do aceite completo.
-# Consulta avançada de auditoria (A05)
+## Consulta avançada de auditoria (A05)
 
 `GET /api/admin/logs` continua restrito a ADMIN no servidor. Parâmetros opcionais:
 `email`, `perfil`, `acao`, `resultado`, `entidade`, `recursoId`, `sessionRef`,

@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.security;
 
 import com.agerp.agerp.entity.Usuario;
@@ -27,7 +30,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Credenciais inválidas"));
 
-        // Cria a autoridade no formato ROLE_XXXX
         String role = "ROLE_" + usuario.getIdPerfil().getNome().toUpperCase();
 
         var authorities = new ArrayList<SimpleGrantedAuthority>();

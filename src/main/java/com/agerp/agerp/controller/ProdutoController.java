@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.controller;
 
 import com.agerp.agerp.dto.ProdutoCreateRequest;
@@ -22,14 +25,12 @@ public class ProdutoController {
         this.produtoService = produtoService;
     }
 
-    /** Lista apenas ativos (padrão da aplicação) */
     @GetMapping
     public ResponseEntity<List<ProdutoResponse>> listarAtivos(
             @RequestParam(defaultValue = "false") boolean refresh) {
         return ResponseEntity.ok(refresh ? produtoService.recarregarAtivos() : produtoService.listarAtivos());
     }
 
-    /** Lista TODOS os produtos (ativos + inativos) */
     @GetMapping("/todos")
     public ResponseEntity<List<ProdutoResponse>> listarTodos() {
         return ResponseEntity.ok(produtoService.listarTodos());

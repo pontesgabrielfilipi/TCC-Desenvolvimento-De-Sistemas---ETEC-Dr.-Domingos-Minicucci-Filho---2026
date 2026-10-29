@@ -1,3 +1,8 @@
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
+
 # Frontend
 
 ## Diretório
@@ -30,7 +35,7 @@ De acordo com o `package.json` atual:
 ## Scripts
 
 ```bash
-npm install
+npm ci
 npm run dev
 npm run build
 npm run lint
@@ -125,7 +130,7 @@ Definidos e exportados em `services/pedidoService.ts`:
 
 ### Integração com IA:
 O botão "Consultar Previsão de Entrega (IA)" no modal de detalhes chama `GET /api/pedidos/{id}/previsao-entrega`, que internamente aciona o `IaPrevisaoService` Java e o microsserviço Python. A resposta exibe prazo central, intervalo mín/máx, nível de confiança, rota e versão do modelo.
-# Auditoria avançada (A05)
+## Auditoria avançada (A05)
 
 Em Administração → Logs do Sistema, a busca textual usa OR entre os campos marcados;
 todos os filtros estruturados (e-mail do ator, ação, resultado, entidade, ID do recurso,

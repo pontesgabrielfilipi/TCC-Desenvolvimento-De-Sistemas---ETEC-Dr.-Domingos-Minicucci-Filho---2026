@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useState, useEffect, useCallback } from 'react';
 import { enderecoService, type Endereco } from '../../services/enderecoService';
 import { getHttpErrorMessage } from '../../utils/httpError';
@@ -44,13 +47,11 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
     const [saving, setSaving] = useState(false);
     const [buscandoCep, setBuscandoCep] = useState(false);
 
-    // Modo formulário: listagem vs formulário (novo/edição)
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editandoEnderecoId, setEditandoEnderecoId] = useState<number | null>(null);
     const [formData, setFormData] = useState<EnderecoFormState>(initialFormState);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-    // Confirmação de exclusão
     const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
     const carregarEnderecos = useCallback(async () => {
@@ -243,7 +244,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
         <div className="agerp-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/70" role="dialog" aria-modal="true" aria-labelledby="enderecos-modal-titulo">
             <div className="agerp-modal-panel flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
                 
-                {/* Header Modal */}
                 <div className="flex items-start justify-between gap-3 border-b border-gray-100 bg-slate-50 px-4 py-4 sm:px-6 sm:py-5">
                     <div className="flex min-w-0 items-center gap-3">
                         <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-2xl flex items-center justify-center text-xl font-bold">
@@ -267,7 +267,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                     </button>
                 </div>
 
-                {/* Corpo com Scroll */}
                 <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
                     {!isFormOpen ? (
                         <>
@@ -356,7 +355,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                             )}
                         </>
                     ) : (
-                        /* Formulário de Criação/Edição */
                         <form onSubmit={salvarEndereco} className="space-y-4">
                             <div className="flex flex-col items-start justify-between gap-2 border-b border-gray-100 pb-3 min-[360px]:flex-row min-[360px]:items-center">
                                 <h3 className="font-semibold text-gray-800 text-base">
@@ -371,7 +369,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                 </button>
                             </div>
 
-                            {/* CEP com Busca ViaCEP */}
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                                     CEP
@@ -404,7 +401,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                 )}
                             </div>
 
-                            {/* Logradouro e Número */}
                             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                                 <div className="sm:col-span-3">
                                     <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
@@ -439,7 +435,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                 </div>
                             </div>
 
-                            {/* Bairro, Cidade e UF */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
@@ -491,7 +486,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                 </div>
                             </div>
 
-                            {/* Latitude e Longitude (opcional, para integrações de IA e Logística do AGERP) */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 mb-1">
@@ -527,7 +521,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                                 </div>
                             </div>
 
-                            {/* Botões do Formulário */}
                             <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 min-[360px]:flex-row">
                                 <button
                                     type="button"
@@ -548,7 +541,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                     )}
                 </div>
 
-                {/* Footer Modal */}
                 <div className="flex justify-end border-t border-gray-100 bg-gray-50 px-4 py-3 sm:px-6 sm:py-4">
                     <button
                         onClick={onClose}
@@ -559,7 +551,6 @@ export const EnderecosModal = ({ isOpen, cliente, onClose, showToast }: Endereco
                 </div>
             </div>
 
-            {/* Modal de Confirmação de Exclusão de Endereço */}
             {deleteConfirmId && (
                 <div className="agerp-modal-overlay fixed inset-0 z-[130] flex items-center justify-center bg-black/80" role="dialog" aria-modal="true" aria-labelledby="excluir-endereco-titulo">
                     <div className="agerp-modal-panel w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl sm:p-6">

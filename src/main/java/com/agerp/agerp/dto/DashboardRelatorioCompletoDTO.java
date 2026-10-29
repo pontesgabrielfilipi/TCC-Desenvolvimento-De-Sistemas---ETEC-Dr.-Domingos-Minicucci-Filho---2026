@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.dto;
 
 import lombok.Builder;
@@ -17,10 +20,9 @@ public class DashboardRelatorioCompletoDTO {
     private long pedidosPendentes;
     private long produtosEstoqueBaixo;
 
-    // Gráficos
-    private List<Map<String, Object>> vendasMensais;      // {mes, valor}
-    private List<Map<String, Object>> topProdutos;        // {nome, vendas}
-    private List<Map<String, Object>> distribuicaoClientes; // {name: "Física", value: 68}
-    private List<Map<String, Object>> statusPedidos;      // {name: "Pendente", value: 12}
-    private List<Map<String, Object>> estoqueBaixo;       // {nome, quantidade}
+    private List<Map<String, Object>> vendasMensais;
+    private List<Map<String, Object>> topProdutos;
+    private List<Map<String, Object>> distribuicaoClientes;
+    private List<Map<String, Object>> statusPedidos;
+    private List<Map<String, Object>> estoqueBaixo;
 }

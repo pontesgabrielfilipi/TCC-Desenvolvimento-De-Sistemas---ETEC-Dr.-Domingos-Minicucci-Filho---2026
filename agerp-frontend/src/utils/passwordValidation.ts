@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 export const PASSWORD_MIN_LENGTH = 6;
 
 export const validatePassword = (senha: string, confirmarSenha: string): string | null => {

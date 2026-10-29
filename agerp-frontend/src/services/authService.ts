@@ -1,19 +1,19 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import api from '../api/axiosInstance';
 
-// Tratamento global de erro 401 (token expirado)
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
             console.warn('🔴 Token inválido ou sessão expirada');
-            // Opcional: redirecionar para login automaticamente
         }
         return Promise.reject(error);
     }
 );
 
 export const authService = {
-    // ==================== AUTENTICAÇÃO ====================
     async login(email: string, senha: string) {
         return await api.post('/api/auth/login', { email, senha });
     },
@@ -30,12 +30,10 @@ export const authService = {
         return await api.post('/api/auth/alterar-senha-obrigatoria', { senha, confirmacaoSenha });
     },
 
-    // ==================== DASHBOARD ====================
     async getDashboardStats() {
         return await api.get('/api/dashboard/estatisticas');
     },
 
-    // ✅ Novo método necessário para o Dashboard atualizado
     async getRelatorioCompleto() {
         return await api.get('/api/dashboard/relatorio-completo');
     },

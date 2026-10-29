@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.security;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** Exercises the actual servlet filters together, including their ordering and cleanup. */
+/** Exercita os filtros Servlet reais em conjunto, incluindo ordem e limpeza do contexto. */
 class AuditContextFilterFlowTest {
     @RestController
     static class Probe {

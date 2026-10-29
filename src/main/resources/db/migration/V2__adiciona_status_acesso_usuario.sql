@@ -1,5 +1,8 @@
--- Adota o fluxo de aprovacao sem retirar acesso dos usuarios que ja existiam.
--- O DEFAULT somente se aplica aos cadastros realizados depois desta migracao.
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
+-- Adota o fluxo de aprovação sem retirar o acesso dos usuários existentes.
+-- O DEFAULT vale apenas para cadastros realizados depois desta migration.
 ALTER TABLE agerp.usuario
     ADD COLUMN IF NOT EXISTS status_acesso VARCHAR(20);
 

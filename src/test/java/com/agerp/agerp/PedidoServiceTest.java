@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp;
 
 import com.agerp.agerp.dto.ItemPedidoRequest;
@@ -109,7 +112,6 @@ public class PedidoServiceTest {
         estoque2.setQuantidadeAtual(5);
     }
 
-    // ====================== TESTES DE CRIAÇÃO ======================
 
     @Test
     @DisplayName("Deve criar pedido com sucesso e calcular valor total correto")
@@ -321,7 +323,6 @@ public class PedidoServiceTest {
         assertTrue(ex.getMessage().contains("Estoque insuficiente"));
     }
 
-    // ====================== TESTES DE MUDANÇA DE STATUS ======================
 
     @Test
     @DisplayName("Deve realizar transição válida para CONFIRMADO com baixa de estoque")
@@ -412,7 +413,6 @@ public class PedidoServiceTest {
         verify(movimentacaoEstoqueRepository, never()).save(any());
     }
 
-    // ====================== TESTES DE CANCELAMENTO ======================
 
     @Test
     @DisplayName("Deve cancelar pedido PENDENTE sem estorno de estoque")
@@ -498,7 +498,6 @@ public class PedidoServiceTest {
         );
     }
 
-    // ====================== TESTES DE ATUALIZAÇÃO ======================
 
     @Test
     @DisplayName("Deve atualizar pedido PENDENTE com sucesso")
@@ -569,7 +568,6 @@ public class PedidoServiceTest {
         ));
     }
 
-    // ====================== TESTES DE CONSULTA ======================
 
     @Test
     @DisplayName("Deve listar todos os pedidos")
@@ -618,7 +616,6 @@ public class PedidoServiceTest {
         );
     }
 
-    // ====================== TESTES DE ENDEREÇO DE ENTREGA ======================
 
     @Test
     @DisplayName("Deve falhar ao criar pedido com endereço que não pertence ao cliente")

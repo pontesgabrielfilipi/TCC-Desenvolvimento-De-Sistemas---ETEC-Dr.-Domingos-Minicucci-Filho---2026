@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.service;
 
 import org.apache.poi.ss.usermodel.*;
@@ -21,7 +24,7 @@ import java.time.ZoneOffset;
 import java.time.OffsetDateTime;
 import java.util.*;
 
-/** Consultas SQL somente de leitura, com filtros vinculados e exportacao incremental XLSX. */
+/** Executa consultas somente de leitura, com filtros vinculados e exportação incremental em XLSX. */
 @Service
 public class RelatorioAdminService {
     private static final Logger log = LoggerFactory.getLogger(RelatorioAdminService.class);
@@ -273,19 +276,19 @@ public class RelatorioAdminService {
             params.add(limiteAuditoria);
         }
         sql.append(relatorio.finalSql());
-        // Campos de configuracao sao tipados (inteiro) e nunca chegam diretamente do request.
+        // O limite vem de configuração tipada e nunca é interpolado a partir da requisição.
         String finalSql = minimo == null ? sql.toString() : sql.toString().replace("{MINIMO}", minimo);
         if (finalSql.contains("{ITEM_FILTERS}")) {
-            // A subconsulta deve receber os mesmos filtros de pedidos, na mesma ordem dos parametros.
+            // A subconsulta recebe os mesmos filtros de pedidos e na mesma ordem dos parâmetros.
             StringBuilder itens = new StringBuilder();
             List<Object> paramsItens = new ArrayList<>();
             adicionarCondicoes(itens, paramsItens, P, filtros);
             finalSql = finalSql.replace("{ITEM_FILTERS}", itens.toString());
-            // Placeholders da subconsulta aparecem ANTES dos da consulta externa no SELECT.
+            // Os placeholders da subconsulta aparecem antes dos filtros da consulta externa.
             paramsItens.addAll(params);
             params = paramsItens;
         }
-        // As medidas de unidades seguem a mesma excecao da aba Estatisticas para CANCELADO explicito.
+        // As unidades seguem a mesma exceção da aba Estatísticas quando CANCELADO é solicitado explicitamente.
         if ("CANCELADO".equals(filtros.status()) && relatorio.id().matches("(produtos_ranking|vendas_produto|indicadores_resumo)")) {
             finalSql = finalSql.replace(ITENS_VALIDOS, "COALESCE(i.quantidade,0)")
                     .replace(VALOR_ITENS, "COALESCE(i.quantidade,0)*COALESCE(i.preco_unitario,0)");
@@ -317,7 +320,7 @@ public class RelatorioAdminService {
         exportarComContagem(relatorio, filtros, destino, null);
     }
 
-    /** Limite capturado antes dos eventos desta exportação, evitando autorreferência nos logs. */
+    /** Captura o limite antes dos eventos desta exportação para evitar autorreferência nos logs. */
     public long corteAuditoria() {
         Long id = jdbc.queryForObject("SELECT COALESCE(MAX(id_log),0) FROM agerp.log_sistema", Long.class);
         return id == null ? 0L : id;
@@ -328,7 +331,7 @@ public class RelatorioAdminService {
                                    Long limiteAuditoria) throws IOException {
         EstoqueBaixoService.Regra regra = usaRegraEstoque(relatorio) ? estoqueBaixo.regraAtual() : null;
         Consulta consulta = consulta(relatorio, filtros, regra, limiteAuditoria);
-        // SXSSF mantem somente 100 linhas em memoria e descarta os arquivos temporarios ao terminar.
+        // O SXSSF mantém 100 linhas em memória e descarta seus temporários ao terminar.
         SXSSFWorkbook wb = new SXSSFWorkbook(100);
         wb.setCompressTempFiles(true);
         try {
@@ -379,7 +382,7 @@ public class RelatorioAdminService {
             if (totalLinhas[0] == 0) {
                 atual[0].createRow(1).createCell(0).setCellValue("Nenhum registro para os filtros informados.");
             }
-            // Totais em aba propria permitem ultrapassar o limite de linhas de cada aba sem perda.
+            // A aba separada preserva os totais quando os dados ocupam mais de uma planilha.
             Sheet total = wb.createSheet("Totais");
             Row titulo = total.createRow(0); titulo.createCell(0).setCellValue("Indicador"); titulo.createCell(1).setCellValue("Total");
             for (Cell c : titulo) c.setCellStyle(styles.header);
@@ -433,7 +436,7 @@ public class RelatorioAdminService {
         }
         if (valor instanceof Boolean b) cell.setCellValue(b ? "Sim" : "Não");
         else {
-            // Todos os valores externos sao gravados como STRING; jamais criar formula.
+            // Valores externos são gravados como texto para impedir injeção de fórmulas.
             String texto = valor.toString();
             cell.setCellValue(texto.length() > 32767 ? texto.substring(0, 32767) : texto);
         }

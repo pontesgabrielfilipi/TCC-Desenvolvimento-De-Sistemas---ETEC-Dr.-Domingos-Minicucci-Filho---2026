@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { execFile, execFileSync } from 'node:child_process';
@@ -6,9 +9,9 @@ import { promisify } from 'node:util';
 import * as XLSX from 'xlsx';
 import AxeBuilder from '@axe-core/playwright';
 
-// This spec changes ONLY the explicitly isolated disposable database.
-// Only explicitly verified, disposable local stacks may be used.
-// Never store or log passwords/cookies/tokens.
+// Este teste altera somente o banco descartável explicitamente isolado.
+// Apenas stacks locais descartáveis e verificadas podem ser usadas.
+// Senhas, cookies e tokens nunca são persistidos nem registrados.
 const isolatedURL = process.env.E2E_ISOLATED_BASE_URL;
 const candidateStack = isolatedURL === 'http://127.0.0.1:53992';
 const adminLockStack = isolatedURL === 'http://127.0.0.1:53993';
@@ -71,9 +74,9 @@ function verifyIsolation(): void {
   if (!sql("SELECT CASE WHEN current_database()='agdb' AND current_setting('server_version_num')::int/10000=16 THEN 'OK' ELSE 'NO' END").includes('OK')) throw new Error('Isolated database identity mismatch');
 }
 
-/** Verify the ZIP central directory and either 32- or 64-bit data descriptors.
- *  SheetJS 0.18.x warns on valid 64-bit descriptors when central sizes are small.
- *  The backend also verifies central-entry CRC and actual inflated sizes.
+/** Valida o diretório central do ZIP e descritores de dados de 32 ou 64 bits.
+ * O SheetJS 0.18.x alerta sobre descritores válidos de 64 bits quando os tamanhos são pequenos.
+ * O backend também confere o CRC central e os tamanhos reais descompactados.
  */
 function inspectXlsxZip(buffer: Buffer): { entries: number; zip64Descriptors: number } {
   let end = buffer.length - 22;
@@ -98,7 +101,7 @@ function inspectXlsxZip(buffer: Buffer): { entries: number; zip64Descriptors: nu
       if (buffer.readUInt32LE(desc) === 0x08074b50) desc += 4;
       desc += 4; // CRC-32
       if (buffer.readUInt32LE(desc) === compressed && buffer.readUInt32LE(desc + 4) === uncompressed) {
-        // Ordinary ZIP data descriptor.
+        // Descritor de dados ZIP convencional.
       } else {
         expect(buffer.readBigUInt64LE(desc), 'ZIP64 compressed size').toBe(BigInt(compressed));
         expect(buffer.readBigUInt64LE(desc + 8), 'ZIP64 uncompressed size').toBe(BigInt(uncompressed));
@@ -115,7 +118,7 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
   test.skip(!isolatedURL, 'Explicitly opt in with E2E_ISOLATED_BASE_URL');
   test('signup, CSRF, sessions, RBAC, browser audit and parsed XLSX', async ({ playwright, browser }) => {
     test.setTimeout(180_000);
-    verifyIsolation(); // Mandatory read-only identity and volume checks before the FIRST write.
+    verifyIsolation(); // Verifica identidade e volumes em modo somente leitura antes da primeira escrita.
     const idSuffix = randomUUID().replaceAll('-', '').slice(0, 16);
     const users: Account[] = [
       { email: `v02-admin-${idSuffix}@example.invalid`, nome: `V02 ADMIN ${idSuffix}`, senha: randomBytes(36).toString('base64url'), perfil: 'ADMIN' },
@@ -148,14 +151,14 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
     let admin2: APIRequestContext | undefined;
     let oper: APIRequestContext | undefined;
     try {
-      // Public registration invokes the actual application's BCryptPasswordEncoder.
+      // O cadastro público usa o BCryptPasswordEncoder real da aplicação.
       for (const account of users) {
         const response = await mutation(signup, 'post', '/api/usuarios', { nome: account.nome, email: account.email, senha: account.senha, idPerfil: 2 });
         expect(response.status(), 'New pending synthetic account').toBe(201);
         const created = await response.json();
         expect(created.statusAcesso).toBe('PENDENTE');
         expect(Number.isSafeInteger(created.id)).toBe(true);
-        // Only the two IDs just returned by our own isolated signup may be promoted.
+        // Apenas os dois IDs retornados pelo cadastro isolado podem ser promovidos.
         const result = sql(`WITH changed AS (UPDATE agerp.usuario SET ativo=true,status_acesso='APROVADO',id_perfil=(SELECT id_perfil FROM agerp.perfil WHERE nome='${account.perfil}') WHERE id_usuario=${created.id} AND email='${account.email}' AND status_acesso='PENDENTE' RETURNING id_usuario) SELECT id_usuario FROM changed`);
         expect(result).toBe(String(created.id));
         expect(sql(`SELECT CASE WHEN senha_hash LIKE '$2%' THEN 1 ELSE 0 END FROM agerp.usuario WHERE id_usuario=${created.id}`)).toBe('1');
@@ -186,7 +189,7 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
       await expect.poll(async () => (await admin1.get('/api/auth/me')).status()).toBe(200);
       expect((await mutation(admin1, 'post', '/api/auth/logout')).status()).toBe(200);
       expect((await admin1.get('/api/auth/me')).status()).toBe(401);
-      // Replay the exact cookie from the logged-out browser, only in memory.
+      // Reutiliza em memória o cookie exato do navegador que encerrou a sessão.
       const replay = await playwright.request.newContext({ baseURL: isolatedURL, storageState: { cookies: originalCookies, origins: [] } });
       try { expect((await replay.get('/api/auth/me')).status()).toBe(401); } finally { await replay.dispose(); }
       expect((await admin2.get('/api/auth/me')).status()).toBe(200);
@@ -225,8 +228,8 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
         expect(raw).not.toContain(users[1].senha.toLowerCase());
       }
 
-      // Genuine order -> inventory -> IA/fallback regression via the same
-      // authenticated Nginx, using only newly created disposable records.
+      // Exercita pedido, estoque e IA/fallback pelo mesmo Nginx autenticado,
+      // usando apenas registros descartáveis criados pelo teste.
       const productResponse = await mutation(admin2, 'post', '/api/produtos', {
         nome: `V02 PRODUTO ${idSuffix}`, preco: 35.50, custo: 12.25,
         quantidadeInicial: 7, quantidadeMinima: 1, peso: 0.5,
@@ -247,7 +250,7 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
         expect(r.status()).toBe(200);
         return (await r.json() as { quantidadeAtual: number }).quantidadeAtual;
       };
-      expect(await stock()).toBe(7); // PENDENTE does not reserve inventory.
+      expect(await stock()).toBe(7); // PENDENTE não reserva estoque.
 
       const forecastResponse = await admin2.get(`/api/pedidos/${order.id}/previsao-entrega`, { timeout: 30_000 });
       expect(forecastResponse.status(), 'Real IA service or real fallback').toBe(200);
@@ -271,9 +274,9 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
       expect(await stock()).toBe(7);
       expect(Number(sql(`SELECT count(*) FROM agerp.movimentacao_estoque WHERE id_produto=${product.id} AND tipo IN ('SAIDA','ENTRADA')`))).toBe(2);
 
-      // A04 must persist one correlated event per committed domain change,
-      // including the real Python outcome. Rejected/rolled-back operations
-      // are covered independently by the PostgreSQL transaction tests.
+      // A04 deve persistir um evento correlacionado por mudança confirmada, incluindo
+      // o resultado real do Python. Operações rejeitadas ou revertidas são cobertas
+      // separadamente pelos testes transacionais do PostgreSQL.
       const domainAudit = await admin2.get('/api/admin/logs?page=0&size=100&sortBy=id&direction=desc');
       expect(domainAudit.status()).toBe(200);
       const domainEvents = ((await domainAudit.json()).content as Record<string, unknown>[])
@@ -324,8 +327,8 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
         }
       } finally { await adminBrowser.close(); }
 
-      // Bounded read-only HTTP load via real Nginx, not a production capacity claim.
-      // Sample only the three proven-isolated containers while requests run.
+      // Carga HTTP limitada e somente leitura pelo Nginx real, sem alegar capacidade de produção.
+      // Durante as requisições, mede apenas os três containers comprovadamente isolados.
       const latencies: number[] = [];
       const statusCounts = new Map<number, number>();
       const statsSamples: string[] = [];
@@ -381,8 +384,8 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
       await checkWorkbook('/api/admin/relatorios/clientes_cadastro/xlsx?clienteId=999999999', false);
       await checkWorkbook(`/api/admin/relatorios/clientes_cadastro/xlsx?clienteId=${newClient.id}`, true);
 
-      // Real export of its own event history: the current export must not be
-      // included in the workbook, but its events must be written afterwards.
+      // Na exportação real do próprio histórico, o XLSX não inclui a exportação atual,
+      // mas os eventos dela devem ser gravados depois.
       const auditExport = await admin2.get('/api/admin/relatorios/auditoria_exportacoes/xlsx');
       expect(auditExport.status()).toBe(200);
       const auditExportId = auditExport.headers()['x-export-id'];
@@ -397,10 +400,9 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
       expect(JSON.stringify(allExportRows)).not.toContain(auditExportId);
       await expect.poll(() => Number(sql(`SELECT count(*) FROM agerp.log_sistema WHERE entidade='RELATORIO' AND recurso_id='${auditExportId}' AND acao IN ('EXPORTACAO_SOLICITADA','EXPORTACAO_GERADA')`))).toBe(2);
 
-      // Close a real HTTP client connection through Nginx before consuming the
-      // response body. This proves cancellation at the client socket; Nginx may
-      // buffer the completed server response, so the backend's terminal state
-      // must NOT be interpreted as proof that the client received the XLSX.
+      // Fecha uma conexão HTTP real pelo Nginx antes de consumir o corpo. Isso comprova
+      // o cancelamento no socket do cliente, mas o Nginx pode armazenar a resposta pronta;
+      // o estado terminal do backend não comprova que o cliente recebeu o XLSX.
       const cookieHeader = (await admin2.storageState()).cookies
         .filter((c) => c.name === 'jwtToken' || c.name === 'XSRF-TOKEN')
         .map((c) => `${c.name}=${c.value}`).join('; ');
@@ -416,7 +418,7 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
             expect(res.statusCode).toBe(200);
             const exportId = res.headers['x-export-id'];
             expect(exportId).toMatch(/^[0-9a-f-]{36}$/i);
-            // Destroy before reading even one byte of the XLSX payload.
+            // Encerra a conexão antes de ler qualquer byte do XLSX.
             res.destroy();
             resolve(exportId as string);
           } catch (error) { res.destroy(); reject(error); }
@@ -427,15 +429,15 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
       await expect.poll(() => Number(sql(`SELECT count(*) FROM agerp.log_sistema WHERE entidade='RELATORIO' AND recurso_id='${abortedExportId}' AND acao IN ('EXPORTACAO_TRANSMISSAO_ENCERRADA','EXPORTACAO_FALHA')`)), { timeout: 20_000 }).toBe(1);
       const abortedStates = sql(`SELECT acao FROM agerp.log_sistema WHERE entidade='RELATORIO' AND recurso_id='${abortedExportId}' AND acao IN ('EXPORTACAO_SOLICITADA','EXPORTACAO_GERADA','EXPORTACAO_TRANSMISSAO_ENCERRADA','EXPORTACAO_FALHA') ORDER BY id_log`);
       console.log(`V01_HTTP_ABORT socketClosedBeforeReadingBody=true states=${abortedStates.replaceAll(/\r?\n/g, ',')}`);
-      // This checks temporary-file cleanup after the server-side stream. It does
-      // NOT prove the Nginx-buffered response reached, or was cancelled at, the backend.
+      // Verifica a limpeza dos temporários após o stream no servidor; não comprova que
+      // a resposta armazenada pelo Nginx chegou ao backend ou foi cancelada nele.
       await expect.poll(temporaryExports, { timeout: 15_000 }).toBe(beforeAbortTemporaryFiles);
       console.log(`V01_HTTP_ABORT tempFilesBefore=${beforeAbortTemporaryFiles} tempFilesAfter=${temporaryExports()} clientDeliveryUnverified=true`);
 
       const operatorSessions = await (await oper.get('/api/auth/sessions')).json() as Session[];
       const currentOperator = operatorSessions.find((s) => s.active);
       expect(currentOperator).toBeTruthy();
-      // Simulate expiry of only the disposable operator session, not all sessions.
+      // Expira apenas a sessão descartável do operador, não todas as sessões.
       expect(sql(`WITH changed AS (UPDATE agerp.sessao_autenticacao SET expira_em=now()-interval '1 minute' WHERE id='${currentOperator!.id}' AND id_usuario=${users[1].id} RETURNING id) SELECT id FROM changed`)).toBe(currentOperator!.id);
       expect((await oper.get('/api/auth/me')).status()).toBe(401);
       const blocked = await login(users[1]);
@@ -446,7 +448,7 @@ test.describe('V02 real authenticated Nginx, disposable users only', () => {
       const denied = await mutation(signup, 'post', '/api/auth/login', { email: users[1].email, senha: users[1].senha });
       expect(denied.status()).toBe(403);
 
-      // Historical audit events must remain; new synthetic events are separate.
+      // Eventos históricos de auditoria permanecem; os novos eventos sintéticos são separados.
       expect(Number(sql("SELECT count(*) FROM agerp.log_sistema WHERE event_id IS NULL"))).toBeGreaterThanOrEqual(107);
       expect(Number(sql(`SELECT count(*) FROM agerp.sessao_autenticacao WHERE id_usuario IN (${users[0].id},${users[1].id})`))).toBeGreaterThanOrEqual(4);
       expect(sessionId).toBeTruthy();

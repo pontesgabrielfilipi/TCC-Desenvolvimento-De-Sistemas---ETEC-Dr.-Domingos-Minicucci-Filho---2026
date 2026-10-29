@@ -1,289 +1,93 @@
-### 🏢 AGERP - Enterprise Resource Planning
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
 
-![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
-![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white)
+# AGERP — Sistema de Gestão Empresarial
 
-**AGERP** é um sistema ERP completo desenvolvido como Trabalho de Conclusão de Curso (TCC). Combina um backend robusto em **Java + Spring Boot** com um frontend moderno em **React + Vite**, utilizando autenticação via **JWT** com **HttpOnly Cookie**.
+O **AGERP** é um projeto de Trabalho de Conclusão de Curso (TCC) da ETEC Dr. Domingos Minicucci Filho, em Botucatu (SP). Reúne gestão de clientes, produtos, estoque, pedidos e usuários, indicadores administrativos, auditoria e previsão de entrega com apoio de um serviço Python. O projeto continua em evolução; funcionalidades implementadas não equivalem, por si só, a homologação para produção.
 
-## 🏗️ Tecnologias Utilizadas
+## Tecnologias
 
-### Backend
+| Camada | Tecnologias presentes no repositório |
+| --- | --- |
+| Backend | Java 25, Spring Boot 4.1.0, Spring Security, JPA/Hibernate, Flyway e Maven |
+| Frontend | React 19, TypeScript 6, Vite 8, React Router, Recharts, Bootstrap e Tailwind CSS |
+| Persistência | PostgreSQL 16 |
+| Previsão de entrega | Python e FastAPI, integrados ao backend |
+| Infraestrutura | Docker Compose e Nginx; JWT em cookie HttpOnly |
 
-```
-- Java 21/25 + Spring Boot 3
-- Spring Security + JWT
-- Spring Data JPA + Hibernate
-- PostgreSQL
-- Maven
-- Docker & Docker Compose
-```
+As versões de backend e frontend seguem, respectivamente, o [pom.xml](pom.xml) e o [package.json](agerp-frontend/package.json). Os detalhes de configuração estão na [documentação técnica](docs/README.md).
 
-### Frontend
+## Estrutura do repositório
 
-```
-- React 18 + TypeScript
-- Vite (build tool)
-- Tailwind CSS
-- React Router DOM
-- Axios
-```
-
-### Infraestrutura
-
-```
-- Docker
-- Docker Compose
-```
-
-## 📁 Estrutura Completa do Projeto
-
-```
-AGERP/
-├── backend/                          # API Spring Boot
-│   ├── src/main/java/com/agerp/agerp/
-│   │   ├── config/
-│   │   ├── controller/
-│   │   ├── dto/
-│   │   ├── entity/
-│   │   ├── repository/
-│   │   ├── security/
-│   │   │   └── jwt/
-│   │   ├── service/
-│   │   └── AgerpApplication.java
-│   ├── src/main/resources/
-│   ├── pom.xml
-│   └── application.properties
-│
-├── frontend/                         # React + Vite
-│   ├── public/
-│   ├── src/
-│   │   ├── api/
-│   │   ├── assets/
-│   │   ├── components/
-│   │   ├── contexts/
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   ├── routes/
-│   │   ├── services/
-│   │   ├── utils/
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── tailwind.config.js
-│
+```text
+.
+├── src/
+│   ├── main/java/com/agerp/agerp/  # Backend Spring Boot
+│   ├── main/resources/             # Configurações e migrações SQL
+│   └── test/                       # Testes Java
+├── agerp-frontend/                 # React/Vite e testes frontend
+├── services/python-ia/             # Serviço Python de previsão
+├── docker/postgres/init/           # Inicialização do banco em volume novo
+├── scripts/                        # Rotinas auxiliares
+├── docs/                           # Documentação técnica e acadêmica
 ├── docker-compose.yml
-├── README.md
-└── .env.example
+├── .env.example
+└── pom.xml
 ```
 
-## 🗄️ Diagrama de Entidade-Relacionamento (DER)
+O modelo de dados e as relações estão descritos em [Banco de Dados](docs/banco-de-dados.md), com detalhes de [Arquitetura](docs/arquitetura.md).
 
-```mermaid
-erDiagram
-    PERFIL ||--o{ USUARIO : "possui"
-    CLIENTE ||--o{ ENDERECO : "possui"
-    CLIENTE ||--o{ PEDIDO : "realiza"
-    USUARIO ||--o{ PEDIDO : "registra"
-    PEDIDO ||--|{ ITEM_PEDIDO : "contem"
-    PRODUTO ||--o{ ITEM_PEDIDO : "compoe"
-    PRODUTO ||--|| ESTOQUE : "possui"
-    PRODUTO ||--o{ MOVIMENTACAO_ESTOQUE : "movimenta"
-    USUARIO ||--o{ MOVIMENTACAO_ESTOQUE : "realiza"
-    PEDIDO ||--|| ENTREGA : "gera"
-    ENTREGA ||--|| PREVISAO_ENTREGA : "possui"
-    PEDIDO ||--o{ PAGAMENTO : "recebe"
-    USUARIO ||--o{ LOG_SISTEMA : "gera"
+## Funcionalidades
 
-    PERFIL {
-        int id_perfil PK
-        varchar nome
-        text descricao
-    }
+- Autenticação com JWT e controle de acesso por cargos e páginas.
+- Cadastro e gestão de clientes, endereços, produtos, estoque e pedidos.
+- Dashboard com indicadores e estatísticas administrativas.
+- Relatórios administrativos em XLSX e trilhas de auditoria.
+- Integração de previsão de entrega por meio do serviço Python/FastAPI, com tratamento de indisponibilidade.
 
-    USUARIO {
-        int id_usuario PK
-        varchar nome
-        varchar email
-        text senha_hash
-        boolean ativo
-        timestamp data_criacao
-        int id_perfil FK
-    }
+Consulte os [módulos documentados](docs/README.md) e os [registros de validação](docs/validacao-v01-p1.md) para conhecer os limites e as verificações realizadas.
 
-    CLIENTE {
-        int id_cliente PK
-        varchar tipo
-        varchar nome_razao
-        varchar cpf_cnpj
-        varchar email
-        varchar telefone
-        timestamp data_cadastro
-    }
+## Execução local
 
-    ENDERECO {
-        int id_endereco PK
-        int id_cliente FK
-        varchar logradouro
-        varchar numero
-        varchar bairro
-        varchar cidade
-        varchar estado
-        varchar cep
-        numeric latitude
-        numeric longitude
-    }
+É necessário dispor do **JDK 25**, Maven compatível, Node.js compatível com o Vite 8 e PostgreSQL configurado. As variáveis exigidas devem ser definidas para cada ambiente. Consulte [Configuração por ambiente](docs/configuracao-ambientes.md) antes de iniciar os serviços.
 
-    PRODUTO {
-        int id_produto PK
-        varchar nome
-        text descricao
-        numeric preco
-        numeric peso
-        numeric volume
-        boolean ativo
-    }
+Na raiz do repositório, para iniciar o backend em ambiente local devidamente configurado:
 
-    ESTOQUE {
-        int id_estoque PK
-        int id_produto FK "UNIQUE"
-        int quantidade_atual
-        int quantidade_minima
-        varchar localizacao
-    }
-
-    MOVIMENTACAO_ESTOQUE {
-        int id_movimentacao PK
-        int id_produto FK
-        varchar tipo
-        int quantidade
-        timestamp data_movimentacao
-        int id_usuario FK
-    }
-
-    PEDIDO {
-        int id_pedido PK
-        int id_cliente FK
-        timestamp data_pedido
-        varchar status
-        numeric valor_total
-        int id_usuario FK
-    }
-
-    ITEM_PEDIDO {
-        int id_item PK
-        int id_pedido FK
-        int id_produto FK
-        int quantidade
-        numeric preco_unitario
-    }
-
-    ENTREGA {
-        int id_entrega PK
-        int id_pedido FK "UNIQUE"
-        timestamp data_saida
-        timestamp data_entrega
-        varchar status
-        int tempo_estimado_ia
-        int tempo_real
-        numeric distancia_km
-    }
-
-    PREVISAO_ENTREGA {
-        int id_previsao PK
-        int id_entrega FK "UNIQUE"
-        timestamp data_calculo
-        numeric distancia
-        varchar transito_estimado
-        varchar clima
-        int tempo_previsto_min
-        varchar modelo_versao
-        numeric price
-        numeric freight_value
-        varchar customer_city
-        varchar customer_state
-        varchar customer_cep
-        varchar seller_city
-        varchar seller_state
-        varchar seller_cep
-        varchar product_category_name
-        numeric product_weight_g
-        numeric product_length_cm
-        numeric product_height_cm
-        numeric product_width_cm
-        int order_weekday
-        int order_month
-        int order_hour
-        int prazo_entrega_dias
-    }
-
-    PAGAMENTO {
-        int id_pagamento PK
-        int id_pedido FK
-        varchar tipo_pagamento
-        numeric valor
-        varchar status
-        timestamp data_pagamento
-    }
-
-    LOG_SISTEMA {
-        int id_log PK
-        int id_usuario FK
-        varchar acao
-        varchar entidade
-        timestamp data_hora
-        varchar ip
-    }
-```
-
-## 🚀 Como Rodar o Projeto
-
-### Backend
-
-```
-cd backend
-mvn clean install
+```powershell
 mvn spring-boot:run
 ```
 
-A API Java estará disponível em: `http://localhost:8080`
+Para o frontend, em outro terminal:
 
-### Frontend
-
-```
-cd frontend
-npm install
+```powershell
+cd agerp-frontend
+npm ci
 npm run dev
 ```
 
-O frontend estará disponível em: `http://localhost:5173`
+O Vite usa a porta **5173** por padrão, enquanto o backend usa a porta **8080**. Esses valores podem ser alterados por configuração. O proxy de desenvolvimento do Vite encaminha as chamadas à API conforme `agerp-frontend/vite.config.ts`.
 
----
+Para executar a pilha via Docker Compose, configure primeiro o arquivo privado de variáveis com base em [`.env.example`](.env.example). As instruções e restrições operacionais estão em [Docker](docs/docker.md) e [Configuração por ambiente](docs/configuracao-ambientes.md). Não utilize comandos que removam volumes para corrigir configuração: eles podem apagar dados.
 
-## Funcionalidades Implementadas
+## Documentação
 
-- Autenticação com JWT + HttpOnly Cookie
-- Gestão de Usuários e Perfis (ADMIN, GERENTE, OPERADOR, FINANCEIRO)
-- Dashboard dinâmico
-- CRUD de Clientes (em desenvolvimento no React)
-- Estrutura completa preparada para expansão
+- [Índice técnico e acadêmico](docs/README.md)
+- [Autenticação e segurança](docs/autenticacao.md)
+- [Pedidos e previsão de entrega](docs/pedidos.md)
+- [Relatórios XLSX](docs/relatorios.md)
+- [Decisões técnicas](docs/decisoes.md)
+- [Tarefas e pendências](docs/tarefas.md)
 
----
+## Autoria
 
-**Próximos Passos:**
+Projeto desenvolvido por **Gabriel Filipi Pontes** e **André Correia Gomes da Silva** no contexto do TCC de 2026.
 
-- Finalizar CRUD de Clientes no React
-- Implementar gráficos no Dashboard
-- Criar microsserviço de IA para previsão de entregas
-- Preparar ambiente de produção com Docker Compose
+## Licença
 
----
+O código deste projeto está disponível para consulta sob licença proprietária. A reutilização depende de autorização prévia e escrita do titular, ressalvadas as permissões legais e os termos do GitHub. Consulte o arquivo [LICENSE](LICENSE).
 
-Feito por Gabriel Filipi Pontes
+A licença da raiz abrange apenas os materiais cujos direitos pertençam aos titulares indicados. **Componentes de terceiros mantêm suas próprias licenças.** O módulo `services/python-ia/` possui um [arquivo de licença MIT próprio](services/python-ia/LICENSE), que deve ser respeitado; a licença proprietária da raiz não revoga permissões já concedidas.
 
-Última atualização: Abril 2026
+**Solicitações de autorização:** ainda não há um canal público específico confirmado para pedidos de uso do código AGERP. O contato deverá ser definido pelos titulares antes de considerar esse procedimento completo.

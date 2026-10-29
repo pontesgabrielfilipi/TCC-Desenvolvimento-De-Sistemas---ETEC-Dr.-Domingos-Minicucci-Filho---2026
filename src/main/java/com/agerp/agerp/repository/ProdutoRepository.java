@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.repository;
 
 import com.agerp.agerp.entity.Produto;
@@ -9,12 +12,9 @@ import java.util.List;
 @Repository
 public interface ProdutoRepository extends JpaRepository<Produto, Integer> {
 
-    /** Lista apenas produtos ATIVOS */
     List<Produto> findByAtivoTrue();
 
-    /** Lista TODOS os produtos (ativos + inativos) */
     List<Produto> findAll();
 
-    /** Verifica nome duplicado (ignore case) */
     boolean existsByNomeIgnoreCase(String nome);
 }

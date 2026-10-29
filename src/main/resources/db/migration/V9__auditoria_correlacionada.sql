@@ -1,4 +1,7 @@
--- Additive only: historical TIMESTAMP is intentionally left unchanged pending timezone provenance.
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
+-- O TIMESTAMP histórico permanece intacto enquanto não houver origem confiável para o fuso.
 ALTER TABLE agerp.log_sistema
     ADD COLUMN event_id UUID,
     ADD COLUMN request_id UUID,
@@ -14,7 +17,7 @@ ALTER TABLE agerp.log_sistema
     ADD COLUMN duration_ms BIGINT,
     ADD COLUMN changes_json JSONB;
 
--- Historical events keep event_id NULL: never invent identity or session for legacy records.
+-- Eventos históricos mantêm event_id nulo; não se inventam identidade nem sessão para dados legados.
 CREATE UNIQUE INDEX ux_log_sistema_event_id ON agerp.log_sistema(event_id)
     WHERE event_id IS NOT NULL;
 CREATE INDEX ix_log_sistema_request_id ON agerp.log_sistema(request_id)
@@ -22,7 +25,7 @@ CREATE INDEX ix_log_sistema_request_id ON agerp.log_sistema(request_id)
 CREATE INDEX ix_log_sistema_correlation_id ON agerp.log_sistema(correlation_id)
     WHERE correlation_id IS NOT NULL;
 
--- Runs under the migration owner, not the restricted application account.
+-- Executa com o proprietário das migrations, não com a conta restrita da aplicação.
 DO $$
 DECLARE app_role TEXT := '${auditAppRole}';
 BEGIN
@@ -33,6 +36,6 @@ BEGIN
         RAISE EXCEPTION 'Audit runtime role does not exist';
     END IF;
     EXECUTE format('REVOKE UPDATE, DELETE, TRUNCATE ON agerp.log_sistema FROM %I', app_role);
-    -- PUBLIC grants are also unsafe for an audit table.
+    -- Privilégios concedidos a PUBLIC também são inseguros para uma tabela de auditoria.
     REVOKE UPDATE, DELETE, TRUNCATE ON agerp.log_sistema FROM PUBLIC;
 END $$;

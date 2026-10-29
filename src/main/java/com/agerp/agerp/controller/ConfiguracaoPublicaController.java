@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.controller;
 
 import com.agerp.agerp.service.ConfiguracaoSistemaService;
@@ -5,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Apenas preferencias de apresentacao sem detalhes administrativos. Requer autenticacao em SecurityConfig. */
+/** Expõe apenas preferências visuais, sem detalhes administrativos; a rota exige autenticação. */
 @RestController
 @RequestMapping("/api/configuracoes")
 public class ConfiguracaoPublicaController {

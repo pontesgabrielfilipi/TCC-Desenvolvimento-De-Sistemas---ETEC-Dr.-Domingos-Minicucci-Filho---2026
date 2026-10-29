@@ -1,9 +1,12 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 
-// Opt-in smoke tests for the existing LOCAL TEST Compose deployment only.
-// No user creation, seeding, destructive DB writes, or credentials are used.
+// Testes opt-in exclusivos para o Compose LOCAL DE TESTE já existente.
+// Não criam usuários, não carregam seeds, não fazem escritas destrutivas nem usam credenciais.
 const target = 'http://127.0.0.1:5173';
 const enabled = process.env.E2E_TEST_DEPLOY_URL === target
   && process.env.E2E_BASE_URL === target;

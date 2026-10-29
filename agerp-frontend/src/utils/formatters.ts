@@ -1,7 +1,5 @@
-/**
- * Utilitários de formatação para o AGERP
- * Garante prevenção contra erros do tipo "Cannot read properties of null (reading 'toFixed')"
- */
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
 
 export function formatCurrency(value: number | string | null | undefined): string {
     if (value === null || value === undefined || value === '') {

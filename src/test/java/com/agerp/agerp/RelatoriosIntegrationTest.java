@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp;
 
 import com.agerp.agerp.service.RelatorioAdminService;
@@ -45,15 +48,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = "spring.flyway.placeholders.auditAppRole=test")
-// MockMvc's response headers are not thread-safe while an async callback
-// triggers dispatch. Its automatic printer iterates them concurrently.
 @AutoConfigureMockMvc(print = MockMvcPrint.NONE)
 @Import({TestcontainersConfiguration.class, RelatoriosIntegrationTest.MockMvcAsyncConfiguration.class})
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RelatoriosIntegrationTest {
-    /** Evita concorrência de escrita nos headers de MockHttpServletResponse, que não é thread-safe.
-     *  O servidor real continua com seu executor original. */
+    /** Evita escrita concorrente nos cabeçalhos não thread-safe do MockHttpServletResponse.
+     * O servidor real continua com seu executor original. */
     @TestConfiguration
     static class MockMvcAsyncConfiguration implements WebMvcConfigurer {
         @Override
@@ -160,7 +161,7 @@ class RelatoriosIntegrationTest {
     void auditoriaDeExportacoesCongelaCorteAntesDeRegistrarSeuProprioEvento() throws Exception {
         Cookie cookie = cookieDe("operador@local.test");
         try (var ignorado = baixarPlanilha("clientes_tipo", cookie, Map.of())) {
-            // A exportacao anterior gera SOLICITADA, GERADA e TRANSMISSAO_ENCERRADA.
+            // A exportação anterior gera SOLICITADA, GERADA e TRANSMISSAO_ENCERRADA.
         }
         MvcResult pendente = mvc.perform(get("/api/admin/relatorios/auditoria_exportacoes/xlsx").cookie(cookie))
                 .andExpect(request().asyncStarted()).andReturn();

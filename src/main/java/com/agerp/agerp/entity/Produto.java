@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.entity;
 
 import jakarta.persistence.*;
@@ -44,7 +47,6 @@ public class Produto {
     @Column(name = "ativo")
     private Boolean ativo = true;
 
-    // Relacionamento com Estoque (1:1)
     @OneToOne(mappedBy = "idProduto", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Estoque estoque;
 }

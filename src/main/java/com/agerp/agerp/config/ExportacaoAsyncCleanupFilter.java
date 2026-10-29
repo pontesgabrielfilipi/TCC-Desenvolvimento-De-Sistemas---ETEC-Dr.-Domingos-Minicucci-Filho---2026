@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.config;
 
 import com.agerp.agerp.service.ExportacaoFluxo;
@@ -15,7 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
-/** Observes async completion even if Spring cannot schedule the stream callback. */
+/** Observa a conclusão assíncrona mesmo quando o Spring não consegue agendar o callback do stream. */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ExportacaoAsyncCleanupFilter extends OncePerRequestFilter {

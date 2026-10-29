@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.service;
 
 import com.agerp.agerp.repository.EstoqueRepository;
@@ -7,10 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.List;
 
-/** Fonte unica da regra, compartilhada por produtos, dashboards e exportacoes. */
+/** Centraliza a regra usada por produtos, dashboards e exportações. */
 @Service
 public class EstoqueBaixoService {
-    /** Estoque usa quantidades inteiras; registros antigos sem minimo usam 10 sem alterar o cadastro. */
+    /** Registros antigos sem mínimo usam 10 sem alterar o cadastro persistido. */
     public static final int MINIMO_INDIVIDUAL_PADRAO = 10;
 
     public record Regra(boolean usarGeral, int limiteGeral) {

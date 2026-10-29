@@ -1,6 +1,21 @@
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
+
 # Tarefas
 
-## 🔴 Prioridade atual
+## Situação técnica observável no repositório — 28/10/2026
+
+Há implementações de clientes, endereços, produtos, estoque, pedidos, dashboard, relatórios XLSX, autenticação e administração nas camadas Java e React. As respectivas páginas, serviços e testes constam do código; isso não significa que todas as funcionalidades tenham sido homologadas em produção.
+
+O acompanhamento de testes e pendências recentes está registrado em [Relatórios](relatorios.md), [Docker](docker.md) e [Validação](validacao-v01-p1.md). Esses documentos descrevem execuções datadas e possuem ressalvas; resultados anteriores não são prova de uma nova rodada de testes. Continuam dependentes de verificação específica, entre outros pontos, a implantação de produção, a acessibilidade manual e as condições operacionais fora do ambiente de testes.
+
+## Registro anterior do planejamento
+
+Os checklists abaixo foram preservados como histórico e **não refletem integralmente o estado atual**. Itens não marcados, como o CRUD de clientes ou a instrumentação de logs, podem já ter implementação; consulte os módulos e a documentação técnica antes de planejar retrabalho.
+
+## 🔴 Prioridades registradas anteriormente
 
 - [ ] Sincronizar a documentação do TCC com as versões reais do projeto.
 - [ ] Finalizar/validar o fluxo de autenticação JWT + HttpOnly Cookie.

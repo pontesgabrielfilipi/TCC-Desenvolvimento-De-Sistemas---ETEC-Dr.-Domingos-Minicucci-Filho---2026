@@ -1,16 +1,12 @@
--- ============================================================
--- AGERP - SEED DE TESTES
--- 60+ REGISTROS RELACIONADOS
--- ============================================================
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
+-- Dados sintéticos relacionados para o ambiente de teste.
 -- O entrypoint oficial já conecta no banco definido por POSTGRES_DB.
 CREATE SCHEMA IF NOT EXISTS agerp;
 SET search_path TO agerp,
     public;
--- ============================================================
--- LIMPEZA
--- ============================================================
--- ATENÇÃO:
--- Apaga os dados existentes das tabelas relacionadas.
+-- A carga é destrutiva e apaga os dados existentes nas tabelas relacionadas.
 TRUNCATE TABLE log_sistema,
 pagamento,
 previsao_entrega,
@@ -24,15 +20,11 @@ produto,
 cliente,
 usuario,
 perfil RESTART IDENTITY CASCADE;
--- ============================================================
--- PERFIS
--- ============================================================
+-- Perfis
 INSERT INTO perfil (nome, descricao)
 VALUES ('ADMIN', 'Administrador do sistema'),
     ('OPERADOR', 'Operador padrão');
--- ============================================================
--- USUÁRIOS - 60 REGISTROS
--- ============================================================
+-- Usuários
 INSERT INTO usuario (
         nome,
         email,
@@ -55,9 +47,7 @@ SELECT CASE
     END,
     'APROVADO'
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- CLIENTES - 60 REGISTROS
--- ============================================================
+-- Clientes
 INSERT INTO cliente (
         tipo,
         nome_razao,
@@ -80,9 +70,7 @@ SELECT CASE
     'cliente' || gs || '@teste.com',
     '1199' || LPAD((1000000 + gs)::TEXT, 7, '0')
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- ENDEREÇOS - 60 REGISTROS
--- ============================================================
+-- Endereços
 INSERT INTO endereco (
         id_cliente,
         logradouro,
@@ -127,9 +115,7 @@ SELECT gs,
     -23.5505 + (gs * 0.005),
     -46.6333 + (gs * 0.005)
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- PRODUTOS - 60 REGISTROS
--- ============================================================
+-- Produtos
 INSERT INTO produto (
         nome,
         descricao,
@@ -154,9 +140,7 @@ SELECT CASE
     ROUND((0.1 + (gs * 0.15))::NUMERIC, 2),
     ROUND((0.001 + (gs * 0.0005))::NUMERIC, 4)
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- ESTOQUE - 60 REGISTROS
--- ============================================================
+-- Estoque
 INSERT INTO estoque (
         id_produto,
         quantidade_atual,
@@ -173,9 +157,7 @@ SELECT gs,
         ELSE 'D' || ((gs % 10) + 1)
     END
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- MOVIMENTAÇÕES DE ESTOQUE - 60 REGISTROS
--- ============================================================
+-- Movimentações de estoque
 INSERT INTO movimentacao_estoque (
         id_produto,
         tipo,
@@ -193,9 +175,7 @@ SELECT gs,
         ELSE 6 + (gs % 55)
     END
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- PEDIDOS - 60 REGISTROS
--- ============================================================
+-- Pedidos
 INSERT INTO pedido (
         id_cliente,
         status,
@@ -219,10 +199,7 @@ SELECT gs,
     ),
     1 + (gs % 60)
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- ITENS DOS PEDIDOS - 60 REGISTROS
--- Cada pedido recebe exatamente 1 produto
--- ============================================================
+-- Itens dos pedidos
 INSERT INTO item_pedido (
         id_pedido,
         id_produto,
@@ -239,9 +216,7 @@ SELECT gs,
         2
     )
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- ENTREGAS - 60 REGISTROS
--- ============================================================
+-- Entregas
 INSERT INTO entrega (
         id_pedido,
         status,
@@ -262,9 +237,7 @@ SELECT gs,
         2
     )
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- PREVISÕES DE ENTREGA - 60 REGISTROS
--- ============================================================
+-- Previsões de entrega
 INSERT INTO previsao_entrega (
         id_entrega,
         data_calculo,
@@ -362,9 +335,7 @@ SELECT gs,
     8 + (gs % 10),
     1 + (gs % 10)
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- PAGAMENTOS - 60 REGISTROS
--- ============================================================
+-- Pagamentos
 INSERT INTO pagamento (
         id_pedido,
         tipo_pagamento,
@@ -395,9 +366,7 @@ SELECT gs,
         ELSE NOW() - ((gs || ' days')::INTERVAL)
     END
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- LOGS DO SISTEMA - 60 REGISTROS
--- ============================================================
+-- Logs do sistema
 INSERT INTO log_sistema (
         id_usuario,
         acao,
@@ -423,9 +392,7 @@ SELECT 1 + (gs % 60),
     END,
     '127.0.0.' || ((gs % 254) + 1)
 FROM generate_series(1, 60) AS gs;
--- ============================================================
--- CONFERÊNCIA DOS DADOS
--- ============================================================
+-- Conferência dos dados
 SELECT 'perfil' AS tabela,
     COUNT(*) AS registros
 FROM perfil

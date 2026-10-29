@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp;
 
 import java.time.Duration;
@@ -15,8 +18,7 @@ class TestcontainersConfiguration {
     @ServiceConnection
     PostgreSQLContainer postgresContainer() {
         return new PostgreSQLContainer(DockerImageName.parse("postgres:16-alpine"))
-                // Test-only role expected by Flyway V9's default auditAppRole=aguser.
-                // This is an isolated container; no production roles or migrations are changed.
+                // A V9 espera auditAppRole=aguser; o papel existe só neste container isolado.
                 .withInitScript("db/test/create-audit-role.sql")
                 .withStartupTimeout(Duration.ofMinutes(2));
     }

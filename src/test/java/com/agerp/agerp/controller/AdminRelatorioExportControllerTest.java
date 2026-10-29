@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.controller;
 
 import com.agerp.agerp.service.ExportacaoAuditoriaService;
@@ -21,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** Simulates errors at either side of the XLSX response boundary without opening sockets. */
+/** Simula falhas antes e depois de comprometer a resposta XLSX, sem abrir sockets. */
 class AdminRelatorioExportControllerTest {
     private RelatorioAdminService relatorios;
     private ExportacaoAuditoriaService auditoria;

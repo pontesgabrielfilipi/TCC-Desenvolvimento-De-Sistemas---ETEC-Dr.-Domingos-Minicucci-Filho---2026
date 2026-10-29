@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.service;
 
 import com.agerp.agerp.entity.LogSistema;
@@ -13,7 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/** Independente das transações read-only das consultas e seguro para callbacks ASYNC. */
+/** Isola a auditoria das consultas read-only e permite o uso seguro nos callbacks assíncronos. */
 @Service
 public class ExportacaoAuditoriaService {
     private final LogSistemaRepository repository;
@@ -32,7 +35,7 @@ public class ExportacaoAuditoriaService {
         }
     }
 
-    /** Nunca incluir dados pessoais livres, query strings, cabeçalhos de autorização ou token. */
+    /** Não aceita dados pessoais livres, query strings, cabeçalhos de autorização nem tokens. */
     public static Map<String, Object> filtrosSeguros(RelatorioAdminService.Filtros f) {
         Map<String, Object> filtrados = new LinkedHashMap<>();
         if (f.inicio() != null) filtrados.put("inicio", f.inicio().toString());
@@ -83,7 +86,7 @@ public class ExportacaoAuditoriaService {
         repository.saveAndFlush(evento);
     }
 
-    /** Called only by the owner-locked spool recovery; never implies a completed download. */
+    /** Usado apenas na recuperação do spool bloqueado pelo proprietário; não indica download concluído. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registrarRecuperacao(UUID exportId) {
         var historico = repository.findByEntidadeAndRecursoIdOrderByIdAsc("RELATORIO", exportId.toString());

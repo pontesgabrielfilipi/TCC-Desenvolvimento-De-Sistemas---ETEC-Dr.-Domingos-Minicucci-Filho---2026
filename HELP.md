@@ -1,61 +1,33 @@
-# Getting Started
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
 
-### Reference Documentation
+# Referências de desenvolvimento do backend
 
-For further reference, please consider the following sections:
+Este arquivo substitui as orientações genéricas geradas pelo Spring Initializr. O backend AGERP utiliza **Java 25**, **Spring Boot 4.1.0**, **Maven**, **Spring Security**, **JPA**, **Flyway** e **PostgreSQL 16**; consulte o [`pom.xml`](pom.xml) para a lista exata de dependências.
 
-* [Official Apache Maven documentation](https://maven.apache.org/guides/index.html)
-* [Spring Boot Maven Plugin Reference Guide](https://docs.spring.io/spring-boot/4.0.0/maven-plugin)
-* [Create an OCI image](https://docs.spring.io/spring-boot/4.0.0/maven-plugin/build-image.html)
-* [Spring Boot Testcontainers support](https://docs.spring.io/spring-boot/4.0.0/reference/testing/testcontainers.html#testing.testcontainers)
-* [Testcontainers Kafka Modules Reference Guide](https://java.testcontainers.org/modules/kafka/)
-* [Testcontainers Postgres Module Reference Guide](https://java.testcontainers.org/modules/databases/postgres/)
-* [Spring Boot Actuator](https://docs.spring.io/spring-boot/4.0.0/reference/actuator/index.html)
-* [Spring Configuration Processor](https://docs.spring.io/spring-boot/4.0.0/specification/configuration-metadata/annotation-processor.html)
-* [Spring Data JPA](https://docs.spring.io/spring-boot/4.0.0/reference/data/sql.html#data.sql.jpa-and-spring-data)
-* [Spring Boot DevTools](https://docs.spring.io/spring-boot/4.0.0/reference/using/devtools.html)
-* [Spring for Apache Kafka](https://docs.spring.io/spring-boot/4.0.0/reference/messaging/kafka.html)
-* [OAuth2 Client](https://docs.spring.io/spring-boot/4.0.0/reference/web/spring-security.html#web.security.oauth2.client)
-* [Spring Security](https://docs.spring.io/spring-boot/4.0.0/reference/web/spring-security.html)
-* [Testcontainers](https://java.testcontainers.org/)
-* [Thymeleaf](https://docs.spring.io/spring-boot/4.0.0/reference/web/servlet.html#web.servlet.spring-mvc.template-engines)
-* [Validation](https://docs.spring.io/spring-boot/4.0.0/reference/io/validation.html)
-* [Spring Web](https://docs.spring.io/spring-boot/4.0.0/reference/web/servlet.html)
-* [Spring Reactive Web](https://docs.spring.io/spring-boot/4.0.0/reference/web/reactive.html)
+## Como começar
 
-### Guides
+As configurações de conexão e segurança variam conforme o ambiente. Consulte o [README principal](README.md), [Backend](docs/backend.md) e [Configuração por ambiente](docs/configuracao-ambientes.md). O banco utilizado pelo Compose é a imagem `postgres:16`, definida em [`docker-compose.yml`](docker-compose.yml).
 
-The following guides illustrate how to use some features concretely:
+Após configurar as variáveis e os serviços necessários, o backend pode ser iniciado com:
 
-* [Building a RESTful Web Service with Spring Boot Actuator](https://spring.io/guides/gs/actuator-service/)
-* [Accessing Data with JPA](https://spring.io/guides/gs/accessing-data-jpa/)
-* [Securing a Web Application](https://spring.io/guides/gs/securing-web/)
-* [Spring Boot and OAuth2](https://spring.io/guides/tutorials/spring-boot-oauth2/)
-* [Authenticating a User with LDAP](https://spring.io/guides/gs/authenticating-ldap/)
-* [Handling Form Submission](https://spring.io/guides/gs/handling-form-submission/)
-* [Validation](https://spring.io/guides/gs/validating-form-input/)
-* [Building a RESTful Web Service](https://spring.io/guides/gs/rest-service/)
-* [Serving Web Content with Spring MVC](https://spring.io/guides/gs/serving-web-content/)
-* [Building REST services with Spring](https://spring.io/guides/tutorials/rest/)
-* [Building a Reactive RESTful Web Service](https://spring.io/guides/gs/reactive-rest-service/)
+```powershell
+mvn spring-boot:run
+```
 
-### Testcontainers support
+Os testes Java são executados pelo Maven, e parte da suíte de integração utiliza Testcontainers com Docker. Esses testes podem exigir variáveis ou serviços configurados; não execute migrations de produção manualmente como substituto dos testes.
 
-This project
-uses [Testcontainers at development time](https://docs.spring.io/spring-boot/4.0.0/reference/features/dev-services.html#features.dev-services.testcontainers).
+## Documentação de referência
 
-Testcontainers has been configured to use the following Docker images:
+- [Apache Maven](https://maven.apache.org/guides/index.html)
+- [Spring Boot](https://docs.spring.io/spring-boot/reference/)
+- [Spring Security](https://docs.spring.io/spring-security/reference/)
+- [Spring Data JPA](https://docs.spring.io/spring-data/jpa/reference/)
+- [Testcontainers para PostgreSQL](https://java.testcontainers.org/modules/databases/postgres/)
+- [Flyway](https://documentation.red-gate.com/fd)
 
-* [`apache/kafka-native:latest`](https://hub.docker.com/r/apache/kafka-native)
-* [`postgres:latest`](https://hub.docker.com/_/postgres)
+## Metadados do Maven
 
-Please review the tags of the used images and set them to the same as you're running in production.
-
-### Maven Parent overrides
-
-Due to Maven's design, elements are inherited from the parent POM to the project POM.
-While most of the inheritance is fine, it also inherits unwanted elements like `<license>` and `<developers>` from the
-parent.
-To prevent this, the project POM contains empty overrides for these elements.
-If you manually switch to a different parent and actually want the inheritance, you need to remove those overrides.
-
+O `pom.xml` contém seções vazias `licenses` e `developers` para não herdar automaticamente metadados do projeto-pai. O licenciamento do código próprio do AGERP é descrito no [LICENSE](LICENSE); componentes de terceiros preservam suas próprias licenças.

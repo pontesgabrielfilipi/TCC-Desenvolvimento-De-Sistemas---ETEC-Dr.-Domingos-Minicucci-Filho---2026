@@ -1,4 +1,9 @@
-# Configuracao por ambiente — AGERP
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
+
+# Configuração por ambiente — AGERP
 
 O arquivo `.env` na raiz controla **a interpolacao do Docker Compose**; o Compose repassa explicitamente apenas as variaveis de cada container em `environment`. Spring, Python e Nginx **nao** importam automaticamente o `.env` da raiz. Nunca execute `docker compose config` sem `--quiet` em logs compartilhados: a expansao mostra senhas.
 

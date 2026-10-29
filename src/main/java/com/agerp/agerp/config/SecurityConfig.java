@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.config;
 
 import com.agerp.agerp.security.CustomUserDetailsService;
@@ -51,8 +54,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        // Em HTTP local, o CSRF segue a politica configurada; em HTTPS
-        // validado pelo proxy confiavel, ambos os cookies usam Secure.
+        // Em HTTP local, o CSRF segue a política configurada; em HTTPS validado pelo proxy,
+        // ambos os cookies usam Secure.
         var httpCsrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
         httpCsrf.setCookieCustomizer(cookie -> cookie.sameSite(jwtProperties.getCookieSameSite())
                 .secure(jwtProperties.isCookieSecure()));
@@ -88,10 +91,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        // Internal ASYNC/ERROR redispatches cannot originate from external clients.
-                        // ADMIN authorization still applies to the original HTTP REQUEST.
+                        // Redispatches ASYNC/ERROR são internos; a autorização ADMIN já foi aplicada à requisição original.
                         .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
-                        // Endpoints totalmente públicos
                         .requestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/logout",
@@ -104,7 +105,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
 
-                        // Apenas ADMIN pode acessar qualquer coisa em /api/admin
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/usuarios/**", "/api/usuarios").hasRole("ADMIN")
 
@@ -114,7 +114,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/produtos", "/api/produtos/**").hasAuthority("PAGE_PRODUTOS")
                         .requestMatchers("/api/pedidos", "/api/pedidos/**").hasAuthority("PAGE_PEDIDOS")
 
-                        // Todo o resto da API exige autenticação
                         .requestMatchers("/api/**").authenticated()
 
                         .anyRequest().authenticated()

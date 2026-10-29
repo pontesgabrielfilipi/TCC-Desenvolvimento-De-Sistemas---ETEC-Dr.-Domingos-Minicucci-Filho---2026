@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { defineConfig, devices } from '@playwright/test';
 
 const origin = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5189';

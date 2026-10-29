@@ -1,4 +1,8 @@
 <!DOCTYPE html>
+<!--
+Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+-->
 <html lang="pt-br" xmlns:th="http://www.thymeleaf.org" class="h-full bg-gray-950">
 <head>
     <meta charset="UTF-8" />
@@ -24,7 +28,6 @@
 </head>
 <body class="min-h-screen flex flex-col antialiased bg-gradient-to-br from-gray-950 via-slate-950 to-zinc-950 text-gray-200">
 
-<!-- Navbar -->
 <header class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
     <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
@@ -44,7 +47,6 @@
 
         <div class="bg-zinc-900 shadow-2xl shadow-black/50 rounded-3xl p-10 border border-zinc-700">
 
-            <!-- Header -->
             <div class="text-center mb-10">
                 <div class="mx-auto w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-4 border border-indigo-500/20">
                     <span class="text-3xl">🔐</span>
@@ -53,7 +55,6 @@
                 <p class="mt-3 text-gray-400 text-lg">Faça login para acessar o AGERP</p>
             </div>
 
-            <!-- Mensagens -->
             <div th:if="${param.error}"
                  class="mb-8 p-4 bg-red-950/50 border border-red-900 text-red-400 rounded-2xl text-center text-sm font-medium">
                 ⚠️ Credenciais inválidas. Verifique seu email e senha.
@@ -64,11 +65,9 @@
                 ✅ Você saiu com sucesso. Até logo!
             </div>
 
-            <!-- Formulário -->
             <form th:action="@{/login}" method="post" id="loginForm" class="space-y-7">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
-                <!-- Email -->
                 <div>
                     <label for="email" class="block text-sm font-semibold text-gray-400 mb-1.5">E-mail</label>
                     <input
@@ -83,7 +82,6 @@
                     >
                 </div>
 
-                <!-- Senha -->
                 <div>
                     <label for="password" class="block text-sm font-semibold text-gray-400 mb-1.5">Senha</label>
                     <div class="relative">
@@ -103,7 +101,6 @@
                     </div>
                 </div>
 
-                <!-- Opções -->
                 <div class="flex items-center justify-between text-sm">
                     <div class="flex items-center">
                         <input id="remember" name="remember" type="checkbox"
@@ -116,7 +113,6 @@
                     </a>
                 </div>
 
-                <!-- Botão -->
                 <button
                         type="submit"
                         id="submitBtn"
@@ -126,7 +122,6 @@
                 </button>
             </form>
 
-            <!-- Separador -->
             <div class="relative my-8">
                 <div class="absolute inset-0 flex items-center">
                     <div class="w-full border-t border-zinc-700"></div>
@@ -136,7 +131,6 @@
                 </div>
             </div>
 
-            <!-- Link cadastro -->
             <p class="text-center text-gray-400">
                 Não tem uma conta?
                 <a href="/começar-agora"
@@ -146,14 +140,12 @@
             </p>
         </div>
 
-        <!-- Social Proof -->
         <p class="mt-10 text-center text-sm text-gray-500">
             +180 negócios já confiam no AGERP
         </p>
     </div>
 </main>
 
-<!-- Footer -->
 <footer class="bg-zinc-950 border-t border-zinc-800 mt-auto">
     <div class="mx-auto max-w-7xl px-6 py-6 text-center text-gray-500 text-sm">
         © 2026 AGERP • Todos os direitos reservados •
@@ -162,7 +154,6 @@
     </div>
 </footer>
 
-<!-- JavaScript -->
 <script>
     const toggleBtn = document.getElementById('togglePassword');
     const passwordInput = document.getElementById('password');
@@ -171,14 +162,12 @@
     const btnText = document.getElementById('btnText');
     const btnSpinner = document.getElementById('btnSpinner');
 
-    // Toggle senha
     toggleBtn.addEventListener('click', () => {
         const isPassword = passwordInput.type === 'password';
         passwordInput.type = isPassword ? 'text' : 'password';
         toggleBtn.textContent = isPassword ? '🙈' : '👁';
     });
 
-    // Loading no submit
     form.addEventListener('submit', () => {
         btnText.classList.add('hidden');
         btnSpinner.classList.remove('hidden');

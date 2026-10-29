@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.controller;
 
 import com.agerp.agerp.dto.DashboardRelatorioCompletoDTO;
@@ -26,7 +29,6 @@ public class DashboardController {
         this.estoqueBaixoService = estoqueBaixoService;
     }
 
-    // Endpoint principal - recomendado para o frontend
     @GetMapping("/relatorio-completo")
     public ResponseEntity<DashboardRelatorioCompletoDTO> relatorioCompleto(
             @RequestParam(defaultValue = "false") boolean refresh) {
@@ -36,13 +38,12 @@ public class DashboardController {
         return ResponseEntity.ok(dashboardService.gerarRelatorioCompleto());
     }
 
-    // Mantém compatibilidade com o que você já tinha
     @GetMapping("/estatisticas")
     public ResponseEntity<?> estatisticasBasicas() {
         return ResponseEntity.ok(dashboardService.getEstatisticasBasicas());
     }
 
-    /** Lista completa, sem limite do grafico, para exportacao XLSX. */
+    /** Retorna a lista completa, sem o limite visual do gráfico, para exportação XLSX. */
     @GetMapping("/estoque-baixo")
     public ResponseEntity<List<EstoqueBaixoService.ProdutoBaixo>> estoqueBaixo() {
         return ResponseEntity.ok(estoqueBaixoService.listar());

@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp;
 
 import com.agerp.agerp.dto.ClienteCreateRequest;
@@ -35,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** Every database write in this class goes to the isolated PostgreSQL 16 Testcontainers instance. */
+/** Todas as escritas desta classe ocorrem na instância PostgreSQL isolada do Testcontainers. */
 @SpringBootTest(properties = "agerp.seed.enabled=true")
 @Import(TestcontainersConfiguration.class)
 class AuditTransactionConcurrencyIntegrationTest {
@@ -117,7 +120,7 @@ class AuditTransactionConcurrencyIntegrationTest {
         ReflectionTestUtils.setField(withFailingAudit, "auditoria", new AuditoriaNegocioService(brokenWriter));
         auth();
         try {
-            // A real transaction surrounds the service; only the audit writer is fault-injected.
+            // A transação de negócio é real; a falha é injetada apenas no gravador de auditoria.
             assertThrows(IllegalStateException.class, () -> new TransactionTemplate(txManager).executeWithoutResult(
                     status -> withFailingAudit.criar(request(suffix))));
             verify(brokenWriter, times(1)).registrarEvento(any(), eq("CRIACAO_CLIENTE"), eq("CLIENTE"),
@@ -136,9 +139,8 @@ class AuditTransactionConcurrencyIntegrationTest {
                 "SELECT count(*) FROM agerp.log_sistema WHERE acao='CRIACAO_CLIENTE'", Integer.class);
         auth();
         try {
-            // A transactional NOT VALID CHECK applies to new writes even when legacy rows
-            // already contain CRIACAO_CLIENTE. On failure the DDL itself rolls back.
-            // TestcontainersConfiguration provides a disposable PostgreSQL 16 database.
+            // A CHECK NOT VALID vale para novas escritas mesmo com linhas legadas incompatíveis.
+            // Se falhar, o próprio DDL é revertido no PostgreSQL descartável do Testcontainers.
             RuntimeException failure = assertThrows(RuntimeException.class, () -> new TransactionTemplate(txManager).executeWithoutResult(status -> {
                 jdbc.execute("ALTER TABLE agerp.log_sistema ADD CONSTRAINT v01_test_reject_client_audit "
                         + "CHECK (acao <> 'CRIACAO_CLIENTE') NOT VALID");

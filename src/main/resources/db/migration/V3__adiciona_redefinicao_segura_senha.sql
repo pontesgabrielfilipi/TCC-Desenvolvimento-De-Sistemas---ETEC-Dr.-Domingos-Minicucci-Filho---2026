@@ -1,5 +1,8 @@
--- Suporta redefinicao administrativa sem armazenar a credencial temporaria em texto puro.
--- Usuarios existentes mantem a senha, a aprovacao e o estado de ativacao atuais.
+-- Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+-- Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
+-- Permite redefinição administrativa sem armazenar a credencial temporária em texto puro.
+-- Usuários existentes mantêm senha, aprovação e estado de ativação.
 ALTER TABLE agerp.usuario
     ADD COLUMN IF NOT EXISTS credential_version BIGINT NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS troca_senha_obrigatoria BOOLEAN NOT NULL DEFAULT FALSE,
@@ -29,7 +32,7 @@ ALTER TABLE agerp.usuario
             )
         );
 
--- Facilita a busca de credenciais temporarias ainda nao consumidas para expiracao/limpeza.
+-- Acelera a busca de credenciais temporárias ainda não consumidas para expiração e limpeza.
 CREATE INDEX IF NOT EXISTS idx_usuario_credencial_temporaria_ativa
     ON agerp.usuario (credencial_temporaria_expira_em)
     WHERE credencial_temporaria_hash IS NOT NULL

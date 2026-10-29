@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import "./HomeCSS.css";
@@ -8,7 +11,6 @@ const Home = () => {
     return (
         <div className="flex min-h-screen min-h-[100dvh] bg-gray-50 lg:h-screen lg:overflow-hidden">
 
-            {/* SIDEBAR DE BRANDING - Desktop only */}
             <div className="relative hidden h-full w-96 flex-col bg-slate-900 text-white lg:flex">
                 <div className="p-8 border-b border-slate-800">
                     <Link to="/" className="brand text-3xl font-bold tracking-tight text-white no-underline">
@@ -28,7 +30,6 @@ const Home = () => {
                             Controle financeiro, vendas, estoque e clientes em um só lugar. Simples, rápido e feito para quem realmente usa no dia a dia.
                         </p>
 
-                        {/* Trust signals */}
                         <div className="mt-12 grid grid-cols-2 gap-5">
                             <div className="bg-slate-800/50 rounded-3xl p-4">
                                 <div className="text-3xl font-semibold">+180</div>
@@ -49,10 +50,8 @@ const Home = () => {
                 <div className="absolute bottom-12 right-8 text-[140px] opacity-5 pointer-events-none">🚀</div>
             </div>
 
-            {/* CONTEÚDO PRINCIPAL */}
             <div className="flex min-w-0 flex-1 flex-col">
 
-                {/* HEADER - SOMENTE MOBILE */}
                 <header className="flex flex-col items-stretch justify-between gap-3 bg-slate-900 px-3 py-4 min-[360px]:flex-row min-[360px]:items-center sm:px-6 lg:hidden">
                     <div className="flex items-center gap-4">
                         <Link
@@ -79,7 +78,6 @@ const Home = () => {
                     </div>
                 </header>
 
-                {/* HERO SECTION */}
                 <div className="flex flex-1 flex-row-reverse items-center justify-center overflow-auto p-3 sm:p-6 md:p-10 bgph">
                     <div className={"position-absolute top-9 right-9 hidden lg:block transition-all duration-300 ease-in-out hover:scale-110 hover:shadow-lg"}>
                         <Link to={"/login"} className={"transition-all ease-in-out duration-300 px-3 py-2.5 text-black rounded-3xl bg-white hover:bg-gray-50 border-2 border-gray-300 hover:border-gray-400 no-underline"}>Entre Já!</Link>
@@ -114,7 +112,6 @@ const Home = () => {
                             </button>
                         </div>
 
-                        {/* Social Proof */}
                         <div className="mt-10 flex flex-wrap items-center justify-center gap-2 text-center text-sm text-gray-500 sm:mt-14">
                             Já utilizado por{' '}
                             <strong className="text-gray-700 font-semibold">+180</strong>{' '}

@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.entity;
 
 import jakarta.persistence.*;
@@ -50,7 +53,6 @@ public class PrevisaoEntrega {
     @Column(name = "freight_value", precision = 10, scale = 2)
     private BigDecimal freightValue;
 
-    // Campos de endereço do cliente e vendedor
     @Size(max = 150)
     @Column(name = "customer_city", length = 150)
     private String customerCity;

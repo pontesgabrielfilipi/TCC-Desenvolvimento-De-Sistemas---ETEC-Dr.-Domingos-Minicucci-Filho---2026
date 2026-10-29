@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.security.jwt;
 
 import jakarta.validation.constraints.NotBlank;
@@ -35,7 +38,7 @@ public class JwtProperties {
     @Pattern(regexp = "Strict|Lax|None")
     private String cookieSameSite = "Strict";
 
-    // Empty means host-only cookies; not shared across unrelated hosts.
+    // Vazio mantém o cookie restrito ao host e impede o compartilhamento entre domínios.
     private String cookieDomain = "";
 
     @Min(1) @Max(365)

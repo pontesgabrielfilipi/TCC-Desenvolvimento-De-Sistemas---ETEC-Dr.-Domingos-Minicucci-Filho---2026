@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.entity;
 
 import jakarta.persistence.*;
@@ -80,12 +83,10 @@ public class Usuario {
     @OneToMany(mappedBy = "idUsuario")
     private Set<Pedido> pedidos = new LinkedHashSet<>();
 
-    // ==================== MÉTODO CORRIGIDO ====================
     public boolean isAtivo() {
         return Boolean.TRUE.equals(this.ativo);
     }
 
-    // Alias para facilitar o Spring Security
     public String getSenha() {
         return this.senhaHash;
     }

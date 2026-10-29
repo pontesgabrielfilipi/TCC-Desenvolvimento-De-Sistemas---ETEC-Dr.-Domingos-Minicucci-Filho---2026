@@ -1,3 +1,6 @@
+// Copyright 2026 Gabriel Filipi Pontes & André Correia Gomes da Silva.
+// Licença proprietária. Consulte o arquivo LICENSE na raiz do projeto.
+
 package com.agerp.agerp.security;
 
 import java.nio.charset.StandardCharsets;
@@ -9,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/** Limits failed attempts by combined network source and attempted account, never locking accounts. */
+/** Limita falhas pela combinação de origem de rede e conta, sem bloquear a conta em si. */
 @Component
 public class LoginAttemptLimiter {
     private record Failure(int count, long firstAt) {}
